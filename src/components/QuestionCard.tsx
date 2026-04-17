@@ -5,6 +5,9 @@ import type { FeedQuestion } from "../lib/api";
 type Props = {
   question: FeedQuestion;
   onOpenChart: (question: FeedQuestion) => void;
+  onAnalyze: (question: FeedQuestion, answer: "yes" | "no") => void;
+  placing?: string;
+  loggedIn?: boolean;
 };
 
 function formatNumber(value: number) {
@@ -15,50 +18,85 @@ function formatPct(value: number) {
   return `${Number(value || 0).toFixed(2)}%`;
 }
 
-export default function QuestionCard({ question, onOpenChart }: Props) {
+export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
+  const isOpen = question.status === "open";
+  const isPlacingYes = placing === `${question._id}:yes`;
+  const isPlacingNo = placing === `${question._id}:no`;
+  const isAnyPlacing = isPlacingYes || isPlacingNo;
+
+  function getButtonLabel(side: "yes" | "no") {
+    if (!isOpen) return "Market Closed";
+    if (!loggedIn) return "Login to Analyze";
+    if (side === "yes" && isPlacingYes) return "Submitting…";
+    if (side === "no" && isPlacingNo) return "Submitting…";
+    return side === "yes" ? "Analyze YES" : "Analyze NO";
+  }
+
   return (
     <article
-      className="cursor-pointer rounded-2xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4 sm:p-6"
+      className="cursor-pointer rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-600 sm:p-4"
       onClick={() => onOpenChart(question)}
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <p className="mb-2 inline-flex rounded-full bg-[var(--brand)]/15 px-3 py-1 text-xs font-medium text-[var(--brand)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="mb-1.5 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">
             {question.category}
           </p>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">{question.title}</h2>
+          <h2 className="text-sm font-semibold text-white sm:text-base">{question.title}</h2>
         </div>
-        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
-          {question.status === "open" ? "Open" : "Closed"}
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+            isOpen ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-500/20 text-slate-400"
+          }`}
+        >
+          {isOpen ? "Open" : "Closed"}
         </span>
       </div>
 
-      <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-        <div className="mb-3 flex flex-col gap-1 text-sm text-slate-300 sm:flex-row sm:justify-between">
-          <span>Entry Cost: {question.entry_cost}</span>
-          <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))}</span>
+      {/* Pool bar */}
+      <div className="mb-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+        <div className="mb-2 flex flex-col gap-1 text-xs text-slate-300 sm:flex-row sm:justify-between">
+          <span>Entry: {formatNumber(Number(question.entry_cost || 0))} pts</span>
+          <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
         </div>
 
         <div className="h-2 overflow-hidden rounded-full bg-slate-700">
-          <div className="h-full bg-[var(--brand)]" style={{ width: `${question.yes_percent}%` }} />
+          <div className="h-full bg-[var(--brand)] transition-all" style={{ width: `${question.yes_percent}%` }} />
         </div>
 
-        <div className="mt-2 flex justify-between text-sm">
+        <div className="mt-2 flex justify-between text-xs font-medium">
           <span className="text-[var(--brand)]">YES {formatPct(question.yes_percent)}</span>
           <span className="text-[var(--accent)]">NO {formatPct(question.no_percent)}</span>
         </div>
       </div>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row">
-        <button className="flex-1 rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-slate-950 hover:brightness-110">
-          Analyze YES
+      {/* Action buttons */}
+      <div className="mb-2.5 flex flex-col gap-2 sm:flex-row" onClick={(e) => e.stopPropagation()}>
+        <button
+          className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+            !isOpen || !loggedIn
+              ? "border border-[var(--stroke)] bg-transparent text-slate-400"
+              : "bg-[var(--brand)] text-slate-950 hover:brightness-110"
+          }`}
+          onClick={() => onAnalyze(question, "yes")}
+          disabled={!isOpen || isAnyPlacing}
+        >
+          {getButtonLabel("yes")}
         </button>
-        <button className="flex-1 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-slate-950 hover:brightness-110">
-          Analyze NO
+        <button
+          className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+            !isOpen || !loggedIn
+              ? "border border-[var(--stroke)] bg-transparent text-slate-400"
+              : "bg-[var(--accent)] text-slate-950 hover:brightness-110"
+          }`}
+          onClick={() => onAnalyze(question, "no")}
+          disabled={!isOpen || isAnyPlacing}
+        >
+          {getButtonLabel("no")}
         </button>
       </div>
 
-      <p className="text-xs text-slate-400">{question.closes_label || "Closes soon"}</p>
+      <p className="text-[11px] text-slate-400">{question.closes_label || "Closes soon"}</p>
     </article>
   );
 }

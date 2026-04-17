@@ -1,4 +1,4 @@
-import type { FeedQuestion, HistoryPoint, LeaderboardRow, ProfilePayload } from "./api";
+import type { FeedQuestion, HistoryPoint, LeaderboardRow, ProfilePayload, UserPredictionsPayload } from "./api";
 
 export const DEMO_USER_ID = "1775927339196x936402878588595800";
 
@@ -73,6 +73,13 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     points_earned_total: 4280,
     leaderboard_score: 4280,
     rank: 1,
+    period_label: "weekly",
+    period_points_spent: 1700,
+    period_points_earned: 3120,
+    period_points_lost: 260,
+    period_net_points: 1420,
+    period_correct_predictions: 5,
+    period_incorrect_predictions: 1,
   },
   {
     _id: "u-2",
@@ -81,6 +88,13 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     points_earned_total: 3910,
     leaderboard_score: 3910,
     rank: 2,
+    period_label: "weekly",
+    period_points_spent: 1500,
+    period_points_earned: 2690,
+    period_points_lost: 310,
+    period_net_points: 1190,
+    period_correct_predictions: 4,
+    period_incorrect_predictions: 2,
   },
   {
     _id: "u-3",
@@ -89,6 +103,13 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     points_earned_total: 3420,
     leaderboard_score: 3420,
     rank: 3,
+    period_label: "weekly",
+    period_points_spent: 1460,
+    period_points_earned: 2400,
+    period_points_lost: 520,
+    period_net_points: 940,
+    period_correct_predictions: 3,
+    period_incorrect_predictions: 2,
   },
   {
     _id: DEMO_USER_ID,
@@ -97,6 +118,13 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     points_earned_total: 1250,
     leaderboard_score: 1250,
     rank: 7,
+    period_label: "weekly",
+    period_points_spent: 900,
+    period_points_earned: 1430,
+    period_points_lost: 220,
+    period_net_points: 530,
+    period_correct_predictions: 2,
+    period_incorrect_predictions: 1,
   },
 ];
 
@@ -109,6 +137,16 @@ export const MOCK_PROFILE: ProfilePayload = {
   leaderboard_score: 1250,
   analyses_count: 27,
   open_analyses_count: 11,
+  closed_analyses_count: 16,
+  correct_predictions: 9,
+  incorrect_predictions: 7,
+  yes_predictions_count: 18,
+  no_predictions_count: 9,
+  answered_questions_count: 21,
+  total_points_spent: 8420,
+  gross_points_earned: 9670,
+  total_points_lost: 3550,
+  net_points: 1250,
 };
 
 export const MOCK_HISTORY: Record<string, HistoryPoint[]> = {
@@ -136,5 +174,17 @@ export const MOCK_HISTORY: Record<string, HistoryPoint[]> = {
     { timestamp: "2026-04-11T10:00:00Z", yes_percent: 49.8, no_percent: 50.2, yes_pool: 700, no_pool: 705, event_type: "initial" },
     { timestamp: "2026-04-14T10:00:00Z", yes_percent: 46.1, no_percent: 53.9, yes_pool: 860, no_pool: 1010, event_type: "trade" },
     { timestamp: "2026-04-16T10:00:00Z", yes_percent: 44.7, no_percent: 55.3, yes_pool: 980, no_pool: 1210, event_type: "trade" },
+  ],
+};
+
+export const MOCK_USER_PREDICTIONS: UserPredictionsPayload = {
+  success: true,
+  total: 3,
+  open: [
+    { _id: "pred-1", question_id: "q-1", question_title: "Will QQQ close below 600 by 30 April?", question_status: "open", answer: "yes", points_used: 500, points_earned: 0, is_resolved: false, is_correct: false, created_at: "2026-04-16T12:00:00Z" },
+    { _id: "pred-3", question_id: "q-3", question_title: "Will BTC reach $100k before year-end?", question_status: "open", answer: "no", points_used: 300, points_earned: 0, is_resolved: false, is_correct: false, created_at: "2026-04-15T09:30:00Z" },
+  ],
+  closed: [
+    { _id: "pred-2", question_id: "q-2", question_title: "Will gold close above $5000/oz by 30 April?", question_status: "closed", answer: "yes", points_used: 400, points_earned: 620, is_resolved: true, is_correct: true, created_at: "2026-04-12T10:15:00Z" },
   ],
 };

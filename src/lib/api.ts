@@ -1,7 +1,7 @@
-import { DEMO_USER_ID, MOCK_HISTORY, MOCK_LEADERBOARD, MOCK_PROFILE, MOCK_QUESTIONS } from "./mockData";
+import { DEMO_USER_ID, MOCK_HISTORY, MOCK_LEADERBOARD, MOCK_PROFILE, MOCK_QUESTIONS, MOCK_USER_PREDICTIONS } from "./mockData";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export type FeedQuestion = {
   _id: string;
@@ -12,7 +12,7 @@ export type FeedQuestion = {
   yes_pool: number;
   no_pool: number;
   entry_cost: number;
-  status: "open" | "closed";
+  status: "open" | "closed" | "resolved";
   closing_time?: string;
   closes_label?: string;
 };
@@ -24,6 +24,13 @@ export type LeaderboardRow = {
   points_earned_total: number;
   leaderboard_score: number;
   rank: number;
+  period_label?: "weekly" | "monthly" | "quarterly" | "all";
+  period_points_spent?: number;
+  period_points_earned?: number;
+  period_points_lost?: number;
+  period_net_points?: number;
+  period_correct_predictions?: number;
+  period_incorrect_predictions?: number;
 };
 
 export type ProfilePayload = {
@@ -35,6 +42,16 @@ export type ProfilePayload = {
   leaderboard_score: number;
   analyses_count: number;
   open_analyses_count: number;
+  closed_analyses_count: number;
+  correct_predictions: number;
+  incorrect_predictions: number;
+  yes_predictions_count: number;
+  no_predictions_count: number;
+  answered_questions_count: number;
+  total_points_spent: number;
+  gross_points_earned: number;
+  total_points_lost: number;
+  net_points: number;
 };
 
 export type HistoryPoint = {
@@ -44,6 +61,50 @@ export type HistoryPoint = {
   yes_pool: number;
   no_pool: number;
   event_type: string;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  role: "user" | "admin";
+};
+
+export type AuthResponse = {
+  success: boolean;
+  token: string;
+  user: AuthUser;
+};
+
+export type UserPrediction = {
+  _id: string;
+  question_id: string;
+  question_title?: string;
+  question_status?: string;
+  answer: "yes" | "no";
+  points_used: number;
+  points_earned: number;
+  is_resolved: boolean;
+  is_correct: boolean;
+  created_at?: string;
+};
+
+export type UserPredictionsPayload = {
+  success: boolean;
+  total: number;
+  open: UserPrediction[];
+  closed: UserPrediction[];
+};
+
+export type PlacePredictionResult = {
+  success: boolean;
+  message: string;
+  yes_pool: number;
+  no_pool: number;
+  yes_percent: number;
+  no_percent: number;
+  new_balance: number;
+  points_used?: number;
+  closure_reason?: string;
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -117,13 +178,13 @@ export async function fetchFeedQuestions(category?: string): Promise<FeedQuestio
   }
 }
 
-export async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
+export async function fetchLeaderboard(timeframe: "weekly" | "monthly" | "quarterly" | "all" = "weekly"): Promise<LeaderboardRow[]> {
   if (USE_MOCK_DATA) {
     return MOCK_LEADERBOARD;
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/leaderboard?limit=25`);
+    const res = await fetch(`${API_BASE_URL}/leaderboard?limit=25&timeframe=${timeframe}`);
     const body = await parseJson<{ results: LeaderboardRow[] }>(res);
     return body.results || [];
   } catch {
@@ -144,13 +205,16 @@ export async function fetchProfile(userId: string): Promise<ProfilePayload> {
   }
 }
 
-export async function fetchQuestionHistory(questionId: string): Promise<HistoryPoint[]> {
+export async function fetchQuestionHistory(
+  questionId: string,
+  timeframe: "hourly" | "daily" | "all" = "all",
+): Promise<HistoryPoint[]> {
   if (USE_MOCK_DATA) {
     return MOCK_HISTORY[questionId] || buildFallbackHistory(questionId);
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/question_history/${questionId}`);
+    const res = await fetch(`${API_BASE_URL}/question_history/${questionId}?timeframe=${timeframe}`);
     const body = await parseJson<{ results: HistoryPoint[] }>(res);
     return body.results?.length ? body.results : buildFallbackHistory(questionId);
   } catch {
@@ -163,13 +227,16 @@ export async function placePrediction(
   questionId: string,
   answer: "yes" | "no",
   pointsToSpend: number,
-) {
+): Promise<PlacePredictionResult> {
   if (USE_MOCK_DATA) {
     return {
       success: true,
       message: "Analysis submitted successfully",
-      question_id: questionId,
-      answer,
+      yes_pool: 0,
+      no_pool: 0,
+      yes_percent: 50,
+      no_percent: 50,
+      new_balance: 10000,
       points_used: pointsToSpend,
     };
   }
@@ -185,5 +252,50 @@ export async function placePrediction(
     }),
   });
 
-  return parseJson<Record<string, unknown>>(res);
+  return parseJson<PlacePredictionResult>(res);
+}
+
+export async function fetchUserPredictions(userId: string): Promise<UserPredictionsPayload> {
+  if (USE_MOCK_DATA) {
+    return MOCK_USER_PREDICTIONS;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/user_predictions/${userId}`);
+    return parseJson<UserPredictionsPayload>(res);
+  } catch {
+    return { success: false, total: 0, open: [], closed: [] };
+  }
+}
+
+export async function signup(params: {
+  email: string;
+  password: string;
+  role?: "user" | "admin";
+  signup_code?: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return parseJson<AuthResponse>(res);
+}
+
+export async function login(params: { email: string; password: string }): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return parseJson<AuthResponse>(res);
+}
+
+export async function me(token: string): Promise<{ success: boolean; user: AuthUser }> {
+  const res = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseJson<{ success: boolean; user: AuthUser }>(res);
 }

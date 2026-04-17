@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 type Props = {
   active: "feed" | "leaderboard" | "profile";
@@ -12,9 +13,32 @@ function fmt(value: number) {
 }
 
 export default function AppHeader({ active, pointsBalance = 0 }: Props) {
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
+  const [authRole, setAuthRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("auth_user");
+      if (raw) {
+        const user = JSON.parse(raw) as { email?: string; role?: string };
+        setAuthEmail(user.email || null);
+        setAuthRole(user.role || null);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    setAuthEmail(null);
+    setAuthRole(null);
+  };
+
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[#0a1120]/80 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
           <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
@@ -23,27 +47,73 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
         <nav className="grid w-full grid-cols-3 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center">
           <Link
             href="/feed"
-            className={`rounded-lg px-3 py-2 text-center text-sm ${active === "feed" ? "bg-[#16243c] text-white" : "text-slate-300"}`}
+            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "feed" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
           >
             Feed
           </Link>
           <Link
             href="/leaderboard"
-            className={`rounded-lg px-3 py-2 text-center text-sm ${active === "leaderboard" ? "bg-[#16243c] text-white" : "text-slate-300"}`}
+            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "leaderboard" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
           >
             Leaderboard
           </Link>
           <Link
             href="/profile"
-            className={`rounded-lg px-3 py-2 text-center text-sm ${active === "profile" ? "bg-[#16243c] text-white" : "text-slate-300"}`}
+            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "profile" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
           >
             My Profile
           </Link>
+          {authRole === "admin" && (
+            <Link
+              href="/admin"
+              className="rounded-lg px-3 py-2 text-center text-sm text-[var(--brand)] transition-colors hover:text-white"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
-        <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-3 text-left sm:text-right">
-          <p className="text-[11px] uppercase tracking-wide text-slate-400">Points Balance</p>
-          <p className="text-xl font-semibold text-[var(--brand)]">{fmt(pointsBalance)}</p>
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-left sm:text-right">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Points Balance</p>
+            <p className="text-lg font-semibold text-[var(--brand)]">{fmt(pointsBalance)}</p>
+          </div>
+
+          {authEmail ? (
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand)]/20 text-xs font-semibold text-[var(--brand)]">
+                {authEmail.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden sm:block">
+                <p className="max-w-[120px] truncate text-xs font-medium text-white">{authEmail}</p>
+                {authRole && (
+                  <p className="text-[10px] capitalize text-slate-400">{authRole}</p>
+                )}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="ml-1 text-xs text-slate-400 hover:text-white"
+                title="Logout"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/auth/login"
+                className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              >
+                Login
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>
