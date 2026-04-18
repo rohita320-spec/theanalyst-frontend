@@ -32,6 +32,7 @@ function formatDate(iso: string) {
 
 export default function AdminPage() {
   const [state, setState] = useState<"checking" | "allowed" | "forbidden">("checking");
+  const [adminToken, setAdminToken] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [authUsers, setAuthUsers] = useState<AuthUserRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -66,20 +67,28 @@ export default function AdminPage() {
 
   useEffect(() => {
     const run = async () => {
+      const token = localStorage.getItem("auth_token") || "";
       try {
-        const result = await me();
+        const result = await me(token || undefined);
         if (result.user.role !== "admin") {
           setState("forbidden");
           setError("Your account is not an admin. Login with an admin account.");
           return;
         }
         setAdminEmail(result.user.email || "");
+        setAdminToken(token);
         setState("allowed");
 
         // Fetch admin data + questions in parallel
         const [usersRes, summaryRes, questionsRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/admin/users`, { credentials: "include" }),
-          fetch(`${API_BASE}/admin/summary`, { credentials: "include" }),
+          fetch(`${API_BASE}/admin/users`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          }),
+          fetch(`${API_BASE}/admin/summary`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          }),
           fetch(`${API_BASE}/feed_questions?limit=100&status=all`, { credentials: "include" }),
         ]);
 
@@ -125,7 +134,10 @@ export default function AdminPage() {
       if (answer === "close") {
         const res = await fetch(`${API_BASE}/admin/close_question`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+          },
           credentials: "include",
           body: JSON.stringify({ question_id: questionId }),
         });
@@ -140,7 +152,10 @@ export default function AdminPage() {
       } else {
         const res = await fetch(`${API_BASE}/resolve_question`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+          },
           credentials: "include",
           body: JSON.stringify({ question_id: questionId, correct_answer: answer }),
         });
@@ -177,7 +192,10 @@ export default function AdminPage() {
     try {
       const res = await fetch(`${API_BASE}/admin/create_question`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
         credentials: "include",
         body: JSON.stringify({ question_text: createQuestion.trim(), category: createCategory, entry_cost: cost, closing_time: createClosingTime }),
       });
@@ -211,14 +229,20 @@ export default function AdminPage() {
     try {
       const res = await fetch(`${API_BASE}/admin/promote_user`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
         credentials: "include",
         body: JSON.stringify({ user_id: roleModal.userId, target_role: targetRole }),
       });
       const body = await res.json();
       if (body.success) {
         setRoleMsg({ type: "success", text: `✓ ${roleModal.email} is now ${body.user.role}.` });
-        const usersRes = await fetch(`${API_BASE}/admin/users`, { credentials: "include" });
+        const usersRes = await fetch(`${API_BASE}/admin/users`, {
+          credentials: "include",
+          headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+        });
         if (usersRes.ok) { const ub = await usersRes.json(); setAuthUsers(ub.users || []); }
         setTimeout(() => { setRoleModal(null); setRoleMsg(null); }, 1500);
       } else {
