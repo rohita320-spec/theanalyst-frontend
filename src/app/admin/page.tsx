@@ -53,6 +53,7 @@ export default function AdminPage() {
   const [createQuestion, setCreateQuestion] = useState("");
   const [createCategory, setCreateCategory] = useState("General");
   const [createEntryCost, setCreateEntryCost] = useState("500");
+  const [createInitialProbability, setCreateInitialProbability] = useState("50");
   const [createClosingTime, setCreateClosingTime] = useState("");
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -180,6 +181,11 @@ export default function AdminPage() {
     if (!createClosingTime) { setCreateMsg({ type: "error", text: "Closing time is required." }); return; }
     const cost = parseFloat(createEntryCost);
     if (isNaN(cost) || cost < 50) { setCreateMsg({ type: "error", text: "Entry cost must be at least 50." }); return; }
+    const probability = parseFloat(createInitialProbability);
+    if (isNaN(probability) || probability < 1 || probability > 99) {
+      setCreateMsg({ type: "error", text: "Initial YES probability must be between 1 and 99." });
+      return;
+    }
     // Move to confirm step
     setCreateMsg(null);
     setCreateStep("confirm");
@@ -187,6 +193,7 @@ export default function AdminPage() {
 
   const handleCreateSubmit = async () => {
     const cost = parseFloat(createEntryCost);
+    const probability = parseFloat(createInitialProbability);
     setCreateSubmitting(true);
     setCreateMsg(null);
     try {
@@ -197,12 +204,20 @@ export default function AdminPage() {
           ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify({ question_text: createQuestion.trim(), category: createCategory, entry_cost: cost, closing_time: createClosingTime }),
+        body: JSON.stringify({
+          question_text: createQuestion.trim(),
+          category: createCategory,
+          entry_cost: cost,
+          closing_time: createClosingTime,
+          initial_probability: probability,
+        }),
       });
       const body = await res.json();
       if (body.success) {
-        setCreateMsg({ type: "success", text: "Question created successfully!" });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateStep("form");
+        const yesPercent = Number(body.yes_percent ?? probability).toFixed(2);
+        const noPercent = Number(body.no_percent ?? (100 - probability)).toFixed(2);
+        setCreateMsg({ type: "success", text: `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%` });
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateStep("form");
         setTimeout(() => { setCreateModalOpen(false); setCreateMsg(null); refreshQuestions(); }, 1500);
       } else {
         setCreateMsg({ type: "error", text: body.detail || "Failed to create question." });
@@ -592,6 +607,19 @@ export default function AdminPage() {
                       className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
                     />
                   </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES Probability (%)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      step={0.1}
+                      value={createInitialProbability}
+                      onChange={(e) => setCreateInitialProbability(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">NO will be automatically set to 100 - YES</p>
+                  </div>
                   <div className="flex gap-3">
                     <button
                       onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }}
@@ -631,6 +659,10 @@ export default function AdminPage() {
                     <div>
                       <p className="text-xs uppercase tracking-wide text-slate-500">Closes</p>
                       <p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p>
+                      <p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
                     </div>
                   </div>
                 </div>
