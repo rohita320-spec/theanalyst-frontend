@@ -46,6 +46,7 @@ export default function FeedPage() {
   const [placing, setPlacing] = useState("");
 
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authToken, setAuthToken] = useState("");
   const [notification, setNotification] = useState<Notification | null>(null);
   const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -59,8 +60,10 @@ export default function FeedPage() {
   useEffect(() => {
     try {
       const token = localStorage.getItem("auth_token");
+      setAuthToken(token || "");
       setLoggedIn(!!token);
     } catch {
+      setAuthToken("");
       setLoggedIn(false);
     }
   }, []);
@@ -154,7 +157,7 @@ export default function FeedPage() {
     setPlacing(key);
 
     try {
-      const result = await placePrediction(DEMO_USER_ID, question._id, answer, pts);
+      const result = await placePrediction(authToken, question._id, answer, pts);
       if (!result.success) {
         setModalError(result.message || "Analysis could not be submitted.");
         return;

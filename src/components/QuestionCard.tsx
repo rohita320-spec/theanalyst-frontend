@@ -23,6 +23,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const isPlacingYes = placing === `${question._id}:yes`;
   const isPlacingNo = placing === `${question._id}:no`;
   const isAnyPlacing = isPlacingYes || isPlacingNo;
+  const yesWidth = Math.max(0, Math.min(100, Number(question.yes_percent || 0)));
+  const noWidth = Math.max(0, Math.min(100, Number(question.no_percent || 0)));
 
   function getButtonLabel(side: "yes" | "no") {
     if (!isOpen) return "Market Closed";
@@ -60,8 +62,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
         </div>
 
-        <div className="h-2 overflow-hidden rounded-full bg-slate-700">
-          <div className="h-full bg-[var(--brand)] transition-all" style={{ width: `${question.yes_percent}%` }} />
+        <div className="flex h-2 overflow-hidden rounded-full bg-slate-700">
+          <div className="h-full bg-[var(--brand)] transition-all" style={{ width: `${yesWidth}%` }} />
+          <div className="h-full bg-[var(--accent)] transition-all" style={{ width: `${noWidth}%` }} />
         </div>
 
         <div className="mt-2 flex justify-between text-xs font-medium">
