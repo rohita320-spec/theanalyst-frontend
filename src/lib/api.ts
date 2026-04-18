@@ -83,6 +83,15 @@ export type UserPrediction = {
   answer: "yes" | "no";
   points_used: number;
   points_earned: number;
+  shares_bought?: number;
+  entry_price?: number;
+  entry_probability_percent?: number;
+  current_yes_percent?: number;
+  current_no_percent?: number;
+  current_side_percent?: number;
+  current_side_price?: number;
+  current_position_value?: number;
+  unrealized_pnl?: number;
   is_resolved: boolean;
   is_correct: boolean;
   created_at?: string;
@@ -93,6 +102,13 @@ export type UserPredictionsPayload = {
   total: number;
   open: UserPrediction[];
   closed: UserPrediction[];
+};
+
+export type MeProfileSummaryPayload = {
+  success: boolean;
+  user_id: string;
+  profile: ProfilePayload;
+  predictions: UserPredictionsPayload;
 };
 
 export type PlacePredictionResult = {
@@ -320,4 +336,12 @@ export async function logout(token?: string): Promise<{ success: boolean }> {
     credentials: "include",
   });
   return parseJson<{ success: boolean }>(res);
+}
+
+export async function fetchMeProfileSummary(token?: string): Promise<MeProfileSummaryPayload> {
+  const res = await fetch(`${API_BASE_URL}/me/profile_summary`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: "include",
+  });
+  return parseJson<MeProfileSummaryPayload>(res);
 }

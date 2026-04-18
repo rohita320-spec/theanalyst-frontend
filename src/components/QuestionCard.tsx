@@ -23,8 +23,13 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const isPlacingYes = placing === `${question._id}:yes`;
   const isPlacingNo = placing === `${question._id}:no`;
   const isAnyPlacing = isPlacingYes || isPlacingNo;
-  const yesWidth = Math.max(0, Math.min(100, Number(question.yes_percent || 0)));
-  const noWidth = Math.max(0, Math.min(100, Number(question.no_percent || 0)));
+  const rawYes = Number(question.yes_percent ?? 50);
+  const rawNo = question.no_percent == null ? 100 - rawYes : Number(question.no_percent);
+  const safeYes = Math.max(0, Math.min(100, rawYes));
+  const safeNo = Math.max(0, Math.min(100, rawNo));
+  const widthTotal = safeYes + safeNo;
+  const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
+  const noWidth = 100 - yesWidth;
 
   function getButtonLabel(side: "yes" | "no") {
     if (!isOpen) return "Question Closed";
@@ -68,8 +73,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
 
         <div className="mt-2 flex justify-between text-xs font-medium">
-          <span className="text-[var(--brand)]">YES {formatPct(question.yes_percent)}</span>
-          <span className="text-[var(--accent)]">NO {formatPct(question.no_percent)}</span>
+          <span className="text-[var(--brand)]">YES {formatPct(safeYes)}</span>
+          <span className="text-[var(--accent)]">NO {formatPct(safeNo)}</span>
         </div>
       </div>
 
