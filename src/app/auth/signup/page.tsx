@@ -17,7 +17,7 @@ export default function SignupPage() {
 
     try {
       const result = await signup({
-        email,
+        email: email.trim(),
         password,
       });
       localStorage.setItem("auth_user", JSON.stringify(result.user));

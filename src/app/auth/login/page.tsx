@@ -16,7 +16,7 @@ export default function LoginPage() {
     setMessage("");
 
     try {
-      const result = await login({ email, password });
+      const result = await login({ email: email.trim(), password });
       localStorage.setItem("auth_user", JSON.stringify(result.user));
       setMessage(`Logged in as ${result.user.role}. Redirecting...`);
       setTimeout(() => { window.location.href = result.user.role === "admin" ? "/admin" : "/feed"; }, 1000);

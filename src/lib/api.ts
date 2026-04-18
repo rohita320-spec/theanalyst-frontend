@@ -109,7 +109,18 @@ export type PlacePredictionResult = {
 
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    throw new Error(`API request failed with status ${res.status}`);
+    let message = `API request failed with status ${res.status}`;
+    try {
+      const body = (await res.json()) as { detail?: string; message?: string };
+      if (typeof body?.detail === "string" && body.detail.trim()) {
+        message = body.detail;
+      } else if (typeof body?.message === "string" && body.message.trim()) {
+        message = body.message;
+      }
+    } catch {
+      // ignore JSON parse failures and keep status-based message
+    }
+    throw new Error(message);
   }
   return (await res.json()) as T;
 }
