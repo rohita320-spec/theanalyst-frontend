@@ -27,11 +27,11 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const noWidth = Math.max(0, Math.min(100, Number(question.no_percent || 0)));
 
   function getButtonLabel(side: "yes" | "no") {
-    if (!isOpen) return "Market Closed";
-    if (!loggedIn) return "Login to Analyze";
+    if (!isOpen) return "Question Closed";
+    if (!loggedIn) return "Login to Participate";
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
-    return side === "yes" ? "Analyze YES" : "Analyze NO";
+    return side === "yes" ? "Add YES" : "Add NO";
   }
 
   return (
@@ -62,9 +62,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
         </div>
 
-        <div className="flex h-2 overflow-hidden rounded-full bg-slate-700">
-          <div className="h-full bg-[var(--brand)] transition-all" style={{ width: `${yesWidth}%` }} />
-          <div className="h-full bg-[var(--accent)] transition-all" style={{ width: `${noWidth}%` }} />
+        <div className="relative h-2 overflow-hidden rounded-full bg-slate-700">
+          <div className="absolute left-0 top-0 h-full bg-[var(--brand)] transition-all" style={{ width: `${yesWidth}%` }} />
+          <div className="absolute right-0 top-0 h-full bg-[var(--accent)] transition-all" style={{ width: `${noWidth}%` }} />
         </div>
 
         <div className="mt-2 flex justify-between text-xs font-medium">

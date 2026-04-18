@@ -68,15 +68,6 @@ export default function ProfilePage() {
     load();
   }, []);
 
-  const predictionMix = useMemo(() => {
-    const total = Number(profile?.yes_predictions_count || 0) + Number(profile?.no_predictions_count || 0);
-    if (!total) return { yesPct: 0, noPct: 0 };
-    return {
-      yesPct: Math.round((Number(profile?.yes_predictions_count || 0) / total) * 100),
-      noPct: Math.round((Number(profile?.no_predictions_count || 0) / total) * 100),
-    };
-  }, [profile]);
-
   const openGroups = useMemo(() => groupByQuestion(openPredictions), [openPredictions]);
   const closedGroups = useMemo(() => groupByQuestion(closedPredictions), [closedPredictions]);
 
@@ -116,9 +107,9 @@ export default function ProfilePage() {
                       </p>
                     </div>
                     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-                      <p className="text-sm text-slate-400">YES / NO</p>
+                      <p className="text-sm text-slate-400">Open / Closed</p>
                       <p className="mt-2 text-2xl font-semibold text-white">
-                        {profile?.yes_predictions_count || 0} / {profile?.no_predictions_count || 0}
+                        {profile?.open_analyses_count || 0} / {profile?.closed_analyses_count || 0}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
@@ -158,15 +149,6 @@ export default function ProfilePage() {
                       <span className="font-semibold text-white">
                         {profile?.open_analyses_count || 0} / {profile?.closed_analyses_count || 0}
                       </span>
-                    </div>
-                    <div className="pt-3">
-                      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-                        <span>Prediction Mix</span>
-                        <span>YES {predictionMix.yesPct}% / NO {predictionMix.noPct}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                        <div className="h-full bg-[var(--brand)]" style={{ width: `${predictionMix.yesPct}%` }} />
-                      </div>
                     </div>
                   </div>
                 </div>

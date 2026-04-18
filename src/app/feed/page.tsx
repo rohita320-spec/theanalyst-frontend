@@ -120,7 +120,7 @@ export default function FeedPage() {
 
     // Market must be open
     if (question.status !== "open") {
-      showNotification("error", "This market is closed for new analyses.");
+      showNotification("error", "This question is closed for new analyses.");
       return;
     }
 
@@ -147,7 +147,7 @@ export default function FeedPage() {
 
     const maxAllowed = Math.floor((profile?.points_balance || 10000) * 0.3);
     if (pts > maxAllowed) {
-      setModalError(`Exceeds max trade limit (${maxAllowed} pts = 30% of your balance).`);
+      setModalError(`Exceeds max analysis limit (${maxAllowed} pts = 30% of your balance).`);
       return;
     }
 
@@ -245,7 +245,7 @@ export default function FeedPage() {
                     <div key={question._id}>
                       {isPastClose && isStillOpen && (
                         <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300">
-                          ⚠ Past closing time — analysis still open until admin closes this question
+                          ⚠ Past closing time — submissions remain open until the admin closes this question
                         </div>
                       )}
                       <QuestionCard
@@ -271,7 +271,7 @@ export default function FeedPage() {
             {/* Header */}
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-widest text-slate-500">Confirm Prediction</p>
+                <p className="text-xs uppercase tracking-widest text-slate-500">Confirm Analysis</p>
                 <h2 className="mt-1 text-base font-semibold text-white line-clamp-2">{confirmModal.question.title}</h2>
               </div>
               <button
@@ -349,7 +349,7 @@ export default function FeedPage() {
                     : "bg-red-600 hover:bg-red-500"
                 }`}
               >
-                {modalSubmitting ? "Submitting..." : "Submit Prediction"}
+                {modalSubmitting ? "Submitting..." : "Submit Analysis"}
               </button>
             </div>
           </div>
