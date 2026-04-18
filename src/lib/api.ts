@@ -223,7 +223,7 @@ export async function fetchQuestionHistory(
 }
 
 export async function placePrediction(
-  userId: string,
+  token: string,
   questionId: string,
   answer: "yes" | "no",
   pointsToSpend: number,
@@ -243,9 +243,11 @@ export async function placePrediction(
 
   const res = await fetch(`${API_BASE_URL}/place_prediction`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
-      user_id: userId,
       question_id: questionId,
       answer,
       points_to_spend: pointsToSpend,
@@ -271,8 +273,6 @@ export async function fetchUserPredictions(userId: string): Promise<UserPredicti
 export async function signup(params: {
   email: string;
   password: string;
-  role?: "user" | "admin";
-  signup_code?: string;
 }): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: "POST",

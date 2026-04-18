@@ -7,8 +7,6 @@ import { signup } from "../../../lib/api";
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
-  const [signupCode, setSignupCode] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,8 +19,6 @@ export default function SignupPage() {
       const result = await signup({
         email,
         password,
-        role,
-        signup_code: role === "admin" ? signupCode : undefined,
       });
       localStorage.setItem("auth_token", result.token);
       localStorage.setItem("auth_user", JSON.stringify(result.user));
@@ -40,7 +36,7 @@ export default function SignupPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4">
       <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6">
         <h1 className="mb-2 text-2xl font-semibold text-white">Create Account</h1>
-        <p className="mb-6 text-sm text-slate-400">Sign up as user or admin.</p>
+        <p className="mb-6 text-sm text-slate-400">Create a user account.</p>
 
         <form className="space-y-4" onSubmit={onSubmit}>
           <input
@@ -59,26 +55,6 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-
-          <select
-            className="w-full rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-2 text-white"
-            value={role}
-            onChange={(e) => setRole(e.target.value as "user" | "admin")}
-          >
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-
-          {role === "admin" && (
-            <input
-              className="w-full rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-2 text-white"
-              type="password"
-              placeholder="Admin signup code"
-              value={signupCode}
-              onChange={(e) => setSignupCode(e.target.value)}
-            />
-          )}
-
           <button
             className="w-full rounded-lg bg-[var(--brand)] px-4 py-2 font-semibold text-slate-950 disabled:opacity-60"
             type="submit"
