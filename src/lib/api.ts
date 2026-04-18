@@ -245,8 +245,9 @@ export async function placePrediction(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    credentials: "include",
     body: JSON.stringify({
       question_id: questionId,
       answer,
@@ -277,6 +278,7 @@ export async function signup(params: {
   const res = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(params),
   });
   return parseJson<AuthResponse>(res);
@@ -286,16 +288,25 @@ export async function login(params: { email: string; password: string }): Promis
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(params),
   });
   return parseJson<AuthResponse>(res);
 }
 
-export async function me(token: string): Promise<{ success: boolean; user: AuthUser }> {
+export async function me(token?: string): Promise<{ success: boolean; user: AuthUser }> {
   const res = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: "include",
   });
   return parseJson<{ success: boolean; user: AuthUser }>(res);
+}
+
+export async function logout(token?: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: "include",
+  });
+  return parseJson<{ success: boolean }>(res);
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { logout } from "../lib/api";
 
 type Props = {
   active: "feed" | "leaderboard" | "profile";
@@ -29,7 +30,14 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("auth_token") || "";
+    try {
+      await logout(token || undefined);
+    } catch {
+      // Ignore network failures; still clear local session.
+    }
+
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
     setAuthEmail(null);
