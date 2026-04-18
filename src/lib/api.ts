@@ -9,6 +9,8 @@ export type FeedQuestion = {
   category: string;
   yes_percent: number;
   no_percent: number;
+  initial_yes_percent?: number;
+  initial_no_percent?: number;
   yes_pool: number;
   no_pool: number;
   entry_cost: number;

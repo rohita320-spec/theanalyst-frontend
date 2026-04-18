@@ -362,6 +362,8 @@ export default function AdminPage() {
                 const isPastClose = q.closing_time && new Date(q.closing_time) < now;
                 const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
                 const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
+                const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
+                const initialNoPct = Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
                 return (
                   <button
                     key={q._id}
@@ -372,6 +374,7 @@ export default function AdminPage() {
                     <p className="mt-1 text-xs text-slate-500">
                       Entry: {q.entry_cost} pts · Closes: {formatDate(q.closing_time ?? "")} · {q.category}
                     </p>
+                    <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
                     <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
                     {isPastClose && (
                       <p className="mt-1 text-xs font-medium text-amber-400">⚠ Past closing time — analysis still possible</p>
@@ -400,6 +403,7 @@ export default function AdminPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>{q.status}</span> · {formatDate(q.closing_time ?? "")}
                   </p>
+                  <p className="mt-1 text-xs text-slate-500">Initial YES {Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
                   <p className="mt-1 text-xs text-slate-400">YES {Number(q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
                 </button>
               ))}
@@ -419,6 +423,7 @@ export default function AdminPage() {
                 <p>Closing: <span className="text-white">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
                 <p>Category: <span className="text-white">{selectedQuestion.category || "—"}</span></p>
                 <p>YES pool: <span className="text-white">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-white">{selectedQuestion.no_pool} pts</span></p>
+                <p>Initial split: <span className="text-slate-200">YES {Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-slate-200">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
@@ -604,16 +609,7 @@ export default function AdminPage() {
                     <p className="mt-1 text-xs text-slate-500">Choose the participation cost tier for this question</p>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={createClosingTime}
-                      onChange={(e) => setCreateClosingTime(e.target.value)}
-                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES Probability (%)</label>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial Percentage (YES %) <span className="text-rose-300">*</span></label>
                     <input
                       type="number"
                       min={1}
@@ -621,9 +617,21 @@ export default function AdminPage() {
                       step={0.1}
                       value={createInitialProbability}
                       onChange={(e) => setCreateInitialProbability(e.target.value)}
+                      placeholder="e.g. 65"
                       className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
                     />
-                    <p className="mt-1 text-xs text-slate-500">NO will be automatically set to 100 - YES</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={createClosingTime}
+                      onChange={(e) => setCreateClosingTime(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
+                    />
                   </div>
                   <div className="flex gap-3">
                     <button
