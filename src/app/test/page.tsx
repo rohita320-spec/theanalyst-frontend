@@ -84,14 +84,14 @@ export default function TestPage() {
 
       // Step 3: Place predictions
       log("\n📝 Step 3: Placing predictions...");
-      const pred1 = await placePrediction(user1.token, question.question_id, "yes", 50);
-      log(`✅ User 1 placed YES prediction (50 points)`);
+      const pred1 = await placePrediction(user1.token, question.question_id, "yes", 100);
+      log(`✅ User 1 placed YES prediction (100 points)`);
       log(`   - Shares received: ${pred1.shares_received}`);
       log(`   - Avg entry price: ${pred1.avg_entry_price}`);
       log(`   - Market state - YES: ${Number(pred1.yes_percent).toFixed(2)}%, NO: ${Number(pred1.no_percent).toFixed(2)}%`);
 
-      const pred2 = await placePrediction(user2.token, question.question_id, "no", 30);
-      log(`✅ User 2 placed NO prediction (30 points)`);
+      const pred2 = await placePrediction(user2.token, question.question_id, "no", 100);
+      log(`✅ User 2 placed NO prediction (100 points)`);
       log(`   - Shares received: ${pred2.shares_received}`);
       log(`   - Market state - YES: ${Number(pred2.yes_percent).toFixed(2)}%, NO: ${Number(pred2.no_percent).toFixed(2)}%`);
 

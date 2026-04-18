@@ -36,7 +36,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     if (!loggedIn) return "Login to Participate";
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
-    return side === "yes" ? "Add YES" : "Add NO";
+    return side === "yes" ? "Analyze YES" : "Analyze NO";
   }
 
   return (

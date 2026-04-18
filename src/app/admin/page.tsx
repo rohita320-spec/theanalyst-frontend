@@ -360,6 +360,8 @@ export default function AdminPage() {
               {openQuestions.length === 0 && <p className="text-xs text-slate-500">No open questions.</p>}
               {openQuestions.map((q) => {
                 const isPastClose = q.closing_time && new Date(q.closing_time) < now;
+                const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
+                const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
                 return (
                   <button
                     key={q._id}
@@ -370,6 +372,7 @@ export default function AdminPage() {
                     <p className="mt-1 text-xs text-slate-500">
                       Entry: {q.entry_cost} pts · Closes: {formatDate(q.closing_time ?? "")} · {q.category}
                     </p>
+                    <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
                     {isPastClose && (
                       <p className="mt-1 text-xs font-medium text-amber-400">⚠ Past closing time — analysis still possible</p>
                     )}
@@ -397,6 +400,7 @@ export default function AdminPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>{q.status}</span> · {formatDate(q.closing_time ?? "")}
                   </p>
+                  <p className="mt-1 text-xs text-slate-400">YES {Number(q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
                 </button>
               ))}
             </div>
@@ -415,6 +419,7 @@ export default function AdminPage() {
                 <p>Closing: <span className="text-white">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
                 <p>Category: <span className="text-white">{selectedQuestion.category || "—"}</span></p>
                 <p>YES pool: <span className="text-white">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-white">{selectedQuestion.no_pool} pts</span></p>
+                <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
                   <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time — analysis still possible until admin closes</p>
