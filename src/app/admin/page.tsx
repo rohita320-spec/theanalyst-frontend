@@ -170,11 +170,14 @@ export default function AdminPage() {
         });
         const body = await res.json();
         if (body.success) {
-          setResolveMsg({ type: "success", text: "Question closed (no payout)." });
+          const refundInfo = (body.participants_refunded ?? 0) > 0
+            ? ` ${body.participants_refunded} participant(s) refunded ${body.total_refunded} pts.`
+            : " No active predictions to refund.";
+          setResolveMsg({ type: "success", text: `Cancelled (no payout).${refundInfo}` });
           await refreshQuestions();
           setSelectedQuestion(null);
         } else {
-          setResolveMsg({ type: "error", text: body.detail || "Failed to close question." });
+          setResolveMsg({ type: "error", text: body.detail || "Failed to cancel question." });
         }
       } else {
         const res = await fetch(`${API_BASE}/resolve_question`, {
@@ -475,12 +478,10 @@ export default function AdminPage() {
                     className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
                     ✗ Resolve NO
                   </button>
-                  {selectedQuestion.status === "open" && (
-                    <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
-                      className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                      ⊘ Close (no payout)
-                    </button>
-                  )}
+                  <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                    className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
+                    ⊘ No Payout (Refund)
+                  </button>
                   <button
                     onClick={async () => {
                       if (!window.confirm("Delete this question and related records? This cannot be undone.")) return;
@@ -523,7 +524,7 @@ export default function AdminPage() {
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
-                      ? "Close this question with no payout?"
+                      ? "Cancel this question? All participants will have their points refunded. No winner or loser declared."
                       : `Resolve as ${confirmResolve.answer.toUpperCase()}? This pays out winners.`}
                   </p>
                   <div className="flex gap-2">
@@ -1031,8 +1032,12 @@ export default function AdminPage() {
             <p className="text-slate-400">Code changes are committed to GitHub and deployed to Railway services. This admin uses API base URL: <span className="text-slate-300">{API_BASE}</span>.</p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+            <p className="font-semibold text-[var(--brand)]">PostgreSQL (Data Layer)</p>
+            <p className="text-slate-400">PostgreSQL is the persistent database for all platform data — users, questions, predictions, balances, outcomes, and audit logs. It stores every event and acts as the authoritative data store outside Bubble. Used for auth, leaderboard scores, and complete audit trails.</p>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">Question Lifecycle</p>
-            <p className="text-slate-400">Open → (optional time-close) → Resolve payout, or Open → Close (no payout) final, or Delete for cleanup.</p>
+            <p className="text-slate-400">Open → (optional time-close) → Resolve YES/NO with winner payout; or Open/Closed → No Payout (Refund) which returns all participants&apos; points; or Delete for full cleanup.</p>
           </div>
         </div>
       </section>
