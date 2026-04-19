@@ -34,6 +34,7 @@ function formatNumber(value: number) {
 
 export default function FeedPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState<"open" | "closed" | "resolved" | "all">("open");
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function FeedPage() {
   const loadData = async (category: string) => {
     setLoading(true);
     const [questionsData, profileData] = await Promise.allSettled([
-      fetchFeedQuestions(category),
+      fetchFeedQuestions(category, "all"),
       fetchProfile(DEMO_USER_ID),
     ]);
     if (questionsData.status === "fulfilled") setQuestions(questionsData.value);
@@ -90,12 +91,16 @@ export default function FeedPage() {
   }, [selectedCategory]);
 
   const filteredQuestions = useMemo(() => {
-    if (selectedCategory === "All") return questions;
-    return questions.filter((q) => q.category === selectedCategory);
-  }, [questions, selectedCategory]);
+    let result = questions;
+    if (selectedCategory !== "All") result = result.filter((q) => q.category === selectedCategory);
+    if (selectedStatus !== "all") result = result.filter((q) => q.status === selectedStatus);
+    return result;
+  }, [questions, selectedCategory, selectedStatus]);
 
-  const openQuestions = filteredQuestions.filter((q) => q.status === "open").length;
-  const totalPool = filteredQuestions.reduce((sum, q) => sum + q.yes_pool + q.no_pool, 0);
+  const openQuestions = questions.filter((q) => q.status === "open").length;
+  const closedQuestions = questions.filter((q) => q.status === "closed").length;
+  const resolvedQuestions = questions.filter((q) => q.status === "resolved").length;
+  const totalPool = questions.filter((q) => q.status === "open").reduce((sum, q) => sum + q.yes_pool + q.no_pool, 0);
 
   const onOpenChart = async (question: FeedQuestion, tf: "hourly" | "daily" | "all" = timeframe) => {
     setSelectedQuestion(question);
@@ -203,24 +208,23 @@ export default function FeedPage() {
             <p className="mt-2 text-3xl font-semibold text-white">{openQuestions}</p>
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-            <p className="text-sm text-slate-400">Total Active Pool</p>
+            <p className="text-sm text-slate-400">Active Pool</p>
             <p className="mt-2 text-3xl font-semibold text-white">{formatNumber(totalPool)}</p>
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-            <p className="text-sm text-slate-400">Your Total Earned</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
-              {formatNumber(profile?.points_earned_total || 0)}
-            </p>
+            <p className="text-sm text-slate-400">Closed / Resolved</p>
+            <p className="mt-2 text-3xl font-semibold text-white">{closedQuestions} / {resolvedQuestions}</p>
           </div>
         </section>
 
         <section>
-          <div className="mb-5 flex flex-wrap items-center gap-2">
+          {/* Category filter */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`rounded-full border px-3 py-2 text-sm transition-colors sm:px-4 ${
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors sm:px-4 ${
                   selectedCategory === category
                     ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]"
                     : "border-[var(--stroke)] bg-[var(--surface)] text-slate-300 hover:border-slate-500"
@@ -231,10 +235,32 @@ export default function FeedPage() {
             ))}
           </div>
 
+          {/* Status filter */}
+          <div className="mb-5 flex items-center gap-2">
+            {(["open", "closed", "resolved", "all"] as const).map((s) => {
+              const counts: Record<string, number> = { open: openQuestions, closed: closedQuestions, resolved: resolvedQuestions, all: questions.length };
+              const colors: Record<string, string> = {
+                open: selectedStatus === s ? "border-emerald-400 bg-emerald-400/15 text-emerald-300" : "border-[var(--stroke)] text-slate-400 hover:border-emerald-400/50",
+                closed: selectedStatus === s ? "border-amber-400 bg-amber-400/15 text-amber-300" : "border-[var(--stroke)] text-slate-400 hover:border-amber-400/50",
+                resolved: selectedStatus === s ? "border-purple-400 bg-purple-400/15 text-purple-300" : "border-[var(--stroke)] text-slate-400 hover:border-purple-400/50",
+                all: selectedStatus === s ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-400 hover:border-slate-500",
+              };
+              return (
+                <button
+                  key={s}
+                  onClick={() => setSelectedStatus(s)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${colors[s]}`}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)} ({counts[s]})
+                </button>
+              );
+            })}
+          </div>
+
           {loading ? (
             <p className="text-sm text-slate-400">Loading feed...</p>
           ) : filteredQuestions.length === 0 ? (
-            <p className="text-sm text-slate-400">No open questions in this category right now.</p>
+            <p className="text-sm text-slate-400">No {selectedStatus !== "all" ? selectedStatus : ""} questions{selectedCategory !== "All" ? ` in ${selectedCategory}` : ""} right now.</p>
           ) : (
             <div className="max-h-[75vh] overflow-y-auto pr-1">
               <div className="grid gap-5 lg:grid-cols-2">

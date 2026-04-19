@@ -264,6 +264,29 @@ export default function TrendModal({
             </svg>
           </div>
         )}
+
+        {/* ── Resolution Rules ─────────────────────────────────── */}
+        <div className="mt-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[var(--brand)]" />
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
+          </div>
+          {question.resolution_rules ? (
+            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{question.resolution_rules}</p>
+          ) : (
+            <div className="space-y-2 text-sm text-slate-400">
+              <p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-emerald-400">YES</span><span>Outcome occurs as stated in the question before the closing time.</span></p>
+              <p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-amber-400">NO</span><span>Outcome does not occur, or there is insufficient evidence before the closing time.</span></p>
+              <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                ⚠ No specific resolution rules have been set for this question yet. Standard rules apply.
+              </p>
+            </div>
+          )}
+          <div className="mt-3 border-t border-[var(--stroke)] pt-3 text-xs text-slate-500">
+            <p>Resolution is determined by admin based on publicly verifiable data at the stated closing time.
+            All decisions are final once submitted.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

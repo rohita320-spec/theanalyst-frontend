@@ -84,6 +84,8 @@ export default function ProfilePage() {
     load();
   }, []);
 
+  const [predictionTab, setPredictionTab] = useState<"open" | "closed">("open");
+
   const openGroups = useMemo(() => groupByQuestion(openPredictions), [openPredictions]);
   const closedGroups = useMemo(() => groupByQuestion(closedPredictions), [closedPredictions]);
 
@@ -234,95 +236,99 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* Open questions — grouped by question */}
-            <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-xl font-semibold text-white">Open Questions You Answered</h3>
-                <span className="rounded-full bg-[var(--brand)]/15 px-3 py-1 text-xs font-medium text-[var(--brand)]">
-                  {openGroups.length}
-                </span>
-              </div>
-
-              {openGroups.length === 0 ? (
-                <p className="text-sm text-slate-400">No active answers yet.</p>
-              ) : (
-                <div className="max-h-96 overflow-y-auto pr-1">
-                <div className="space-y-4">
-                  {openGroups.map((group) => (
-                    <div key={group.question_id} className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-                      <p className="mb-3 text-sm font-semibold text-white">{group.question_title}</p>
-                      <div className="space-y-2">
-                        {group.predictions.map((prediction) => (
-                          <div key={prediction._id} className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-800/40 px-3 py-2.5 text-sm">
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.answer === "yes" ? "bg-[var(--brand)]/15 text-[var(--brand)]" : "bg-[var(--accent)]/15 text-[var(--accent)]"}`}>
-                              {prediction.answer.toUpperCase()}
-                            </span>
-                            <span className="text-slate-300">
-                              Spent: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span>
-                            </span>
-                            {prediction.created_at && (
-                              <span className="ml-auto text-xs text-slate-500">{formatDate(prediction.created_at)}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                </div>
-              )}
-            </section>
-
-            {/* Resolved questions — grouped by question */}
+            {/* Predictions — tabbed: Open / Resolved */}
             <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-xl font-semibold text-white">Resolved Questions You Answered</h3>
-                <span className="rounded-full bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-300">
-                  {closedGroups.length}
-                </span>
+              {/* Tab bar */}
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                {([
+                  { key: "open",   label: "Open Questions",     count: openGroups.length,   cls: predictionTab === "open"   ? "bg-[var(--brand)] text-white" : "bg-[var(--brand)]/10 text-[var(--brand)] hover:bg-[var(--brand)]/20" },
+                  { key: "closed", label: "Resolved Questions", count: closedGroups.length, cls: predictionTab === "closed" ? "bg-purple-500 text-white"      : "bg-purple-500/10 text-purple-300 hover:bg-purple-500/20" },
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setPredictionTab(tab.key)}
+                    className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${tab.cls}`}
+                  >
+                    {tab.label}
+                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs font-semibold">{tab.count}</span>
+                  </button>
+                ))}
               </div>
 
-              {closedGroups.length === 0 ? (
-                <p className="text-sm text-slate-400">No resolved answers yet.</p>
-              ) : (
-                <div className="max-h-96 overflow-y-auto pr-1">
-                <div className="space-y-4">
-                  {closedGroups.map((group) => (
-                    <div key={group.question_id} className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-                      <p className="mb-3 text-sm font-semibold text-white">{group.question_title}</p>
-                      <div className="space-y-2">
-                        {group.predictions.map((prediction) => {
-                          const netResult = Number(prediction.points_earned || 0) - Number(prediction.points_used || 0);
-                          return (
-                            <div key={prediction._id} className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-800/40 px-3 py-2.5 text-sm">
-                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.answer === "yes" ? "bg-[var(--brand)]/15 text-[var(--brand)]" : "bg-[var(--accent)]/15 text-[var(--accent)]"}`}>
-                                {prediction.answer.toUpperCase()}
-                              </span>
-                              <span className="text-slate-300">
-                                Spent: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span>
-                              </span>
-                              <span className="text-slate-300">
-                                Payout: <span className="font-semibold text-white">{formatNumber(prediction.points_earned)}</span>
-                              </span>
-                              <span className="text-slate-300">
-                                Net: <span className={`font-semibold ${netResult >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                                  {netResult > 0 ? "+" : ""}{formatNumber(netResult)}
+              {predictionTab === "open" && (
+                openGroups.length === 0 ? (
+                  <p className="text-sm text-slate-400">No active answers yet.</p>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto pr-1">
+                    <div className="space-y-4">
+                      {openGroups.map((group) => (
+                        <div key={group.question_id} className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                          <p className="mb-3 text-sm font-semibold text-white">{group.question_title}</p>
+                          <div className="space-y-2">
+                            {group.predictions.map((prediction) => (
+                              <div key={prediction._id} className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-800/40 px-3 py-2.5 text-sm">
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.answer === "yes" ? "bg-[var(--brand)]/15 text-[var(--brand)]" : "bg-[var(--accent)]/15 text-[var(--accent)]"}`}>
+                                  {prediction.answer.toUpperCase()}
                                 </span>
-                              </span>
-                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.is_correct ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-400"}`}>
-                                {prediction.is_correct ? "Correct" : "Incorrect"}
-                              </span>
-                              {prediction.created_at && (
-                                <span className="ml-auto text-xs text-slate-500">{formatDate(prediction.created_at)}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                                <span className="text-slate-300">
+                                  Spent: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span>
+                                </span>
+                                {prediction.created_at && (
+                                  <span className="ml-auto text-xs text-slate-500">{formatDate(prediction.created_at)}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                </div>
+                  </div>
+                )
+              )}
+
+              {predictionTab === "closed" && (
+                closedGroups.length === 0 ? (
+                  <p className="text-sm text-slate-400">No resolved answers yet.</p>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto pr-1">
+                    <div className="space-y-4">
+                      {closedGroups.map((group) => (
+                        <div key={group.question_id} className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                          <p className="mb-3 text-sm font-semibold text-white">{group.question_title}</p>
+                          <div className="space-y-2">
+                            {group.predictions.map((prediction) => {
+                              const netResult = Number(prediction.points_earned || 0) - Number(prediction.points_used || 0);
+                              return (
+                                <div key={prediction._id} className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-800/40 px-3 py-2.5 text-sm">
+                                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.answer === "yes" ? "bg-[var(--brand)]/15 text-[var(--brand)]" : "bg-[var(--accent)]/15 text-[var(--accent)]"}`}>
+                                    {prediction.answer.toUpperCase()}
+                                  </span>
+                                  <span className="text-slate-300">
+                                    Spent: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span>
+                                  </span>
+                                  <span className="text-slate-300">
+                                    Payout: <span className="font-semibold text-white">{formatNumber(prediction.points_earned)}</span>
+                                  </span>
+                                  <span className="text-slate-300">
+                                    Net: <span className={`font-semibold ${netResult >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                                      {netResult > 0 ? "+" : ""}{formatNumber(netResult)}
+                                    </span>
+                                  </span>
+                                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${prediction.is_correct ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-400"}`}>
+                                    {prediction.is_correct ? "Correct" : "Incorrect"}
+                                  </span>
+                                  {prediction.created_at && (
+                                    <span className="ml-auto text-xs text-slate-500">{formatDate(prediction.created_at)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
             </section>
           </>

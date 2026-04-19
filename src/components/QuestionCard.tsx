@@ -20,6 +20,9 @@ function formatPct(value: number) {
 
 export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
   const isOpen = question.status === "open";
+  const isResolved = question.status === "resolved";
+  const canAnalyze = isOpen;
+
   const isPlacingYes = placing === `${question._id}:yes`;
   const isPlacingNo = placing === `${question._id}:no`;
   const isAnyPlacing = isPlacingYes || isPlacingNo;
@@ -31,8 +34,17 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
   const noWidth = 100 - yesWidth;
 
+  function statusBadge() {
+    if (isResolved) return { label: "Resolved", cls: "bg-purple-500/15 text-purple-300" };
+    if (!isOpen) return { label: "Closed", cls: "bg-amber-500/15 text-amber-300" };
+    return { label: "Open", cls: "bg-emerald-500/15 text-emerald-300" };
+  }
+
+  const badge = statusBadge();
+
   function getButtonLabel(side: "yes" | "no") {
-    if (!isOpen) return "Question Closed";
+    if (isResolved) return "Resolved";
+    if (!isOpen) return "Closed";
     if (!loggedIn) return "Login to Participate";
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
@@ -51,12 +63,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           </p>
           <h2 className="text-sm font-semibold text-white sm:text-base">{question.title}</h2>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-            isOpen ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-500/20 text-slate-400"
-          }`}
-        >
-          {isOpen ? "Open" : "Closed"}
+        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
+          {badge.label}
         </span>
       </div>
 
@@ -82,23 +90,23 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       <div className="mb-2.5 flex flex-col gap-2 sm:flex-row" onClick={(e) => e.stopPropagation()}>
         <button
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            !isOpen || !loggedIn
+            !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--brand)] text-slate-950 hover:brightness-110"
           }`}
           onClick={() => onAnalyze(question, "yes")}
-          disabled={!isOpen || isAnyPlacing}
+          disabled={!canAnalyze || isAnyPlacing}
         >
           {getButtonLabel("yes")}
         </button>
         <button
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            !isOpen || !loggedIn
+            !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--accent)] text-slate-950 hover:brightness-110"
           }`}
           onClick={() => onAnalyze(question, "no")}
-          disabled={!isOpen || isAnyPlacing}
+          disabled={!canAnalyze || isAnyPlacing}
         >
           {getButtonLabel("no")}
         </button>

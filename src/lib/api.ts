@@ -17,6 +17,7 @@ export type FeedQuestion = {
   status: "open" | "closed" | "resolved";
   closing_time?: string;
   closes_label?: string;
+  resolution_rules?: string | null;
 };
 
 export type LeaderboardRow = {
@@ -182,7 +183,7 @@ function buildFallbackHistory(questionId: string): HistoryPoint[] {
   ];
 }
 
-export async function fetchFeedQuestions(category?: string): Promise<FeedQuestion[]> {
+export async function fetchFeedQuestions(category?: string, status: string = "open"): Promise<FeedQuestion[]> {
   if (USE_MOCK_DATA) {
     if (!category || category === "All") {
       return MOCK_QUESTIONS;
@@ -190,7 +191,7 @@ export async function fetchFeedQuestions(category?: string): Promise<FeedQuestio
     return MOCK_QUESTIONS.filter((q) => q.category === category);
   }
 
-  const params = new URLSearchParams({ limit: "50", status: "open" });
+  const params = new URLSearchParams({ limit: "100", status });
   if (category && category !== "All") {
     params.set("category", category);
   }

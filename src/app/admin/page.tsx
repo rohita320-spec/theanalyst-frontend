@@ -55,8 +55,15 @@ export default function AdminPage() {
   const [createEntryCost, setCreateEntryCost] = useState("500");
   const [createInitialProbability, setCreateInitialProbability] = useState("50");
   const [createClosingTime, setCreateClosingTime] = useState("");
+  const [createResolutionRules, setCreateResolutionRules] = useState("");
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Edit resolution rules (detail panel)
+  const [editRulesMode, setEditRulesMode] = useState(false);
+  const [editRulesText, setEditRulesText] = useState("");
+  const [editRulesSubmitting, setEditRulesSubmitting] = useState(false);
+  const [editRulesMsg, setEditRulesMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Role change state
   const [roleModal, setRoleModal] = useState<{ userId: string; email: string; currentRole: string } | null>(null);
@@ -126,6 +133,12 @@ export default function AdminPage() {
       setQuestionsLoading(false);
     }
   };
+
+  // Reset edit‑rules panel whenever the selected question changes
+  useEffect(() => {
+    setEditRulesMode(false);
+    setEditRulesMsg(null);
+  }, [selectedQuestion?._id]);
 
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close") => {
     setConfirmResolve(null);
@@ -210,6 +223,7 @@ export default function AdminPage() {
           entry_cost: cost,
           closing_time: createClosingTime,
           initial_probability: probability,
+          ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
         }),
       });
       const body = await res.json();
@@ -217,7 +231,7 @@ export default function AdminPage() {
         const yesPercent = Number(body.yes_percent ?? probability).toFixed(2);
         const noPercent = Number(body.no_percent ?? (100 - probability)).toFixed(2);
         setCreateMsg({ type: "success", text: `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%` });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateStep("form");
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateStep("form");
         setTimeout(() => { setCreateModalOpen(false); setCreateMsg(null); refreshQuestions(); }, 1500);
       } else {
         setCreateMsg({ type: "error", text: body.detail || "Failed to create question." });
@@ -431,7 +445,8 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {selectedQuestion.status === "open" && !confirmResolve && (
+              {/* Actions: open → resolve+close; closed → resolve only */}
+              {(selectedQuestion.status === "open" || selectedQuestion.status === "closed") && !confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
                   <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
@@ -442,15 +457,17 @@ export default function AdminPage() {
                     className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
                     ✗ Resolve NO
                   </button>
-                  <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
-                    className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                    ⊘ Close (no payout)
-                  </button>
+                  {selectedQuestion.status === "open" && (
+                    <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                      className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
+                      ⊘ Close (no payout)
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* Confirm resolve/close inline */}
-              {confirmResolve && selectedQuestion.status === "open" && (
+              {confirmResolve && (selectedQuestion.status === "open" || selectedQuestion.status === "closed") && (
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
@@ -476,11 +493,79 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {selectedQuestion.status !== "open" && (
+              {selectedQuestion.status === "resolved" && (
                 <p className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-center text-xs text-slate-500">
-                  This question is {selectedQuestion.status}.
+                  This question has been resolved.
                 </p>
               )}
+
+              {/* Edit Resolution Rules — available for all statuses */}
+              <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                {!editRulesMode ? (
+                  <div>
+                    {selectedQuestion.resolution_rules ? (
+                      <p className="mb-2 whitespace-pre-line text-xs text-slate-400">{selectedQuestion.resolution_rules}</p>
+                    ) : (
+                      <p className="mb-2 text-xs text-slate-500 italic">No resolution rules set.</p>
+                    )}
+                    <button
+                      onClick={() => { setEditRulesMode(true); setEditRulesText(selectedQuestion.resolution_rules || ""); setEditRulesMsg(null); }}
+                      className="text-xs text-[var(--brand)] hover:underline"
+                    >
+                      {selectedQuestion.resolution_rules ? "✏ Edit Resolution Rules" : "+ Add Resolution Rules"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                    <textarea
+                      value={editRulesText}
+                      onChange={(e) => setEditRulesText(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                      placeholder="Describe YES and NO conditions, data source, timing..."
+                    />
+                    {editRulesMsg && (
+                      <p className={`text-xs ${editRulesMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editRulesMsg.text}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditRulesMode(false); setEditRulesMsg(null); }}
+                        className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
+                      >Cancel</button>
+                      <button
+                        disabled={editRulesSubmitting}
+                        onClick={async () => {
+                          setEditRulesSubmitting(true);
+                          setEditRulesMsg(null);
+                          try {
+                            const res = await fetch(`${API_BASE}/admin/update_question_rules`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                              credentials: "include",
+                              body: JSON.stringify({ question_id: selectedQuestion._id, resolution_rules: editRulesText.trim() }),
+                            });
+                            const body = await res.json();
+                            if (body.success) {
+                              setEditRulesMsg({ type: "success", text: "Rules saved." });
+                              await refreshQuestions();
+                              setSelectedQuestion((prev) => prev ? { ...prev, resolution_rules: editRulesText.trim() || null } : prev);
+                              setTimeout(() => { setEditRulesMode(false); setEditRulesMsg(null); }, 800);
+                            } else {
+                              setEditRulesMsg({ type: "error", text: body.detail || "Failed to save." });
+                            }
+                          } catch {
+                            setEditRulesMsg({ type: "error", text: "Network error." });
+                          } finally {
+                            setEditRulesSubmitting(false);
+                          }
+                        }}
+                        className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                      >{editRulesSubmitting ? "Saving..." : "Save"}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -633,6 +718,18 @@ export default function AdminPage() {
                       className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
                     />
                   </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                      Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional — shown to users below the chart)</span>
+                    </label>
+                    <textarea
+                      value={createResolutionRules}
+                      onChange={(e) => setCreateResolutionRules(e.target.value)}
+                      rows={3}
+                      placeholder={"e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025.\nNO otherwise. Source: Binance BTCUSDT daily close."}
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                    />
+                  </div>
                   <div className="flex gap-3">
                     <button
                       onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }}
@@ -678,6 +775,12 @@ export default function AdminPage() {
                       <p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
                     </div>
                   </div>
+                  {createResolutionRules.trim() && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p>
+                      <p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p>
+                    </div>
+                  )}
                 </div>
                 {createMsg && (
                   <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
