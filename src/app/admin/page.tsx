@@ -30,6 +30,14 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateTimeLocal(iso?: string) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function AdminPage() {
   const [state, setState] = useState<"checking" | "allowed" | "forbidden">("checking");
   const [adminToken, setAdminToken] = useState("");
@@ -42,7 +50,7 @@ export default function AdminPage() {
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
-  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|""  
+  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   // Confirm resolve/close
   const [confirmResolve, setConfirmResolve] = useState<{ answer: "yes" | "no" | "close" } | null>(null);
@@ -59,16 +67,14 @@ export default function AdminPage() {
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Edit resolution rules (detail panel)
-  const [editRulesMode, setEditRulesMode] = useState(false);
-  const [editRulesText, setEditRulesText] = useState("");
-  const [editRulesSubmitting, setEditRulesSubmitting] = useState(false);
-  const [editRulesMsg, setEditRulesMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Edit question (text + category) - only for open questions
+  // Full edit for open questions
   const [editQuestionMode, setEditQuestionMode] = useState(false);
   const [editQuestionText, setEditQuestionText] = useState("");
   const [editQuestionCategory, setEditQuestionCategory] = useState("");
+  const [editQuestionEntryCost, setEditQuestionEntryCost] = useState("");
+  const [editQuestionClosingTime, setEditQuestionClosingTime] = useState("");
+  const [editQuestionRules, setEditQuestionRules] = useState("");
+  const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
   const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -78,7 +84,7 @@ export default function AdminPage() {
   const [changingRole, setChangingRole] = useState(false);
   const [roleMsg, setRoleMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   // Legacy alias (used by refreshUsers below)
-  const [adminMsg, setAdminMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [adminMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -143,8 +149,6 @@ export default function AdminPage() {
 
   // Reset edit‑rules panel whenever the selected question changes
   useEffect(() => {
-    setEditRulesMode(false);
-    setEditRulesMsg(null);
     setEditQuestionMode(false);
     setEditQuestionMsg(null);
   }, [selectedQuestion?._id]);
@@ -315,16 +319,14 @@ export default function AdminPage() {
     );
   }
 
-  const openQuestions = allQuestions.filter((q) => q.status === "open");
-  const closedQuestions = allQuestions.filter((q) => q.status === "closed");
-  const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved" || (q.status !== "open" && q.status !== "closed"));
+  const openLifecycleQuestions = allQuestions.filter((q) =>
+    q.status === "open" || (q.status === "closed" && q.closed_reason === "time_closed")
+  );
+  const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved");
+  const finalizedQuestions = allQuestions.filter((q) =>
+    q.status === "resolved" || (q.status === "closed" && q.closed_reason !== "time_closed")
+  );
   const now = new Date();
-
-  const tierOptions = [
-    { label: "Tier 1 — Starter", values: [50, 100, 200] },
-    { label: "Tier 2 — Standard", values: [300, 400, 500] },
-    { label: "Tier 3 — Premium", values: [600, 700, 800] },
-  ];
 
   const roleBadge = (role: string) => {
     if (role === "admin") return "bg-[var(--brand)]/15 text-[var(--brand)]";
@@ -345,7 +347,7 @@ export default function AdminPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Data Summary</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Bubble Users" value={summary?.bubble_users_count ?? "—"} />
-          <StatCard label="Open Questions" value={openQuestions.length} />
+          <StatCard label="Open Questions" value={openLifecycleQuestions.length} />
           <StatCard label="Resolved Questions" value={resolvedQuestions.length} />
           <StatCard label="Auth Accounts (local)" value={summary?.auth_users_count ?? authUsers.length} />
         </div>
@@ -374,14 +376,14 @@ export default function AdminPage() {
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <p className="text-sm font-medium text-slate-300">Open ({openQuestions.length})</p>
+              <p className="text-sm font-medium text-slate-300">Open ({openLifecycleQuestions.length})</p>
               <button onClick={refreshQuestions} className="ml-auto text-xs text-slate-500 hover:text-slate-300">
                 {questionsLoading ? "..." : "↻ Refresh"}
               </button>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {openQuestions.length === 0 && <p className="text-xs text-slate-500">No open questions.</p>}
-              {openQuestions.map((q) => {
+              {openLifecycleQuestions.length === 0 && <p className="text-xs text-slate-500">No open questions.</p>}
+              {openLifecycleQuestions.map((q) => {
                 const isPastClose = q.closing_time && new Date(q.closing_time) < now;
                 const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
                 const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
@@ -399,8 +401,8 @@ export default function AdminPage() {
                     </p>
                     <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
                     <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
-                    {isPastClose && (
-                      <p className="mt-1 text-xs font-medium text-amber-400">⚠ Past closing time — analysis still possible</p>
+                    {(q.status === "closed" || isPastClose) && (
+                      <p className="mt-1 text-xs font-medium text-amber-400">Closed</p>
                     )}
                   </button>
                 );
@@ -408,15 +410,15 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Closed / Resolved */}
+          {/* Resolved (includes final closed no-payout outcomes) */}
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-slate-500" />
-              <p className="text-sm font-medium text-slate-300">Closed / Resolved ({closedQuestions.length + resolvedQuestions.length})</p>
+              <p className="text-sm font-medium text-slate-300">Resolved ({finalizedQuestions.length})</p>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {(closedQuestions.length + resolvedQuestions.length) === 0 && <p className="text-xs text-slate-500">None yet.</p>}
-              {[...closedQuestions, ...resolvedQuestions].map((q) => (
+              {finalizedQuestions.length === 0 && <p className="text-xs text-slate-500">None yet.</p>}
+              {finalizedQuestions.map((q) => (
                 <button
                   key={q._id}
                   onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
@@ -424,7 +426,9 @@ export default function AdminPage() {
                 >
                   <p className="line-clamp-2">{q.title}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>{q.status}</span> · {formatDate(q.closing_time ?? "")}
+                    <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>
+                      {q.status === "closed" ? "closed (no payout)" : q.status}
+                    </span> · {formatDate(q.closing_time ?? "")}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Initial YES {Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
                   <p className="mt-1 text-xs text-slate-400">YES {Number(q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
@@ -441,6 +445,11 @@ export default function AdminPage() {
                 <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
               </div>
               <p className="mb-3 text-sm text-slate-200">{selectedQuestion.title}</p>
+              {selectedQuestion.status === "closed" && (
+                <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
+                  {selectedQuestion.closed_reason === "time_closed" ? "Closed by time" : "Closed (no payout)"}
+                </p>
+              )}
               <div className="mb-4 space-y-1 text-xs text-slate-400">
                 <p>Entry cost: <span className="text-white">{selectedQuestion.entry_cost} pts</span></p>
                 <p>Closing: <span className="text-white">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
@@ -450,12 +459,12 @@ export default function AdminPage() {
                 <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
-                  <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time — analysis still possible until admin closes</p>
+                  <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
                 )}
               </div>
 
-              {/* Actions: open → resolve+close; closed → resolve only */}
-              {(selectedQuestion.status === "open" || selectedQuestion.status === "closed") && !confirmResolve && (
+              {/* Actions */}
+              {((selectedQuestion.status === "open") || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "time_closed")) && !confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
                   <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
@@ -472,11 +481,45 @@ export default function AdminPage() {
                       ⊘ Close (no payout)
                     </button>
                   )}
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm("Delete this question and related records? This cannot be undone.")) return;
+                      setResolving("delete");
+                      setResolveMsg(null);
+                      try {
+                        const res = await fetch(`${API_BASE}/admin/delete_question`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+                          },
+                          credentials: "include",
+                          body: JSON.stringify({ question_id: selectedQuestion._id }),
+                        });
+                        const body = await res.json();
+                        if (body.success) {
+                          setResolveMsg({ type: "success", text: "Question deleted." });
+                          await refreshQuestions();
+                          setSelectedQuestion(null);
+                        } else {
+                          setResolveMsg({ type: "error", text: body.detail || "Failed to delete question." });
+                        }
+                      } catch {
+                        setResolveMsg({ type: "error", text: "Network error." });
+                      } finally {
+                        setResolving("");
+                      }
+                    }}
+                    disabled={!!resolving}
+                    className="w-full rounded-lg border border-red-500/50 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                  >
+                    🗑 Delete Question
+                  </button>
                 </div>
               )}
 
               {/* Confirm resolve/close inline */}
-              {confirmResolve && (selectedQuestion.status === "open" || selectedQuestion.status === "closed") && (
+              {confirmResolve && ((selectedQuestion.status === "open") || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "time_closed")) && (
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
@@ -508,7 +551,13 @@ export default function AdminPage() {
                 </p>
               )}
 
-              {/* Edit Question (text + category) — only for open questions */}
+              {selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "admin_closed" && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
+                  Final state: closed with no payout.
+                </p>
+              )}
+
+              {/* Full question edit — open questions only */}
               {selectedQuestion.status === "open" && (
                 <div className="mt-4 border-t border-[var(--stroke)] pt-4">
                   {!editQuestionMode ? (
@@ -519,11 +568,15 @@ export default function AdminPage() {
                           setEditQuestionMode(true);
                           setEditQuestionText(selectedQuestion.title);
                           setEditQuestionCategory(selectedQuestion.category);
+                          setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
+                          setEditQuestionClosingTime(formatDateTimeLocal(selectedQuestion.closing_time));
+                          setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                          setEditQuestionMetadata(selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "");
                           setEditQuestionMsg(null);
                         }}
                         className="text-xs text-[var(--brand)] hover:underline"
                       >
-                        ✏ Edit Question Text & Category
+                        ✏ Full Edit Question
                       </button>
                     </div>
                   ) : (
@@ -550,6 +603,38 @@ export default function AdminPage() {
                         <option>Markets</option>
                         <option>Sports</option>
                       </select>
+                      <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
+                      <input
+                        type="number"
+                        min={50}
+                        step={1}
+                        value={editQuestionEntryCost}
+                        onChange={(e) => setEditQuestionEntryCost(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={editQuestionClosingTime}
+                        onChange={(e) => setEditQuestionClosingTime(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                      <textarea
+                        value={editQuestionRules}
+                        onChange={(e) => setEditQuestionRules(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Describe YES and NO conditions..."
+                      />
+                      <label className="text-xs font-medium text-slate-300">Metadata (JSON, optional)</label>
+                      <textarea
+                        value={editQuestionMetadata}
+                        onChange={(e) => setEditQuestionMetadata(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder='{"source": "...", "notes": "..."}'
+                      />
                       {editQuestionMsg && (
                         <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
                       )}
@@ -565,6 +650,31 @@ export default function AdminPage() {
                               setEditQuestionMsg({ type: "error", text: "Question text required" });
                               return;
                             }
+                            const entryCost = Number(editQuestionEntryCost);
+                            if (!Number.isFinite(entryCost) || entryCost < 50) {
+                              setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
+                              return;
+                            }
+                            if (!editQuestionClosingTime) {
+                              setEditQuestionMsg({ type: "error", text: "Closing time is required" });
+                              return;
+                            }
+
+                            let parsedMetadata: Record<string, unknown> | undefined;
+                            if (editQuestionMetadata.trim()) {
+                              try {
+                                const parsed = JSON.parse(editQuestionMetadata);
+                                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+                                  setEditQuestionMsg({ type: "error", text: "Metadata must be a JSON object" });
+                                  return;
+                                }
+                                parsedMetadata = parsed as Record<string, unknown>;
+                              } catch {
+                                setEditQuestionMsg({ type: "error", text: "Metadata must be valid JSON" });
+                                return;
+                              }
+                            }
+
                             setEditQuestionSubmitting(true);
                             setEditQuestionMsg(null);
                             try {
@@ -579,13 +689,29 @@ export default function AdminPage() {
                                   question_id: selectedQuestion._id,
                                   question_text: editQuestionText.trim(),
                                   category: editQuestionCategory.trim(),
+                                  entry_cost: entryCost,
+                                  closing_time: new Date(editQuestionClosingTime).toISOString(),
+                                  resolution_rules: editQuestionRules.trim(),
+                                  ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
                                 }),
                               });
                               const body = await res.json();
                               if (body.success) {
                                 setEditQuestionMsg({ type: "success", text: "Question updated." });
                                 await refreshQuestions();
-                                setSelectedQuestion((prev) => prev ? { ...prev, title: editQuestionText.trim(), category: editQuestionCategory.trim() } : prev);
+                                if (body.question) {
+                                  setSelectedQuestion(body.question);
+                                } else {
+                                  setSelectedQuestion((prev) => prev ? {
+                                    ...prev,
+                                    title: editQuestionText.trim(),
+                                    category: editQuestionCategory.trim(),
+                                    entry_cost: entryCost,
+                                    closing_time: new Date(editQuestionClosingTime).toISOString(),
+                                    resolution_rules: editQuestionRules.trim() || null,
+                                    ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
+                                  } : prev);
+                                }
                                 setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
                               } else {
                                 setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
@@ -603,74 +729,6 @@ export default function AdminPage() {
                   )}
                 </div>
               )}
-
-              {/* Edit Resolution Rules — available for all statuses */}
-              <div className="mt-4 border-t border-[var(--stroke)] pt-4">
-                {!editRulesMode ? (
-                  <div>
-                    {selectedQuestion.resolution_rules ? (
-                      <p className="mb-2 whitespace-pre-line text-xs text-slate-400">{selectedQuestion.resolution_rules}</p>
-                    ) : (
-                      <p className="mb-2 text-xs text-slate-500 italic">No resolution rules set.</p>
-                    )}
-                    <button
-                      onClick={() => { setEditRulesMode(true); setEditRulesText(selectedQuestion.resolution_rules || ""); setEditRulesMsg(null); }}
-                      className="text-xs text-[var(--brand)] hover:underline"
-                    >
-                      {selectedQuestion.resolution_rules ? "✏ Edit Resolution Rules" : "+ Add Resolution Rules"}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
-                    <textarea
-                      value={editRulesText}
-                      onChange={(e) => setEditRulesText(e.target.value)}
-                      rows={3}
-                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                      placeholder="Describe YES and NO conditions, data source, timing..."
-                    />
-                    {editRulesMsg && (
-                      <p className={`text-xs ${editRulesMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editRulesMsg.text}</p>
-                    )}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setEditRulesMode(false); setEditRulesMsg(null); }}
-                        className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
-                      >Cancel</button>
-                      <button
-                        disabled={editRulesSubmitting}
-                        onClick={async () => {
-                          setEditRulesSubmitting(true);
-                          setEditRulesMsg(null);
-                          try {
-                            const res = await fetch(`${API_BASE}/admin/update_question_rules`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                              credentials: "include",
-                              body: JSON.stringify({ question_id: selectedQuestion._id, resolution_rules: editRulesText.trim() }),
-                            });
-                            const body = await res.json();
-                            if (body.success) {
-                              setEditRulesMsg({ type: "success", text: "Rules saved." });
-                              await refreshQuestions();
-                              setSelectedQuestion((prev) => prev ? { ...prev, resolution_rules: editRulesText.trim() || null } : prev);
-                              setTimeout(() => { setEditRulesMode(false); setEditRulesMsg(null); }, 800);
-                            } else {
-                              setEditRulesMsg({ type: "error", text: body.detail || "Failed to save." });
-                            }
-                          } catch {
-                            setEditRulesMsg({ type: "error", text: "Network error." });
-                          } finally {
-                            setEditRulesSubmitting(false);
-                          }
-                        }}
-                        className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
-                      >{editRulesSubmitting ? "Saving..." : "Save"}</button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -956,24 +1014,25 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ─── Data source info ────────────────────────────── */}
+      {/* ─── System architecture info ─────────────────────── */}
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-        <h2 className="mb-4 text-base font-semibold text-white">Where Is Data Stored?</h2>
+        <h2 className="mb-4 text-base font-semibold text-white">How This System Works</h2>
         <div className="space-y-3 text-sm">
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-            <p className="font-semibold text-[var(--brand)]">Users, Questions, Predictions, Analysis History</p>
-            <p className="text-slate-400">Stored in <span className="text-white">Bubble.io</span> — app <code className="text-slate-300">{summary?.bubble_app_name || "rohita320"}</code> ({summary?.bubble_env || "live"} env)</p>
-            <p className="mt-1 break-all text-slate-500">{summary?.bubble_base_url || "https://rohita320.bubbleapps.io/api/1.1/obj"}</p>
-            <p className="mt-1 text-slate-400">Tables: <span className="text-slate-300">user · question · prediction · userprofile · questionhistory</span></p>
+            <p className="font-semibold text-[var(--brand)]">Frontend (Next.js)</p>
+            <p className="text-slate-400">Admin, Feed, Profile and Leaderboard are rendered by the Next.js app and call backend APIs with auth tokens.</p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-            <p className="font-semibold text-[var(--brand)]">Login / Signup Accounts</p>
-            <p className="text-slate-400">Stored locally in <code className="text-slate-300">lpbackend/auth_users.json</code> on the server. HMAC-hashed passwords, token-based sessions.</p>
-            <p className="mt-1 text-slate-400">⚠ These local accounts are <span className="text-yellow-400">not yet linked</span> to Bubble user IDs. Profile and predictions use the demo Bubble user until linked.</p>
+            <p className="font-semibold text-[var(--brand)]">Backend API (FastAPI)</p>
+            <p className="text-slate-400">Question creation, edit, close, resolve, delete, prediction settlement, and auth are handled by backend endpoints.</p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-            <p className="font-semibold text-[var(--brand)]">10,000 Starting Points</p>
-            <p className="text-slate-400">Points live in the Bubble <code className="text-slate-300">user.Points_balance</code> field. The backend does not auto-create Bubble users on signup — set <code className="text-white">Points_balance = 10000</code> manually when creating a user in Bubble.</p>
+            <p className="font-semibold text-[var(--brand)]">Git + Deploy</p>
+            <p className="text-slate-400">Code changes are committed to GitHub and deployed to Railway services. This admin uses API base URL: <span className="text-slate-300">{API_BASE}</span>.</p>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+            <p className="font-semibold text-[var(--brand)]">Question Lifecycle</p>
+            <p className="text-slate-400">Open → (optional time-close) → Resolve payout, or Open → Close (no payout) final, or Delete for cleanup.</p>
           </div>
         </div>
       </section>

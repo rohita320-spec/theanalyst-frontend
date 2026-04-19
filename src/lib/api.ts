@@ -15,9 +15,11 @@ export type FeedQuestion = {
   no_pool: number;
   entry_cost: number;
   status: "open" | "closed" | "resolved";
+  closed_reason?: "time_closed" | "admin_closed" | string | null;
   closing_time?: string;
   closes_label?: string;
   resolution_rules?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type LeaderboardRow = {
