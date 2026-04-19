@@ -26,6 +26,12 @@ const DEMO_QUESTION = {
 // Richer starting history for the demo sparkline
 const INITIAL_TREND = [54, 57, 55, 59, 58, 61, 60, 62];
 
+const DEMO_RULES = [
+  "Outcome is determined at close using publicly verifiable data.",
+  "YES resolves true when the stated condition is satisfied.",
+  "NO resolves true when the stated condition is not satisfied.",
+];
+
 function formatDate(iso?: string) {
   if (!iso) return "-";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -40,34 +46,82 @@ function ProbBar({ yes, no }: { yes: number; no: number }) {
   );
 }
 
-function TrendSparkline({ points, highlight }: { points: number[]; highlight?: boolean }) {
+function DemoTrendChart({ points }: { points: number[] }) {
   const values = points.length > 1 ? points : [50, 50];
-  const width = 260;
-  const height = 52;
-  const step = width / (values.length - 1);
-  const toY = (v: number) => ((100 - Math.max(0, Math.min(100, v))) / 100) * (height - 8) + 4;
-  const path = values.map((v, i) => `${i * step},${toY(v)}`).join(" ");
-  const lastX = (values.length - 1) * step;
-  const lastY = toY(values[values.length - 1]);
+  const noValues = values.map((v) => 100 - v);
+
+  const W = 520;
+  const H = 200;
+  const ML = 36;
+  const MR = 12;
+  const MT = 16;
+  const MB = 30;
+  const CW = W - ML - MR;
+  const CH = H - MT - MB;
+
+  const pctToY = (pct: number) => MT + (1 - pct / 100) * CH;
+  const indexToX = (i: number, n: number) => ML + (i / Math.max(n - 1, 1)) * CW;
+
+  const yesPath = values
+    .map((v, i) => `${i === 0 ? "M" : "L"}${indexToX(i, values.length).toFixed(1)} ${pctToY(v).toFixed(1)}`)
+    .join(" ");
+  const noPath = noValues
+    .map((v, i) => `${i === 0 ? "M" : "L"}${indexToX(i, noValues.length).toFixed(1)} ${pctToY(v).toFixed(1)}`)
+    .join(" ");
+  const yesAreaPath = `${yesPath} L${indexToX(values.length - 1, values.length).toFixed(1)} ${(MT + CH).toFixed(1)} L${ML.toFixed(1)} ${(MT + CH).toFixed(1)} Z`;
+
+  const yTicks = [0, 25, 50, 75, 100];
+  const labelIdx = [0, Math.floor((values.length - 1) / 2), values.length - 1];
+  const labels = ["Open", "Mid", "Now"];
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-12 w-full">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" style={{ overflow: "visible" }}>
       <defs>
-        <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(80 227 194)" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="rgb(80 227 194)" stopOpacity="0" />
+        <linearGradient id="demoYesGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#58a6ff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#58a6ff" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* Area fill */}
-      <polyline
-        points={`0,${height} ${path} ${lastX},${height}`}
-        fill="url(#trendGrad)"
-        stroke="none"
-      />
-      {/* Line */}
-      <polyline points={path} fill="none" stroke="rgb(80 227 194)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {/* Dot at latest point */}
-      <circle cx={lastX} cy={lastY} r="3" fill={highlight ? "rgb(251 191 36)" : "rgb(80 227 194)"} />
+
+      {yTicks.map((pct) => {
+        const y = pctToY(pct);
+        return (
+          <g key={pct}>
+            <line
+              x1={ML}
+              y1={y}
+              x2={W - MR}
+              y2={y}
+              stroke={pct === 50 ? "#334155" : "#1e293b"}
+              strokeWidth={pct === 50 ? 1.3 : 1}
+              strokeDasharray={pct === 50 ? "4,3" : undefined}
+            />
+            <text x={ML - 6} y={y + 4} textAnchor="end" fill="#64748b" fontSize="10">
+              {pct}%
+            </text>
+          </g>
+        );
+      })}
+
+      <line x1={ML} y1={MT} x2={ML} y2={MT + CH} stroke="#334155" strokeWidth="1" />
+      <line x1={ML} y1={MT + CH} x2={W - MR} y2={MT + CH} stroke="#334155" strokeWidth="1" />
+
+      {labelIdx.map((idx, i) => (
+        <text key={`${idx}-${i}`} x={indexToX(idx, values.length)} y={H - 8} textAnchor="middle" fill="#64748b" fontSize="10">
+          {labels[i]}
+        </text>
+      ))}
+
+      <path d={yesAreaPath} fill="url(#demoYesGrad)" />
+      <path d={noPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6,3" />
+      <path d={yesPath} fill="none" stroke="#58a6ff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+
+      {values.map((v, i) => (
+        <circle key={`yes-${i}`} cx={indexToX(i, values.length)} cy={pctToY(v)} r="2.8" fill="#58a6ff" />
+      ))}
+      {noValues.map((v, i) => (
+        <circle key={`no-${i}`} cx={indexToX(i, noValues.length)} cy={pctToY(v)} r="2.5" fill="#f59e0b" />
+      ))}
     </svg>
   );
 }
@@ -159,52 +213,52 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen text-white">
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[#0a1120]/90 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-2.5 sm:px-5">
+      <nav className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[#0a1120]/80 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
-            <p className="text-[15px] font-semibold leading-none text-white">Analysis and Forecast Feed</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
+            <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
           </div>
-          <div className="flex items-center gap-2.5 text-sm">
-            <Link href="/feed" className="text-slate-300 hover:text-white">Feed</Link>
-            <Link href="/leaderboard" className="text-slate-300 hover:text-white">Leaderboard</Link>
-            <Link href="/auth/login" className="text-slate-300 hover:text-white">Sign in</Link>
-            <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-3.5 py-1.5 font-semibold text-slate-950 hover:brightness-110">Sign up</Link>
+          <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 sm:grid-cols-4 md:w-auto md:items-center">
+            <Link href="/feed" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Feed</Link>
+            <Link href="/leaderboard" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Leaderboard</Link>
+            <Link href="/auth/login" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Sign in</Link>
+            <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-3 py-2 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up</Link>
           </div>
         </div>
       </nav>
 
       {/* ── Hero + How it works ── */}
-      <section className="mx-auto grid w-full max-w-6xl gap-3 px-4 pb-3 pt-4 sm:px-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
+      <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 pb-4 pt-5 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5 sm:p-6">
           <p className="mb-1.5 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-3 py-0.5 text-[11px] font-medium tracking-wide text-[var(--brand)]">
             Forecasting Platform | Points-Based Participation
           </p>
           <h1 className="mb-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
             Submit your view on live questions and track performance over time
           </h1>
-          <p className="mb-3 max-w-xl text-sm leading-relaxed text-slate-400">
+          <p className="mb-4 max-w-xl text-sm leading-relaxed text-slate-400">
             Explore event-driven questions, submit your view using points on YES or NO, and monitor how outcomes influence your ranking.
           </p>
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-            <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
-            <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-5 py-2 text-center text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white">Browse questions</Link>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+            <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
+            <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-5 py-2.5 text-center text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white">Browse questions</Link>
           </div>
-          <p className="text-xs text-slate-500">Informational and educational use only. See <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link> and <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
+          <p className="text-xs text-slate-500">Informational and educational use only. See <Link href="/rules" className="underline hover:text-slate-300">Rules & Guidelines</Link>, <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link>, and <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">How it works</p>
-          <div className="grid gap-1.5">
-            <div className="rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-1.5 text-xs text-slate-300">01. Browse open questions</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-1.5 text-xs text-slate-300">02. Submit your view using points</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-1.5 text-xs text-slate-300">03. Track results and ranking</div>
+        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">How it works</p>
+          <div className="grid gap-2">
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">01. Browse open questions</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your view using points</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">03. Track results and ranking</div>
           </div>
         </div>
       </section>
 
       {/* ── Live questions ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-3 sm:px-5">
+      <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Live questions</h2>
           <Link href="/feed" className="text-xs text-[var(--brand)] hover:underline">View all</Link>
@@ -221,7 +275,7 @@ export default function LandingPage() {
               const yes = Number(q.yes_percent ?? 50);
               const no = Number(q.no_percent ?? 50);
               return (
-                <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3">
+                <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-3.5">
                   <p className="mb-0.5 text-[10px] uppercase tracking-wide text-slate-500">{q.category}</p>
                   <p className="mb-2 line-clamp-2 text-xs font-medium leading-snug text-white">{q.title}</p>
                   <ProbBar yes={yes} no={no} />
@@ -238,34 +292,62 @@ export default function LandingPage() {
       </section>
 
       {/* ── Interactive demo ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-5 sm:px-5">
-        <div className="rounded-2xl border border-[var(--brand)]/20 bg-[var(--surface)] p-3.5 sm:p-4">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--brand)]">Interactive demo — try it</p>
-          <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+      <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
+        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--brand)]">Interactive demo — question detail preview</p>
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
             {/* Left — question + chart */}
-            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3.5">
-              <p className="mb-0.5 text-[10px] uppercase tracking-wide text-slate-500">{DEMO_QUESTION.category}</p>
-              <p className="mb-2 text-sm font-medium text-white">{DEMO_QUESTION.title}</p>
-              <ProbBar yes={demoYes} no={demoNo} />
-              <div className="mt-1.5 flex justify-between text-xs">
-                <span className="text-emerald-400">YES {demoYes.toFixed(0)}%</span>
-                <span className="text-slate-500">Entry {DEMO_QUESTION.entry_cost} pts</span>
-                <span className="text-orange-400">NO {demoNo.toFixed(0)}%</span>
+            <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="mb-1 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">{DEMO_QUESTION.category}</p>
+                  <p className="text-sm font-semibold text-white">{DEMO_QUESTION.title}</p>
+                </div>
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">Open</span>
               </div>
-              {/* Sparkline */}
-              <div className="mt-2.5 rounded-lg border border-[var(--stroke)] bg-slate-900/50 px-2 py-1.5">
-                <div className="mb-0.5 flex items-center justify-between">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Market trend (live)</p>
+
+              <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mb-2 flex justify-between text-[11px] text-slate-400">
+                  <span>Entry: {DEMO_QUESTION.entry_cost} pts</span>
+                  <span>Pool: 21,400 pts</span>
+                </div>
+                <ProbBar yes={demoYes} no={demoNo} />
+                <div className="mt-1.5 flex justify-between text-xs">
+                  <span className="text-[var(--brand)]">YES {demoYes.toFixed(2)}%</span>
+                  <span className="text-[var(--accent)]">NO {demoNo.toFixed(2)}%</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
                   {demoShiftLabel && (
                     <span className="text-[10px] font-semibold text-yellow-400 animate-pulse">{demoShiftLabel}</span>
                   )}
                 </div>
-                <TrendSparkline points={trendPoints} highlight={!!demoVote} />
+                <DemoTrendChart points={trendPoints} />
+                <div className="mt-2 flex items-center gap-4 px-1">
+                  <span className="flex items-center gap-1.5 text-[11px] text-slate-300">
+                    <span className="inline-block h-2 w-4 rounded-sm bg-[var(--brand)]" /> YES %
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[11px] text-slate-300">
+                    <span className="inline-block h-2 w-4 rounded-sm bg-[var(--accent)]" /> NO %
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
+                <ul className="space-y-1 text-xs text-slate-300">
+                  {DEMO_RULES.map((rule, idx) => (
+                    <li key={idx}>• {rule}</li>
+                  ))}
+                </ul>
               </div>
             </div>
 
             {/* Right — vote / outcome */}
-            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3.5">
+            <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
               {!demoResolved ? (
                 <div>
                   <p className="mb-2 text-xs text-slate-400">
@@ -290,6 +372,15 @@ export default function LandingPage() {
                   {demoVote && (
                     <p className="mt-2 text-center text-[11px] text-slate-500">Resolving shortly…</p>
                   )}
+
+                  <div className="mt-4 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-500">Rules & Legal</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <Link href="/rules" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Rules & Guidelines</Link>
+                      <Link href="/terms" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Terms</Link>
+                      <Link href="/disclaimer" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Disclaimer</Link>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className={`rounded-lg border p-3 text-center ${demoResolvedOutcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
@@ -313,6 +404,7 @@ export default function LandingPage() {
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/feed" className="hover:text-slate-300">Feed</Link>
           <Link href="/leaderboard" className="hover:text-slate-300">Leaderboard</Link>
+          <Link href="/rules" className="hover:text-slate-300">Rules & Guidelines</Link>
           <Link href="/terms" className="hover:text-slate-300">Terms & Conditions</Link>
           <Link href="/disclaimer" className="hover:text-slate-300">Disclaimer</Link>
           <Link href="/auth/signup" className="hover:text-slate-300">Sign up</Link>
