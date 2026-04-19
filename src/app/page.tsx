@@ -102,7 +102,7 @@ export default function LandingPage() {
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
-            <p className="text-base font-semibold text-white leading-none">High-Signal Feed</p>
+            <p className="text-base font-semibold text-white leading-none">High-Signal Analysis Feed</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth/login" className="text-sm text-slate-300 hover:text-white transition-colors">
@@ -121,14 +121,14 @@ export default function LandingPage() {
       {/* ─── Hero ─────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 pt-20 pb-16 text-center">
         <p className="mb-3 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-4 py-1 text-xs font-medium tracking-wide text-[var(--brand)]">
-          Prediction Markets · Real Analysis
+          Prediction Markets · Real-World Analysis
         </p>
         <h1 className="mb-5 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-          Put your conviction<br className="hidden sm:block" /> on the line
+          Put your conviction<br className="hidden sm:block" /> into action
         </h1>
         <p className="mx-auto mb-8 max-w-xl text-base text-slate-400 leading-relaxed">
-          The Analyst is a high-signal prediction market where you can stake points on real-world questions across
-          crypto, markets, politics, and more — and see how your forecasts stack up.
+          The Analyst is a high-signal prediction platform where you can use points to express your view on real-world
+          questions across crypto, markets, global events, and more — and see how your analysis performs over time.
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
@@ -154,17 +154,17 @@ export default function LandingPage() {
             {
               step: "1",
               title: "Browse open questions",
-              body: "Explore questions on crypto, economy, sports, and world events. Each question has live market odds driven by participants.",
+              body: "Explore questions across crypto, economy, sports, and global events. Each question reflects real-time sentiment based on participant activity.",
             },
             {
               step: "2",
-              title: "Stake your prediction",
-              body: "Allocate points on YES or NO. Your entry affects the market odds — early movers get better prices on the winning side.",
+              title: "Submit your view",
+              body: "Allocate points to YES or NO based on your analysis. Your input contributes to the overall market sentiment.",
             },
             {
               step: "3",
-              title: "Earn when you're right",
-              body: "Questions are resolved by the admin with verifiable outcomes. Winners split the pool. Track your score on the leaderboard.",
+              title: "Track your performance",
+              body: "Questions are resolved using predefined rules and verifiable outcomes. Your performance is reflected on the leaderboard based on accuracy and consistency.",
             },
           ].map((card) => (
             <div key={card.step} className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
@@ -209,7 +209,7 @@ export default function LandingPage() {
                     <ProbBar yes={yes} no={no} />
                     <div className="mt-2 flex justify-between text-xs text-slate-400">
                       <span className="text-emerald-400">YES {yes.toFixed(0)}%</span>
-                      <span className="text-slate-500">Closes {formatDate(q.closing_time)}</span>
+                      <span className="text-slate-500">Closes on {formatDate(q.closing_time)}</span>
                       <span className="text-orange-400">NO {no.toFixed(0)}%</span>
                     </div>
                   </div>
@@ -229,7 +229,7 @@ export default function LandingPage() {
           </div>
           <h2 className="mb-1 text-lg font-semibold text-white">Try a prediction — no account needed</h2>
           <p className="mb-5 text-sm text-slate-400">
-            This is a simulation. Your vote shifts market odds and auto-resolves in a few seconds.
+            This is a simulation. Your input will influence the displayed sentiment and automatically resolve shortly for demonstration purposes.
           </p>
 
           {/* Question card */}
@@ -248,12 +248,12 @@ export default function LandingPage() {
           {demoResolved ? (
             <div className={`rounded-xl border p-5 text-center ${demoResolvedOutcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
               <p className={`text-xl font-bold mb-1 ${demoResolvedOutcome === "win" ? "text-emerald-400" : "text-orange-400"}`}>
-                {demoResolvedOutcome === "win" ? "✓ You called it right!" : "✗ Incorrect this time"}
+                {demoResolvedOutcome === "win" ? "✓ Your analysis was correct" : "✗ Analysis did not match the result"}
               </p>
               <p className="text-sm text-slate-400 mb-4">
                 {demoResolvedOutcome === "win"
-                  ? "In a real market, you'd receive a payout from the pool — more than you staked."
-                  : "In a real market, your stake goes to the winning side. Better luck next time."}
+                  ? "In live questions, your performance contributes to your overall score and ranking."
+                  : "In live questions, outcomes affect your overall performance score and ranking."}
               </p>
               <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <button
@@ -301,10 +301,10 @@ export default function LandingPage() {
       {/* ─── CTA ──────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 pb-24 text-center">
         <div className="rounded-2xl border border-[var(--stroke)] bg-gradient-to-b from-[var(--surface)] to-[#060a13] p-10">
-          <h2 className="mb-3 text-2xl font-bold text-white">Ready to put your analysis to the test?</h2>
+          <h2 className="mb-3 text-2xl font-bold text-white">Ready to test your analysis?</h2>
           <p className="mx-auto mb-7 max-w-md text-sm text-slate-400 leading-relaxed">
-            Sign up for free, get your starting points, and start predicting on live markets today.
-            Track your accuracy and climb the leaderboard.
+            Create a free account, receive your starting points, and begin participating in live questions.
+            Track your performance and improve your ranking over time.
           </p>
           <Link
             href="/auth/signup"
@@ -318,7 +318,7 @@ export default function LandingPage() {
 
       {/* ─── Footer ───────────────────────────────────────── */}
       <footer className="border-t border-[var(--stroke)] py-8 text-center text-xs text-slate-600">
-        <p>The Analyst · Prediction Markets</p>
+        <p>The Analyst · Prediction Platform</p>
         <div className="mt-2 flex justify-center gap-5">
           <Link href="/feed" className="hover:text-slate-400">Feed</Link>
           <Link href="/leaderboard" className="hover:text-slate-400">Leaderboard</Link>

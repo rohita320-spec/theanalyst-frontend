@@ -34,6 +34,7 @@ export type LeaderboardRow = {
   period_points_earned?: number;
   period_points_lost?: number;
   period_net_points?: number;
+  period_roi_percent?: number;
   period_correct_predictions?: number;
   period_incorrect_predictions?: number;
 };

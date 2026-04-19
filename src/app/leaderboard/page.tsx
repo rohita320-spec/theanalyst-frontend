@@ -51,6 +51,11 @@ export default function LeaderboardPage() {
     const total = rows.reduce((sum, row) => sum + Number(row.period_net_points || 0), 0);
     return total / rows.length;
   }, [rows]);
+  const avgRoi = useMemo(() => {
+    if (!rows.length) return 0;
+    const total = rows.reduce((sum, row) => sum + Number(row.period_roi_percent || 0), 0);
+    return total / rows.length;
+  }, [rows]);
 
   return (
     <div className="min-h-screen text-slate-100">
@@ -64,7 +69,7 @@ export default function LeaderboardPage() {
             </div>
             <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">Leaderboard</h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-slate-400 sm:text-lg">
-              Ranked by net performance for the selected period. Score = payout earned minus points spent, so gains and losses both matter.
+              Ranked by net performance for the selected period. Score = points earned minus points used, so positive and negative outcomes both matter.
             </p>
           </div>
 
@@ -99,15 +104,25 @@ export default function LeaderboardPage() {
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
             <p className="text-sm text-slate-400">Scoring Model</p>
             <p className="mt-2 text-2xl font-semibold text-white">Earned - Spent</p>
-            <p className="mt-1 text-sm text-slate-400">Losses reduce rank, not just earnings.</p>
+            <p className="mt-1 text-sm text-slate-400">ROI tracks efficiency per point used.</p>
           </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-slate-400">Average ROI ({periodLabels[period]})</p>
+            <p className={`text-base font-semibold ${avgRoi >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+              {avgRoi > 0 ? "+" : ""}{avgRoi.toFixed(2)}%
+            </p>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">ROI = (Net Points / Points Used) x 100</p>
         </section>
 
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-2xl font-semibold text-white">{periodLabels[period]} Standings</h3>
-              <p className="text-sm text-slate-400">Top earner view with spend, losses, and hit rate.</p>
+              <p className="text-sm text-slate-400">Top performance view with spend, ROI, and hit rate.</p>
             </div>
             <div className="rounded-full bg-[#0b1528] px-3 py-1 text-xs uppercase tracking-wide text-slate-400">
               {periodLabels[period]}
@@ -141,7 +156,7 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="grid gap-3 sm:grid-cols-5">
                         <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
                           <p className="text-[11px] uppercase tracking-wide text-slate-500">Net</p>
                           <p className={`mt-1 font-semibold ${Number(entry.period_net_points || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
@@ -156,6 +171,12 @@ export default function LeaderboardPage() {
                           <p className="text-[11px] uppercase tracking-wide text-slate-500">Spent / Lost</p>
                           <p className="mt-1 font-semibold text-white">
                             {formatNumber(entry.period_points_spent || 0)} / {formatNumber(entry.period_points_lost || 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">ROI</p>
+                          <p className={`mt-1 font-semibold ${Number(entry.period_roi_percent || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                            {Number(entry.period_roi_percent || 0) > 0 ? "+" : ""}{Number(entry.period_roi_percent || 0).toFixed(2)}%
                           </p>
                         </div>
                         <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
