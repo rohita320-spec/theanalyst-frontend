@@ -50,10 +50,10 @@ export default function AdminPage() {
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
-  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"no_payout"|"delete"|""
+  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   // Confirm resolve/close
-  const [confirmResolve, setConfirmResolve] = useState<{ answer: "yes" | "no" | "close" | "no_payout" } | null>(null);
+  const [confirmResolve, setConfirmResolve] = useState<{ answer: "yes" | "no" | "close" | "cancel" } | null>(null);
 
   // Create question modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -153,7 +153,7 @@ export default function AdminPage() {
     setEditQuestionMsg(null);
   }, [selectedQuestion?._id]);
 
-  const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "no_payout") => {
+  const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
     setConfirmResolve(null);
     setResolving(answer);
     setResolveMsg(null);
@@ -170,14 +170,14 @@ export default function AdminPage() {
         });
         const body = await res.json();
         if (body.success) {
-          setResolveMsg({ type: "success", text: "Question closed. Resolve it as YES, NO, or apply No Payout when ready." });
+          setResolveMsg({ type: "success", text: "Question closed. Resolve as YES/NO or cancel with point refunds when ready." });
           await refreshQuestions();
           setSelectedQuestion(null);
         } else {
           setResolveMsg({ type: "error", text: body.detail || "Failed to close question." });
         }
-      } else if (answer === "no_payout") {
-        const res = await fetch(`${API_BASE}/admin/no_payout_question`, {
+      } else if (answer === "cancel") {
+        const res = await fetch(`${API_BASE}/admin/cancel_question`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -191,7 +191,7 @@ export default function AdminPage() {
           const refundInfo = (body.participants_refunded ?? 0) > 0
             ? ` ${body.participants_refunded} participant(s) refunded ${body.total_refunded} pts.`
             : " No active predictions to refund.";
-          setResolveMsg({ type: "success", text: `Cancelled (no payout).${refundInfo}` });
+          setResolveMsg({ type: "success", text: `Cancelled with point refunds.${refundInfo}` });
           await refreshQuestions();
           setSelectedQuestion(null);
         } else {
@@ -342,11 +342,11 @@ export default function AdminPage() {
 
   const openLifecycleQuestions = allQuestions.filter((q) =>
     q.status === "open" ||
-    (q.status === "closed" && q.closed_reason !== "no_payout")
+    (q.status === "closed" && q.closed_reason !== "cancelled")
   );
   const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved");
   const finalizedQuestions = allQuestions.filter((q) =>
-    q.status === "resolved" || q.closed_reason === "no_payout"
+    q.status === "resolved" || q.closed_reason === "cancelled"
   );
   const now = new Date();
 
@@ -422,7 +422,7 @@ export default function AdminPage() {
                     </p>
                     <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
                     <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
-                    {q.status === "closed" && q.closed_reason !== "no_payout" && (
+                    {q.status === "closed" && q.closed_reason !== "cancelled" && (
                       <p className="mt-1 text-xs font-medium text-amber-400">
                         {q.closed_reason === "time_closed" ? "Closed by time — pending resolution" : "Closed — pending resolution"}
                       </p>
@@ -433,7 +433,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Resolved (includes final closed no-payout outcomes) */}
+          {/* Resolved (includes final cancelled outcomes) */}
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-slate-500" />
@@ -450,7 +450,7 @@ export default function AdminPage() {
                   <p className="line-clamp-2">{q.title}</p>
                   <p className="mt-1 text-xs text-slate-500">
                     <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>
-                      {q.status === "closed" ? "closed (no payout)" : q.status}
+                      {q.status === "closed" ? "closed (cancelled)" : q.status}
                     </span> · {formatDate(q.closing_time ?? "")}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Initial YES {Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
@@ -472,8 +472,8 @@ export default function AdminPage() {
                 <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
                   {selectedQuestion.closed_reason === "time_closed"
                     ? "Closed by time — pending resolution"
-                    : selectedQuestion.closed_reason === "no_payout"
-                    ? "Cancelled (no payout) — points refunded"
+                    : selectedQuestion.closed_reason === "cancelled"
+                    ? "Cancelled — points refunded"
                     : "Closed by admin — pending resolution"}
                 </p>
               )}
@@ -491,7 +491,7 @@ export default function AdminPage() {
               </div>
 
               {/* Actions — available for all non-resolved, non-cancelled questions */}
-              {(selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "no_payout") && !confirmResolve && (
+              {(selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled") && !confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
                   <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
@@ -509,10 +509,10 @@ export default function AdminPage() {
                       ⊘ Close Question (stop predictions)
                     </button>
                   )}
-                  {/* No Payout — available for both open and closed pending questions */}
-                  <button onClick={() => setConfirmResolve({ answer: "no_payout" })} disabled={!!resolving}
+                  {/* Cancel + Refund — available for both open and closed pending questions */}
+                  <button onClick={() => setConfirmResolve({ answer: "cancel" })} disabled={!!resolving}
                     className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                    ↩ No Payout (Refund All)
+                    ↩ Cancel (Refund All Points)
                   </button>
                   <button
                     onClick={async () => {
@@ -552,14 +552,14 @@ export default function AdminPage() {
               )}
 
               {/* Confirm resolve/close inline */}
-              {confirmResolve && (selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "no_payout") && (
+              {confirmResolve && (selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled") && (
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
                       ? "Close this question for new predictions? It will remain pending until you resolve it."
-                      : confirmResolve.answer === "no_payout"
-                      ? "Cancel this question? All participants will have their points refunded. No winner or loser declared."
-                      : `Resolve as ${confirmResolve.answer.toUpperCase()}? This pays out winners.`}
+                      : confirmResolve.answer === "cancel"
+                      ? "Cancel this question? All participants will receive point refunds. No winner or loser declared."
+                      : `Resolve as ${confirmResolve.answer.toUpperCase()}? This finalizes outcomes for participants.`}
                   </p>
                   <div className="flex gap-2">
                     <button onClick={() => setConfirmResolve(null)}
@@ -587,14 +587,14 @@ export default function AdminPage() {
                 </p>
               )}
 
-              {selectedQuestion.closed_reason === "no_payout" && (
+              {(selectedQuestion.closed_reason === "cancelled") && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
-                  Final state: cancelled with no payout. All participants were refunded.
+                  Final state: cancelled with full point refunds for participants.
                 </p>
               )}
 
               {/* Full question edit — available for open and pending-closed questions */}
-              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "no_payout")) && (
+              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
                 <div className="mt-4 border-t border-[var(--stroke)] pt-4">
                   {!editQuestionMode ? (
                     <div>
@@ -1072,7 +1072,7 @@ export default function AdminPage() {
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">Question Lifecycle</p>
-            <p className="text-slate-400">Open → (optional time-close) → Resolve YES/NO with winner payout; or Open/Closed → No Payout (Refund) which returns all participants&apos; points; or Delete for full cleanup.</p>
+            <p className="text-slate-400">Open → (optional time-close) → Resolve YES/NO with rule-based outcome points; or Open/Closed → Cancel (Refund) which returns all participants&apos; points; or Delete for full cleanup.</p>
           </div>
         </div>
       </section>

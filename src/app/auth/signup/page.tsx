@@ -70,6 +70,11 @@ export default function SignupPage() {
           <Link href="/auth/login" className="hover:text-white">Already have an account</Link>
           <Link href="/feed" className="hover:text-white">Go to feed</Link>
         </div>
+        <div className="mt-4 border-t border-[var(--stroke)] pt-3 text-xs text-slate-500">
+          <p>
+            By creating an account, you agree to our <Link href="/terms" className="text-slate-300 hover:text-white">Terms & Conditions</Link> and acknowledge the <Link href="/disclaimer" className="text-slate-300 hover:text-white">Disclaimer</Link>.
+          </p>
+        </div>
       </div>
     </main>
   );

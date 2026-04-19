@@ -15,7 +15,7 @@ export type FeedQuestion = {
   no_pool: number;
   entry_cost: number;
   status: "open" | "closed" | "resolved";
-  closed_reason?: "time_closed" | "admin_closed" | "no_payout" | string | null;
+  closed_reason?: "time_closed" | "admin_closed" | "cancelled" | string | null;
   closing_time?: string;
   closes_label?: string;
   resolution_rules?: string | null;

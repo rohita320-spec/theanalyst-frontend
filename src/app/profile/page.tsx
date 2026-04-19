@@ -155,7 +155,7 @@ export default function ProfilePage() {
                       <span className="font-semibold text-emerald-300">{formatNumber(profile?.points_earned_total || 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">Gross Payout Received</span>
+                      <span className="text-slate-300">Gross Outcome Points</span>
                       <span className="font-semibold text-white">{formatNumber(profile?.gross_points_earned || 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -307,7 +307,7 @@ export default function ProfilePage() {
                                     Spent: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span>
                                   </span>
                                   <span className="text-slate-300">
-                                    Payout: <span className="font-semibold text-white">{formatNumber(prediction.points_earned)}</span>
+                                    Outcome points: <span className="font-semibold text-white">{formatNumber(prediction.points_earned)}</span>
                                   </span>
                                   <span className="text-slate-300">
                                     Net: <span className={`font-semibold ${netResult >= 0 ? "text-emerald-300" : "text-red-300"}`}>
