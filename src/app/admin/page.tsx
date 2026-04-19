@@ -65,6 +65,13 @@ export default function AdminPage() {
   const [editRulesSubmitting, setEditRulesSubmitting] = useState(false);
   const [editRulesMsg, setEditRulesMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Edit question (text + category) - only for open questions
+  const [editQuestionMode, setEditQuestionMode] = useState(false);
+  const [editQuestionText, setEditQuestionText] = useState("");
+  const [editQuestionCategory, setEditQuestionCategory] = useState("");
+  const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
+  const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // Role change state
   const [roleModal, setRoleModal] = useState<{ userId: string; email: string; currentRole: string } | null>(null);
   const [targetRole, setTargetRole] = useState("admin");
@@ -138,6 +145,8 @@ export default function AdminPage() {
   useEffect(() => {
     setEditRulesMode(false);
     setEditRulesMsg(null);
+    setEditQuestionMode(false);
+    setEditQuestionMsg(null);
   }, [selectedQuestion?._id]);
 
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close") => {
@@ -497,6 +506,102 @@ export default function AdminPage() {
                 <p className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-center text-xs text-slate-500">
                   This question has been resolved.
                 </p>
+              )}
+
+              {/* Edit Question (text + category) — only for open questions */}
+              {selectedQuestion.status === "open" && (
+                <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                  {!editQuestionMode ? (
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
+                      <button
+                        onClick={() => {
+                          setEditQuestionMode(true);
+                          setEditQuestionText(selectedQuestion.title);
+                          setEditQuestionCategory(selectedQuestion.category);
+                          setEditQuestionMsg(null);
+                        }}
+                        className="text-xs text-[var(--brand)] hover:underline"
+                      >
+                        ✏ Edit Question Text & Category
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-300">Question Text</label>
+                      <textarea
+                        value={editQuestionText}
+                        onChange={(e) => setEditQuestionText(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Enter question text..."
+                      />
+                      <label className="text-xs font-medium text-slate-300">Category</label>
+                      <select
+                        value={editQuestionCategory}
+                        onChange={(e) => setEditQuestionCategory(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      >
+                        <option>Crypto</option>
+                        <option>Economy</option>
+                        <option>Entertainment</option>
+                        <option>General</option>
+                        <option>Global events</option>
+                        <option>Markets</option>
+                        <option>Sports</option>
+                      </select>
+                      {editQuestionMsg && (
+                        <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }}
+                          className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
+                        >Cancel</button>
+                        <button
+                          disabled={editQuestionSubmitting}
+                          onClick={async () => {
+                            if (!editQuestionText.trim()) {
+                              setEditQuestionMsg({ type: "error", text: "Question text required" });
+                              return;
+                            }
+                            setEditQuestionSubmitting(true);
+                            setEditQuestionMsg(null);
+                            try {
+                              const res = await fetch(`${API_BASE}/admin/edit_question`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+                                },
+                                credentials: "include",
+                                body: JSON.stringify({
+                                  question_id: selectedQuestion._id,
+                                  question_text: editQuestionText.trim(),
+                                  category: editQuestionCategory.trim(),
+                                }),
+                              });
+                              const body = await res.json();
+                              if (body.success) {
+                                setEditQuestionMsg({ type: "success", text: "Question updated." });
+                                await refreshQuestions();
+                                setSelectedQuestion((prev) => prev ? { ...prev, title: editQuestionText.trim(), category: editQuestionCategory.trim() } : prev);
+                                setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
+                              } else {
+                                setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
+                              }
+                            } catch {
+                              setEditQuestionMsg({ type: "error", text: "Network error." });
+                            } finally {
+                              setEditQuestionSubmitting(false);
+                            }
+                          }}
+                          className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                        >{editQuestionSubmitting ? "Saving..." : "Save"}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Edit Resolution Rules — available for all statuses */}
