@@ -50,10 +50,10 @@ export default function AdminPage() {
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
-  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"delete"|""
+  const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"no_payout"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   // Confirm resolve/close
-  const [confirmResolve, setConfirmResolve] = useState<{ answer: "yes" | "no" | "close" } | null>(null);
+  const [confirmResolve, setConfirmResolve] = useState<{ answer: "yes" | "no" | "close" | "no_payout" } | null>(null);
 
   // Create question modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -153,13 +153,31 @@ export default function AdminPage() {
     setEditQuestionMsg(null);
   }, [selectedQuestion?._id]);
 
-  const handleResolve = async (questionId: string, answer: "yes" | "no" | "close") => {
+  const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "no_payout") => {
     setConfirmResolve(null);
     setResolving(answer);
     setResolveMsg(null);
     try {
       if (answer === "close") {
         const res = await fetch(`${API_BASE}/admin/close_question`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+          },
+          credentials: "include",
+          body: JSON.stringify({ question_id: questionId }),
+        });
+        const body = await res.json();
+        if (body.success) {
+          setResolveMsg({ type: "success", text: "Question closed. Resolve it as YES, NO, or apply No Payout when ready." });
+          await refreshQuestions();
+          setSelectedQuestion(null);
+        } else {
+          setResolveMsg({ type: "error", text: body.detail || "Failed to close question." });
+        }
+      } else if (answer === "no_payout") {
+        const res = await fetch(`${API_BASE}/admin/no_payout_question`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -323,11 +341,12 @@ export default function AdminPage() {
   }
 
   const openLifecycleQuestions = allQuestions.filter((q) =>
-    q.status === "open" || (q.status === "closed" && q.closed_reason === "time_closed")
+    q.status === "open" ||
+    (q.status === "closed" && q.closed_reason !== "no_payout")
   );
   const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved");
   const finalizedQuestions = allQuestions.filter((q) =>
-    q.status === "resolved" || (q.status === "closed" && q.closed_reason !== "time_closed")
+    q.status === "resolved" || q.closed_reason === "no_payout"
   );
   const now = new Date();
 
@@ -387,7 +406,6 @@ export default function AdminPage() {
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {openLifecycleQuestions.length === 0 && <p className="text-xs text-slate-500">No open questions.</p>}
               {openLifecycleQuestions.map((q) => {
-                const isPastClose = q.closing_time && new Date(q.closing_time) < now;
                 const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
                 const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
                 const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
@@ -404,8 +422,10 @@ export default function AdminPage() {
                     </p>
                     <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
                     <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
-                    {(q.status === "closed" || isPastClose) && (
-                      <p className="mt-1 text-xs font-medium text-amber-400">Closed</p>
+                    {q.status === "closed" && q.closed_reason !== "no_payout" && (
+                      <p className="mt-1 text-xs font-medium text-amber-400">
+                        {q.closed_reason === "time_closed" ? "Closed by time — pending resolution" : "Closed — pending resolution"}
+                      </p>
                     )}
                   </button>
                 );
@@ -450,7 +470,11 @@ export default function AdminPage() {
               <p className="mb-3 text-sm text-slate-200">{selectedQuestion.title}</p>
               {selectedQuestion.status === "closed" && (
                 <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
-                  {selectedQuestion.closed_reason === "time_closed" ? "Closed by time" : "Closed (no payout)"}
+                  {selectedQuestion.closed_reason === "time_closed"
+                    ? "Closed by time — pending resolution"
+                    : selectedQuestion.closed_reason === "no_payout"
+                    ? "Cancelled (no payout) — points refunded"
+                    : "Closed by admin — pending resolution"}
                 </p>
               )}
               <div className="mb-4 space-y-1 text-xs text-slate-400">
@@ -466,8 +490,8 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Actions */}
-              {((selectedQuestion.status === "open") || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "time_closed")) && !confirmResolve && (
+              {/* Actions — available for all non-resolved, non-cancelled questions */}
+              {(selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "no_payout") && !confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
                   <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
@@ -478,9 +502,17 @@ export default function AdminPage() {
                     className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
                     ✗ Resolve NO
                   </button>
-                  <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                  {/* Close Question — only available for open questions (stops predictions, remains pending) */}
+                  {selectedQuestion.status === "open" && (
+                    <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                      className="w-full rounded-lg border border-yellow-600/50 px-3 py-2 text-sm font-medium text-yellow-300 hover:border-yellow-400 hover:text-yellow-200 disabled:opacity-50">
+                      ⊘ Close Question (stop predictions)
+                    </button>
+                  )}
+                  {/* No Payout — available for both open and closed pending questions */}
+                  <button onClick={() => setConfirmResolve({ answer: "no_payout" })} disabled={!!resolving}
                     className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                    ⊘ No Payout (Refund)
+                    ↩ No Payout (Refund All)
                   </button>
                   <button
                     onClick={async () => {
@@ -520,10 +552,12 @@ export default function AdminPage() {
               )}
 
               {/* Confirm resolve/close inline */}
-              {confirmResolve && ((selectedQuestion.status === "open") || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "time_closed")) && (
+              {confirmResolve && (selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "no_payout") && (
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
+                      ? "Close this question for new predictions? It will remain pending until you resolve it."
+                      : confirmResolve.answer === "no_payout"
                       ? "Cancel this question? All participants will have their points refunded. No winner or loser declared."
                       : `Resolve as ${confirmResolve.answer.toUpperCase()}? This pays out winners.`}
                   </p>
@@ -538,6 +572,7 @@ export default function AdminPage() {
                       className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${
                         confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" :
                         confirmResolve.answer === "no" ? "bg-orange-600 hover:bg-orange-500" :
+                        confirmResolve.answer === "close" ? "bg-yellow-700 hover:bg-yellow-600" :
                         "bg-slate-600 hover:bg-slate-500"
                       }`}>
                       {resolving ? "Working..." : "✓ Confirm"}
@@ -552,14 +587,14 @@ export default function AdminPage() {
                 </p>
               )}
 
-              {selectedQuestion.status === "closed" && selectedQuestion.closed_reason === "admin_closed" && (
+              {selectedQuestion.closed_reason === "no_payout" && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
-                  Final state: closed with no payout.
+                  Final state: cancelled with no payout. All participants were refunded.
                 </p>
               )}
 
-              {/* Full question edit — open questions only */}
-              {selectedQuestion.status === "open" && (
+              {/* Full question edit — available for open and pending-closed questions */}
+              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "no_payout")) && (
                 <div className="mt-4 border-t border-[var(--stroke)] pt-4">
                   {!editQuestionMode ? (
                     <div>
@@ -1046,6 +1081,9 @@ export default function AdminPage() {
       <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
         <div className="flex flex-wrap gap-3 text-sm">
+          <Link href="/" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
+            🌐 Landing Page (Guest View)
+          </Link>
           <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
           <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
           <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
