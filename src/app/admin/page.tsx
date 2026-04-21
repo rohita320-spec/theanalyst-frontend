@@ -466,13 +466,27 @@ export default function AdminPage() {
             {storageStatus ? (
               <div className="space-y-1 text-sm text-slate-300">
                 <p>Mode: <span className="text-white">{storageStatus.storage_mode}</span></p>
-                <p>Database connected: <span className={storageStatus.database_connected ? "text-emerald-400" : "text-amber-400"}>{storageStatus.database_connected ? "yes" : "no"}</span></p>
-                <p>Bubble enabled: <span className="text-white">{String(storageStatus.bubble_enabled ?? false)}</span></p>
+                <p>Database: <span className={storageStatus.database_connected ? "text-emerald-400" : "text-amber-400"}>{storageStatus.database_connected ? "✓ connected" : "✗ disconnected"}</span></p>
                 {storageStatus.error && <p className="text-red-400">{storageStatus.error}</p>}
               </div>
             ) : (
               <p className="text-sm text-slate-500">Storage details unavailable.</p>
             )}
+            <div className="mt-3 space-y-2 border-t border-[var(--stroke)] pt-3 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live Services</p>
+              <a href="https://lpbackend-production.up.railway.app/health" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+                <span className="text-slate-300">Backend API (Railway)</span>
+                <span className="text-emerald-400">↗ /health</span>
+              </a>
+              <a href="https://lpbackend-production.up.railway.app/docs" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+                <span className="text-slate-300">API Docs (Swagger)</span>
+                <span className="text-slate-400">↗ /docs</span>
+              </a>
+              <a href="https://theanalyst-frontend-production.up.railway.app" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+                <span className="text-slate-300">Frontend (Railway)</span>
+                <span className="text-slate-400">↗ live site</span>
+              </a>
+            </div>
           </div>
 
           <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
@@ -500,24 +514,12 @@ export default function AdminPage() {
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-white">Question Management</h2>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/test" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
-              Open UI Test Page
-            </Link>
-            <button
-              onClick={runSmokeTest}
-              disabled={smokeLoading}
-              className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-sm font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
-            >
-              {smokeLoading ? "Running..." : "Run Backend Smoke Test"}
-            </button>
-            <button
-              onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
-              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
-            >
-              + New Question
-            </button>
-          </div>
+          <button
+            onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
+            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+          >
+            + New Question
+          </button>
         </div>
 
         {resolveMsg && (

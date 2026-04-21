@@ -162,34 +162,6 @@ function DemoTrendChart({ points }: { points: number[] }) {
   );
 }
 
-function DemoMiniTrendChart({ points }: { points: number[] }) {
-  const values = points.length > 1 ? points : [50, 50];
-  const W = 260;
-  const H = 80;
-  const P = 6;
-  const CH = H - P * 2;
-  const CW = W - P * 2;
-
-  const toX = (i: number, n: number) => P + (i / Math.max(n - 1, 1)) * CW;
-  const toY = (pct: number) => P + (1 - pct / 100) * CH;
-
-  const yesPath = values
-    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i, values.length).toFixed(1)} ${toY(v).toFixed(1)}`)
-    .join(" ");
-  const noPath = values
-    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i, values.length).toFixed(1)} ${toY(100 - v).toFixed(1)}`)
-    .join(" ");
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-16 w-full">
-      <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#1f2a40" strokeWidth="1" />
-      <line x1={P} y1={P} x2={P} y2={H - P} stroke="#1f2a40" strokeWidth="1" />
-      <path d={noPath} fill="none" stroke="#fb923c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="5,3" />
-      <path d={yesPath} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export default function LandingPage() {
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
@@ -382,8 +354,8 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--brand)]">Interactive demo — category mix preview</p>
-          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            {/* Left — question + chart */}
+          <div className="grid gap-6">
+            {/* Full-detail demo cards — one per question */}
             <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div>
@@ -471,51 +443,57 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Live Demo For Guests</p>
-                  <h3 className="text-sm font-semibold text-white">3 demo questions with trend graphs</h3>
-                </div>
-                <Link href="/feed" className="text-xs text-[var(--brand)] hover:underline">Open full feed</Link>
-              </div>
-
-              <div className="space-y-3">
-                {demoQuestions.slice(0, 3).map((demo) => (
-                  <div key={demo.id} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <span className="rounded-full bg-[var(--brand)]/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--brand)]">
-                        {demo.category}
-                      </span>
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                        {demo.status}
-                      </span>
-                    </div>
-                    <p className="mb-2 text-sm font-medium leading-snug text-white">{demo.question_text}</p>
-                    <ProbBar yes={demo.yes_percent} no={demo.no_percent} />
-                    <div className="mt-2 rounded-lg border border-[var(--stroke)] bg-[#091228] p-2">
-                      <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Mini Trend</p>
-                      <DemoMiniTrendChart points={buildMiniSeries(demo.yes_percent, demo.id.length)} />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                      <span className="text-emerald-400">YES {demo.yes_percent.toFixed(0)}%</span>
-                      <span className="text-slate-500">Live market preview</span>
-                      <span className="text-orange-400">NO {demo.no_percent.toFixed(0)}%</span>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button className="rounded-md bg-[var(--yes)]/90 py-1.5 text-[11px] font-semibold text-slate-950 hover:brightness-110">Try YES</button>
-                      <button className="rounded-md bg-[var(--no)]/90 py-1.5 text-[11px] font-semibold text-slate-950 hover:brightness-110">Try NO</button>
-                    </div>
+            {demoQuestions.slice(0, 2).map((demo) => (
+              <div key={demo.id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="mb-1 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">{demo.category}</p>
+                    <p className="text-sm font-semibold text-white">{demo.question_text}</p>
                   </div>
-                ))}
-              </div>
+                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">Open</span>
+                </div>
 
-              <div className="mt-3 rounded-xl border border-dashed border-[var(--stroke)] bg-[#0b1528] p-3">
-                <p className="text-xs text-slate-400">
-                  The landing page now previews Markets, Sports, and Economy so users understand the platform range before signing up.
-                </p>
+                <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                  <div className="mb-2 flex justify-between text-[11px] text-slate-400">
+                    <span>Entry: 200 pts</span>
+                    <span>Pool: —</span>
+                  </div>
+                  <ProbBar yes={demo.yes_percent} no={demo.no_percent} />
+                  <div className="mt-1.5 flex justify-between text-xs">
+                    <span className="text-[var(--yes)]">YES {demo.yes_percent.toFixed(2)}%</span>
+                    <span className="text-[var(--no)]">NO {demo.no_percent.toFixed(2)}%</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                  <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
+                  <DemoTrendChart points={buildMiniSeries(demo.yes_percent, demo.id.length + 3)} />
+                  <div className="mt-2 flex items-center gap-4 px-1">
+                    <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--yes)]" /> YES %</span>
+                    <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--no)]" /> NO %</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                  <p className="mb-2 text-xs text-slate-400">Submit your view to see the market react:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="rounded-lg bg-[var(--yes)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110">
+                      YES {demo.yes_percent.toFixed(0)}%
+                    </button>
+                    <button className="rounded-lg bg-[var(--no)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110">
+                      NO {demo.no_percent.toFixed(0)}%
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
+                  <ul className="space-y-1 text-xs text-slate-300">
+                    {DEMO_RULES.map((rule, idx) => <li key={idx}>• {rule}</li>)}
+                  </ul>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
 
           <div className="mt-4 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
