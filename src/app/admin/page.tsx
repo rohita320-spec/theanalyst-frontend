@@ -500,12 +500,24 @@ export default function AdminPage() {
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-white">Question Management</h2>
-          <button
-            onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
-            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
-          >
-            + New Question
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/test" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+              Open UI Test Page
+            </Link>
+            <button
+              onClick={runSmokeTest}
+              disabled={smokeLoading}
+              className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-sm font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
+            >
+              {smokeLoading ? "Running..." : "Run Backend Smoke Test"}
+            </button>
+            <button
+              onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
+              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+            >
+              + New Question
+            </button>
+          </div>
         </div>
 
         {resolveMsg && (

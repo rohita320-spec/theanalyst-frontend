@@ -162,6 +162,34 @@ function DemoTrendChart({ points }: { points: number[] }) {
   );
 }
 
+function DemoMiniTrendChart({ points }: { points: number[] }) {
+  const values = points.length > 1 ? points : [50, 50];
+  const W = 260;
+  const H = 80;
+  const P = 6;
+  const CH = H - P * 2;
+  const CW = W - P * 2;
+
+  const toX = (i: number, n: number) => P + (i / Math.max(n - 1, 1)) * CW;
+  const toY = (pct: number) => P + (1 - pct / 100) * CH;
+
+  const yesPath = values
+    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i, values.length).toFixed(1)} ${toY(v).toFixed(1)}`)
+    .join(" ");
+  const noPath = values
+    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i, values.length).toFixed(1)} ${toY(100 - v).toFixed(1)}`)
+    .join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-16 w-full">
+      <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#1f2a40" strokeWidth="1" />
+      <line x1={P} y1={P} x2={P} y2={H - P} stroke="#1f2a40" strokeWidth="1" />
+      <path d={noPath} fill="none" stroke="#fb923c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="5,3" />
+      <path d={yesPath} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function LandingPage() {
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
@@ -254,6 +282,17 @@ export default function LandingPage() {
     setDemoYes(DEMO_QUESTION.yes_percent);
     setDemoNo(DEMO_QUESTION.no_percent);
     setTrendPoints(INITIAL_TREND);
+  };
+
+  const buildMiniSeries = (center: number, seed: number) => {
+    const points: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      const wave = Math.sin((i + 1 + seed) * 0.9) * 2.1;
+      const drift = (i - 3) * 0.25;
+      const val = Math.max(15, Math.min(85, center + wave + drift));
+      points.push(Math.round(val * 10) / 10);
+    }
+    return points;
   };
 
   return (
@@ -435,8 +474,8 @@ export default function LandingPage() {
             <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">More than one market</p>
-                  <h3 className="text-sm font-semibold text-white">Three quick previews across categories</h3>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Live Demo For Guests</p>
+                  <h3 className="text-sm font-semibold text-white">3 demo questions with trend graphs</h3>
                 </div>
                 <Link href="/feed" className="text-xs text-[var(--brand)] hover:underline">Open full feed</Link>
               </div>
@@ -454,10 +493,18 @@ export default function LandingPage() {
                     </div>
                     <p className="mb-2 text-sm font-medium leading-snug text-white">{demo.question_text}</p>
                     <ProbBar yes={demo.yes_percent} no={demo.no_percent} />
+                    <div className="mt-2 rounded-lg border border-[var(--stroke)] bg-[#091228] p-2">
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Mini Trend</p>
+                      <DemoMiniTrendChart points={buildMiniSeries(demo.yes_percent, demo.id.length)} />
+                    </div>
                     <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                       <span className="text-emerald-400">YES {demo.yes_percent.toFixed(0)}%</span>
                       <span className="text-slate-500">Live market preview</span>
                       <span className="text-orange-400">NO {demo.no_percent.toFixed(0)}%</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button className="rounded-md bg-[var(--yes)]/90 py-1.5 text-[11px] font-semibold text-slate-950 hover:brightness-110">Try YES</button>
+                      <button className="rounded-md bg-[var(--no)]/90 py-1.5 text-[11px] font-semibold text-slate-950 hover:brightness-110">Try NO</button>
                     </div>
                   </div>
                 ))}
