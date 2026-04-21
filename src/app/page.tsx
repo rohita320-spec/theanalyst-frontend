@@ -22,6 +22,8 @@ type DemoQuestion = {
   yes_percent: number;
   no_percent: number;
   status: string;
+  entry_cost?: number;
+  pool_points?: number;
 };
 
 const DEMO_QUESTION = {
@@ -40,6 +42,8 @@ const DEMO_PREVIEW_QUESTIONS: DemoQuestion[] = [
     yes_percent: 58,
     no_percent: 42,
     status: "open",
+    entry_cost: 220,
+    pool_points: 18400,
   },
   {
     id: "demo_sports_1",
@@ -48,6 +52,8 @@ const DEMO_PREVIEW_QUESTIONS: DemoQuestion[] = [
     yes_percent: 61,
     no_percent: 39,
     status: "open",
+    entry_cost: 180,
+    pool_points: 12600,
   },
   {
     id: "demo_economy_1",
@@ -56,6 +62,8 @@ const DEMO_PREVIEW_QUESTIONS: DemoQuestion[] = [
     yes_percent: 47,
     no_percent: 53,
     status: "open",
+    entry_cost: 260,
+    pool_points: 16200,
   },
 ];
 
@@ -174,6 +182,9 @@ export default function LandingPage() {
   const [demoResolvedOutcome, setDemoResolvedOutcome] = useState<"win" | "loss" | null>(null);
   const [demoShiftLabel, setDemoShiftLabel] = useState<string | null>(null);
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const demoStake = DEMO_QUESTION.entry_cost;
+  const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
+  const demoNetPoints = demoResolvedOutcome === "win" ? demoPayout - demoStake : -demoStake;
 
   useEffect(() => {
     fetch(`${API_BASE}/feed_questions?limit=6&status=open`)
@@ -354,7 +365,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--brand)]">Interactive demo — category mix preview</p>
-          <div className="grid gap-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             {/* Full-detail demo cards — one per question */}
             <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -422,9 +433,28 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <div className={`mt-3 rounded-lg border p-3 text-center ${demoResolvedOutcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Outcome</p>
+                  <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Settlement</p>
                   <p className={`text-base font-bold ${demoResolvedOutcome === "win" ? "text-emerald-400" : "text-orange-400"}`}>
-                    {demoResolvedOutcome === "win" ? "✓ View matched the result" : "✗ View did not match result"}
+                    {demoResolvedOutcome === "win" ? "Position settled in your favor" : "Position settled against your view"}
+                  </p>
+                  <div className="mt-3 grid gap-2 text-left sm:grid-cols-3">
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Stake</p>
+                      <p className="text-sm font-semibold text-white">{demoStake} pts</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Payout</p>
+                      <p className="text-sm font-semibold text-white">{demoPayout} pts</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Net Points</p>
+                      <p className={`text-sm font-semibold ${demoNetPoints >= 0 ? "text-emerald-300" : "text-orange-300"}`}>{demoNetPoints >= 0 ? `+${demoNetPoints}` : demoNetPoints} pts</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-300">
+                    {demoResolvedOutcome === "win"
+                      ? "Your YES position moved with the market and credited points after settlement."
+                      : "Your position lost the stake when the market settled against your call."}
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button onClick={resetDemo} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-400">Try again</button>
@@ -443,7 +473,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {demoQuestions.slice(0, 2).map((demo) => (
+            {demoQuestions.slice(0, 3).map((demo) => (
               <div key={demo.id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
@@ -455,8 +485,8 @@ export default function LandingPage() {
 
                 <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <div className="mb-2 flex justify-between text-[11px] text-slate-400">
-                    <span>Entry: 200 pts</span>
-                    <span>Pool: —</span>
+                    <span>Entry: {demo.entry_cost ?? 220} pts</span>
+                    <span>Pool: {(demo.pool_points ?? 14800).toLocaleString()} pts</span>
                   </div>
                   <ProbBar yes={demo.yes_percent} no={demo.no_percent} />
                   <div className="mt-1.5 flex justify-between text-xs">

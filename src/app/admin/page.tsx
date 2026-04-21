@@ -20,7 +20,14 @@ type StorageStatus = {
   success: boolean;
   storage_mode: string;
   database_connected: boolean;
-  bubble_enabled?: boolean;
+  postgres_enabled?: boolean;
+  postgres_status?: string;
+  hosting_provider?: string;
+  hosting_active?: boolean;
+  backend_api_status?: string;
+  backend_base_url?: string;
+  frontend_url?: string;
+  api_docs_url?: string;
   table_counts?: Record<string, number>;
   data_files?: Record<string, string>;
   error?: string;
@@ -466,7 +473,9 @@ export default function AdminPage() {
             {storageStatus ? (
               <div className="space-y-1 text-sm text-slate-300">
                 <p>Mode: <span className="text-white">{storageStatus.storage_mode}</span></p>
-                <p>Database: <span className={storageStatus.database_connected ? "text-emerald-400" : "text-amber-400"}>{storageStatus.database_connected ? "✓ connected" : "✗ disconnected"}</span></p>
+                <p>Hosting: <span className={storageStatus.hosting_active ? "text-emerald-400" : "text-amber-400"}>{storageStatus.hosting_provider === "railway" ? "Railway online" : "Online"}</span></p>
+                <p>Backend API: <span className={storageStatus.backend_api_status === "online" ? "text-emerald-400" : "text-amber-400"}>{storageStatus.backend_api_status || "unknown"}</span></p>
+                <p>PostgreSQL: <span className={storageStatus.postgres_status === "connected" ? "text-emerald-400" : storageStatus.postgres_status === "inactive" ? "text-slate-300" : "text-amber-400"}>{storageStatus.postgres_status || "unknown"}</span></p>
                 {storageStatus.error && <p className="text-red-400">{storageStatus.error}</p>}
               </div>
             ) : (
@@ -474,15 +483,15 @@ export default function AdminPage() {
             )}
             <div className="mt-3 space-y-2 border-t border-[var(--stroke)] pt-3 text-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live Services</p>
-              <a href="https://lpbackend-production.up.railway.app/health" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+              <a href={`${storageStatus?.backend_base_url || API_BASE}/health`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
                 <span className="text-slate-300">Backend API (Railway)</span>
                 <span className="text-emerald-400">↗ /health</span>
               </a>
-              <a href="https://lpbackend-production.up.railway.app/docs" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+              <a href={storageStatus?.api_docs_url || `${API_BASE}/docs`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
                 <span className="text-slate-300">API Docs (Swagger)</span>
                 <span className="text-slate-400">↗ /docs</span>
               </a>
-              <a href="https://theanalyst-frontend-production.up.railway.app" target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
+              <a href={storageStatus?.frontend_url || "/"} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
                 <span className="text-slate-300">Frontend (Railway)</span>
                 <span className="text-slate-400">↗ live site</span>
               </a>
