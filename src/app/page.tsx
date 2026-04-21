@@ -435,26 +435,26 @@ export default function LandingPage() {
                 <div className={`mt-3 rounded-lg border p-3 text-center ${demoResolvedOutcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Settlement</p>
                   <p className={`text-base font-bold ${demoResolvedOutcome === "win" ? "text-emerald-400" : "text-orange-400"}`}>
-                    {demoResolvedOutcome === "win" ? "Position settled in your favor" : "Position settled against your view"}
+                    {demoResolvedOutcome === "win" ? "Result aligned with your submitted view" : "Result did not align with your submitted view"}
                   </p>
                   <div className="mt-3 grid gap-2 text-left sm:grid-cols-3">
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Stake</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Spent</p>
                       <p className="text-sm font-semibold text-white">{demoStake} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Payout</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Outcome points</p>
                       <p className="text-sm font-semibold text-white">{demoPayout} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Net Points</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Net</p>
                       <p className={`text-sm font-semibold ${demoNetPoints >= 0 ? "text-emerald-300" : "text-orange-300"}`}>{demoNetPoints >= 0 ? `+${demoNetPoints}` : demoNetPoints} pts</p>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-300">
                     {demoResolvedOutcome === "win"
-                      ? "Your YES position moved with the market and credited points after settlement."
-                      : "Your position lost the stake when the market settled against your call."}
+                      ? "Points were credited based on the resolved outcome."
+                      : "Points were debited based on the resolved outcome."}
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button onClick={resetDemo} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-400">Try again</button>
