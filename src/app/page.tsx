@@ -181,6 +181,11 @@ export default function LandingPage() {
   const [demoResolved, setDemoResolved] = useState(false);
   const [demoResolvedOutcome, setDemoResolvedOutcome] = useState<"win" | "loss" | null>(null);
   const [demoShiftLabel, setDemoShiftLabel] = useState<string | null>(null);
+  const [cardVotes, setCardVotes] = useState<Record<string, "yes" | "no" | null>>({});
+  const [cardResolved, setCardResolved] = useState<Record<string, boolean>>({});
+  const [cardOutcomes, setCardOutcomes] = useState<Record<string, "win" | "loss" | null>>({});
+  const [cardYesPct, setCardYesPct] = useState<Record<string, number>>({});
+  const [cardNoPct, setCardNoPct] = useState<Record<string, number>>({});
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoStake = DEMO_QUESTION.entry_cost;
   const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
@@ -276,6 +281,44 @@ export default function LandingPage() {
       points.push(Math.round(val * 10) / 10);
     }
     return points;
+  };
+
+  const handleCardVote = (demo: DemoQuestion, side: "yes" | "no") => {
+    const cardId = demo.id;
+    if (cardVotes[cardId]) return;
+    setCardVotes((prev) => ({ ...prev, [cardId]: side }));
+
+    const currentYes = cardYesPct[cardId] ?? demo.yes_percent;
+    const shift = side === "yes" ? 5 : -5;
+    const newYes = Math.max(5, Math.min(95, currentYes + shift));
+    const newNo = 100 - newYes;
+
+    setTimeout(() => {
+      setCardYesPct((prev) => ({ ...prev, [cardId]: newYes }));
+      setCardNoPct((prev) => ({ ...prev, [cardId]: newNo }));
+    }, 450);
+
+    setTimeout(() => {
+      const isWin = side === "yes" ? newYes >= 50 : newNo >= 50;
+      setCardOutcomes((prev) => ({ ...prev, [cardId]: isWin ? "win" : "loss" }));
+      setCardResolved((prev) => ({ ...prev, [cardId]: true }));
+    }, 1200);
+  };
+
+  const resetCardVote = (cardId: string) => {
+    setCardVotes((prev) => ({ ...prev, [cardId]: null }));
+    setCardResolved((prev) => ({ ...prev, [cardId]: false }));
+    setCardOutcomes((prev) => ({ ...prev, [cardId]: null }));
+    setCardYesPct((prev) => {
+      const next = { ...prev };
+      delete next[cardId];
+      return next;
+    });
+    setCardNoPct((prev) => {
+      const next = { ...prev };
+      delete next[cardId];
+      return next;
+    });
   };
 
   return (
@@ -475,6 +518,18 @@ export default function LandingPage() {
 
             {demoQuestions.slice(0, 3).map((demo) => (
               <div key={demo.id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
+                {(() => {
+                  const yesNow = cardYesPct[demo.id] ?? demo.yes_percent;
+                  const noNow = cardNoPct[demo.id] ?? demo.no_percent;
+                  const voteSide = cardVotes[demo.id] ?? null;
+                  const resolved = cardResolved[demo.id] ?? false;
+                  const outcome = cardOutcomes[demo.id] ?? null;
+                  const spent = demo.entry_cost ?? 220;
+                  const outcomePoints = outcome === "win" ? Math.round(spent * 1.8) : 0;
+                  const net = outcomePoints - spent;
+
+                  return (
+                    <>
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
                     <p className="mb-1 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">{demo.category}</p>
@@ -488,16 +543,16 @@ export default function LandingPage() {
                     <span>Entry: {demo.entry_cost ?? 220} pts</span>
                     <span>Pool: {(demo.pool_points ?? 14800).toLocaleString()} pts</span>
                   </div>
-                  <ProbBar yes={demo.yes_percent} no={demo.no_percent} />
+                  <ProbBar yes={yesNow} no={noNow} />
                   <div className="mt-1.5 flex justify-between text-xs">
-                    <span className="text-[var(--yes)]">YES {demo.yes_percent.toFixed(2)}%</span>
-                    <span className="text-[var(--no)]">NO {demo.no_percent.toFixed(2)}%</span>
+                    <span className="text-[var(--yes)]">YES {yesNow.toFixed(2)}%</span>
+                    <span className="text-[var(--no)]">NO {noNow.toFixed(2)}%</span>
                   </div>
                 </div>
 
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
-                  <DemoTrendChart points={buildMiniSeries(demo.yes_percent, demo.id.length + 3)} />
+                  <DemoTrendChart points={buildMiniSeries(yesNow, demo.id.length + 3)} />
                   <div className="mt-2 flex items-center gap-4 px-1">
                     <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--yes)]" /> YES %</span>
                     <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--no)]" /> NO %</span>
@@ -507,14 +562,46 @@ export default function LandingPage() {
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <p className="mb-2 text-xs text-slate-400">Submit your view to see the market react:</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <button className="rounded-lg bg-[var(--yes)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110">
-                      YES {demo.yes_percent.toFixed(0)}%
+                    <button
+                      onClick={() => handleCardVote(demo, "yes")}
+                      disabled={!!voteSide || resolved}
+                      className="rounded-lg bg-[var(--yes)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
+                    >
+                      YES {yesNow.toFixed(0)}%
                     </button>
-                    <button className="rounded-lg bg-[var(--no)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110">
-                      NO {demo.no_percent.toFixed(0)}%
+                    <button
+                      onClick={() => handleCardVote(demo, "no")}
+                      disabled={!!voteSide || resolved}
+                      className="rounded-lg bg-[var(--no)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
+                    >
+                      NO {noNow.toFixed(0)}%
                     </button>
                   </div>
+                  {voteSide && !resolved && <p className="mt-2 text-center text-[11px] text-slate-500">Updating probabilities...</p>}
                 </div>
+
+                {resolved && (
+                  <div className={`mt-3 rounded-lg border p-3 ${outcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
+                    <p className={`text-sm font-semibold ${outcome === "win" ? "text-emerald-300" : "text-orange-300"}`}>
+                      {outcome === "win" ? "Result aligned with your submitted view" : "Result did not align with your submitted view"}
+                    </p>
+                    <div className="mt-2 grid gap-2 text-left sm:grid-cols-3">
+                      <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Spent</p>
+                        <p className="text-sm font-semibold text-white">{spent} pts</p>
+                      </div>
+                      <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Outcome points</p>
+                        <p className="text-sm font-semibold text-white">{outcomePoints} pts</p>
+                      </div>
+                      <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Net</p>
+                        <p className={`text-sm font-semibold ${net >= 0 ? "text-emerald-300" : "text-orange-300"}`}>{net >= 0 ? `+${net}` : net} pts</p>
+                      </div>
+                    </div>
+                    <button onClick={() => resetCardVote(demo.id)} className="mt-3 w-full rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-400">Try again</button>
+                  </div>
+                )}
 
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
@@ -522,6 +609,9 @@ export default function LandingPage() {
                     {DEMO_RULES.map((rule, idx) => <li key={idx}>• {rule}</li>)}
                   </ul>
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
