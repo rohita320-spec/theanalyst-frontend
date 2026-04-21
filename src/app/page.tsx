@@ -486,7 +486,7 @@ export default function LandingPage() {
                       <p className="text-sm font-semibold text-white">{demoStake} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Outcome points</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Points earned</p>
                       <p className="text-sm font-semibold text-white">{demoPayout} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
@@ -591,7 +591,7 @@ export default function LandingPage() {
                         <p className="text-sm font-semibold text-white">{spent} pts</p>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Outcome points</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Points earned</p>
                         <p className="text-sm font-semibold text-white">{outcomePoints} pts</p>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
