@@ -173,6 +173,26 @@ export default function TestPage() {
               </dl>
             </div>
 
+            {creatorUser && (
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-bold mb-4">Second Test User</h3>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">ID:</dt>
+                    <dd className="font-mono">{creatorUser.id.slice(0, 12)}...</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Email:</dt>
+                    <dd>{creatorUser.email}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Role:</dt>
+                    <dd>{creatorUser.role}</dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
             {testQuestion && (
               <div className="bg-gray-800 rounded-lg p-6">
                 <h3 className="text-lg font-bold mb-4">Test Question</h3>

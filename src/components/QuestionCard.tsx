@@ -76,13 +76,13 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
 
         <div className="relative h-2 overflow-hidden rounded-full bg-slate-700">
-          <div className="absolute left-0 top-0 h-full bg-[var(--brand)] transition-all" style={{ width: `${yesWidth}%` }} />
-          <div className="absolute right-0 top-0 h-full bg-[var(--accent)] transition-all" style={{ width: `${noWidth}%` }} />
+          <div className="absolute left-0 top-0 h-full bg-[var(--yes)] transition-all" style={{ width: `${yesWidth}%` }} />
+          <div className="absolute right-0 top-0 h-full bg-[var(--no)] transition-all" style={{ width: `${noWidth}%` }} />
         </div>
 
         <div className="mt-2 flex justify-between text-xs font-medium">
-          <span className="text-[var(--brand)]">YES {formatPct(safeYes)}</span>
-          <span className="text-[var(--accent)]">NO {formatPct(safeNo)}</span>
+          <span className="text-[var(--yes)]">YES {formatPct(safeYes)}</span>
+          <span className="text-[var(--no)]">NO {formatPct(safeNo)}</span>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
-              : "bg-[var(--brand)] text-slate-950 hover:brightness-110"
+              : "bg-[var(--yes)] text-slate-950 hover:brightness-110"
           }`}
           onClick={() => onAnalyze(question, "yes")}
           disabled={!canAnalyze || isAnyPlacing}
@@ -103,7 +103,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
-              : "bg-[var(--accent)] text-slate-950 hover:brightness-110"
+              : "bg-[var(--no)] text-slate-950 hover:brightness-110"
           }`}
           onClick={() => onAnalyze(question, "no")}
           disabled={!canAnalyze || isAnyPlacing}

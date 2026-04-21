@@ -16,6 +16,30 @@ type Summary = {
   bubble_base_url: string;
 };
 
+type StorageStatus = {
+  success: boolean;
+  storage_mode: string;
+  database_connected: boolean;
+  bubble_enabled?: boolean;
+  table_counts?: Record<string, number>;
+  data_files?: Record<string, string>;
+  error?: string;
+};
+
+type SmokeTestSummary = {
+  steps_total: number;
+  steps_passed: number;
+  steps_failed: number;
+  elapsed_seconds: number;
+  correct_answer: string;
+};
+
+type SmokeTestResult = {
+  success: boolean;
+  smoke_test_passed: boolean;
+  summary: SmokeTestSummary;
+};
+
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-5">
@@ -44,7 +68,11 @@ export default function AdminPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [authUsers, setAuthUsers] = useState<AuthUserRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
   const [error, setError] = useState("");
+  const [smokeLoading, setSmokeLoading] = useState(false);
+  const [smokeResult, setSmokeResult] = useState<SmokeTestResult | null>(null);
+  const [smokeMsg, setSmokeMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Questions state
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
@@ -101,7 +129,7 @@ export default function AdminPage() {
         setState("allowed");
 
         // Fetch admin data + questions in parallel
-        const [usersRes, summaryRes, questionsRes] = await Promise.allSettled([
+        const [usersRes, summaryRes, questionsRes, storageRes] = await Promise.allSettled([
           fetch(`${API_BASE}/admin/users`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -111,6 +139,10 @@ export default function AdminPage() {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
           fetch(`${API_BASE}/feed_questions?limit=100&status=all`, { credentials: "include" }),
+          fetch(`${API_BASE}/admin/storage_status`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          }),
         ]);
 
         if (usersRes.status === "fulfilled" && usersRes.value.ok) {
@@ -124,6 +156,10 @@ export default function AdminPage() {
         if (questionsRes.status === "fulfilled" && questionsRes.value.ok) {
           const body = await questionsRes.value.json();
           setAllQuestions(body.results || []);
+        }
+        if (storageRes.status === "fulfilled" && storageRes.value.ok) {
+          const body = await storageRes.value.json();
+          setStorageStatus(body);
         }
       } catch {
         setState("forbidden");
@@ -279,6 +315,35 @@ export default function AdminPage() {
     }
   };
 
+  const runSmokeTest = async () => {
+    setSmokeLoading(true);
+    setSmokeMsg(null);
+    setSmokeResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/run_smoke_test?correct_answer=yes`, {
+        method: "POST",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+        credentials: "include",
+      });
+      const body = await res.json();
+      if (res.ok && body.success) {
+        setSmokeResult(body);
+        setSmokeMsg({
+          type: body.smoke_test_passed ? "success" : "error",
+          text: body.smoke_test_passed
+            ? "System smoke test passed. Major flows are working."
+            : "Smoke test ran but reported failures.",
+        });
+      } else {
+        setSmokeMsg({ type: "error", text: body.detail || body.message || "Failed to run smoke test." });
+      }
+    } catch {
+      setSmokeMsg({ type: "error", text: "Network error running smoke test." });
+    } finally {
+      setSmokeLoading(false);
+    }
+  };
+
   const openRoleModal = (u: AuthUserRow) => {
     setRoleModal({ userId: u.id, email: u.email, currentRole: u.role });
     setTargetRole(u.role === "admin" ? "user" : "admin");
@@ -372,6 +437,62 @@ export default function AdminPage() {
           <StatCard label="Open Questions" value={openLifecycleQuestions.length} />
           <StatCard label="Resolved Questions" value={resolvedQuestions.length} />
           <StatCard label="Auth Accounts (local)" value={summary?.auth_users_count ?? authUsers.length} />
+        </div>
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-white">System Test</h2>
+            <p className="text-sm text-slate-400">Visible admin controls for system validation and storage status.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/test" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+              Open UI Test Page
+            </Link>
+            <button
+              onClick={runSmokeTest}
+              disabled={smokeLoading}
+              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+            >
+              {smokeLoading ? "Running..." : "Run Backend Smoke Test"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Storage Status</p>
+            {storageStatus ? (
+              <div className="space-y-1 text-sm text-slate-300">
+                <p>Mode: <span className="text-white">{storageStatus.storage_mode}</span></p>
+                <p>Database connected: <span className={storageStatus.database_connected ? "text-emerald-400" : "text-amber-400"}>{storageStatus.database_connected ? "yes" : "no"}</span></p>
+                <p>Bubble enabled: <span className="text-white">{String(storageStatus.bubble_enabled ?? false)}</span></p>
+                {storageStatus.error && <p className="text-red-400">{storageStatus.error}</p>}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Storage details unavailable.</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Last Smoke Test</p>
+            {smokeMsg && (
+              <div className={`mb-3 rounded-lg border px-3 py-2 text-sm ${smokeMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                {smokeMsg.text}
+              </div>
+            )}
+            {smokeResult ? (
+              <div className="space-y-1 text-sm text-slate-300">
+                <p>Passed: <span className={smokeResult.smoke_test_passed ? "text-emerald-400" : "text-red-400"}>{smokeResult.smoke_test_passed ? "yes" : "no"}</span></p>
+                <p>Steps: <span className="text-white">{smokeResult.summary.steps_passed}/{smokeResult.summary.steps_total}</span></p>
+                <p>Failures: <span className="text-white">{smokeResult.summary.steps_failed}</span></p>
+                <p>Elapsed: <span className="text-white">{smokeResult.summary.elapsed_seconds}s</span></p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Run the backend smoke test to verify signup, trading, resolution, payout, cleanup, and storage connectivity.</p>
+            )}
+          </div>
         </div>
       </section>
 
@@ -1083,6 +1204,9 @@ export default function AdminPage() {
         <div className="flex flex-wrap gap-3 text-sm">
           <Link href="/" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
             🌐 Landing Page (Guest View)
+          </Link>
+          <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
+            🧪 System Test Page
           </Link>
           <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
           <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>

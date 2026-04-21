@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { logout } from "../lib/api";
 
 type Props = {
@@ -14,21 +14,28 @@ function fmt(value: number) {
 }
 
 export default function AppHeader({ active, pointsBalance = 0 }: Props) {
-  const [authEmail, setAuthEmail] = useState<string | null>(null);
-  const [authRole, setAuthRole] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<{ email: string | null; role: string | null }>(() => {
+    if (typeof window === "undefined") {
+      return { email: null, role: null };
+    }
 
-  useEffect(() => {
     try {
       const raw = localStorage.getItem("auth_user");
-      if (raw) {
-        const user = JSON.parse(raw) as { email?: string; role?: string };
-        setAuthEmail(user.email || null);
-        setAuthRole(user.role || null);
+      if (!raw) {
+        return { email: null, role: null };
       }
+      const user = JSON.parse(raw) as { email?: string; role?: string };
+      return {
+        email: user.email || null,
+        role: user.role || null,
+      };
     } catch {
-      // ignore
+      return { email: null, role: null };
     }
-  }, []);
+  });
+
+  const authEmail = authState.email;
+  const authRole = authState.role;
 
   const handleLogout = async () => {
     const token = localStorage.getItem("auth_token") || "";
@@ -40,8 +47,7 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
-    setAuthEmail(null);
-    setAuthRole(null);
+    setAuthState({ email: null, role: null });
   };
 
   return (

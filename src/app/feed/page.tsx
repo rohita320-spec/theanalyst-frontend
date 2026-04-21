@@ -315,7 +315,7 @@ export default function FeedPage() {
                 className={`rounded-full px-3 py-1 text-sm font-semibold ${
                   confirmModal.answer === "yes"
                     ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-red-500/20 text-red-300"
+                    : "bg-orange-500/20 text-orange-300"
                 }`}
               >
                 {confirmModal.answer.toUpperCase()}
@@ -372,7 +372,7 @@ export default function FeedPage() {
                 className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
                   confirmModal.answer === "yes"
                     ? "bg-emerald-600 hover:bg-emerald-500"
-                    : "bg-red-600 hover:bg-red-500"
+                    : "bg-[var(--no)] text-slate-950 hover:brightness-110"
                 }`}
               >
                 {modalSubmitting ? "Submitting..." : "Submit Analysis"}

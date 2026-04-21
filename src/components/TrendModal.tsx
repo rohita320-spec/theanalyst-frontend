@@ -131,11 +131,11 @@ export default function TrendModal({
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
               <p className="text-xs text-slate-400">Current YES</p>
-              <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{formatPct(lastPoint.yes_percent)}</p>
+              <p className="mt-1 text-lg font-semibold text-[var(--yes)]">{formatPct(lastPoint.yes_percent)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
               <p className="text-xs text-slate-400">Current NO</p>
-              <p className="mt-1 text-lg font-semibold text-[var(--accent)]">{formatPct(lastPoint.no_percent)}</p>
+              <p className="mt-1 text-lg font-semibold text-[var(--no)]">{formatPct(lastPoint.no_percent)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
               <p className="text-xs text-slate-400">Start YES</p>
@@ -157,11 +157,11 @@ export default function TrendModal({
             {/* Legend */}
             <div className="mb-3 flex items-center gap-4 px-1">
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--brand)]" />
+                <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--yes)]" />
                 YES %
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--accent)]" />
+                <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--no)]" />
                 NO %
               </span>
             </div>
@@ -224,14 +224,14 @@ export default function TrendModal({
 
               {/* YES area fill */}
               {yesAreaPath && (
-                <path d={yesAreaPath} fill="#58a6ff" fillOpacity="0.06" />
+                <path d={yesAreaPath} fill="#34d399" fillOpacity="0.08" />
               )}
 
               {/* NO line */}
               <path
                 d={noPath}
                 fill="none"
-                stroke="#f59e0b"
+                stroke="#fb923c"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -242,7 +242,7 @@ export default function TrendModal({
               <path
                 d={yesPath}
                 fill="none"
-                stroke="#58a6ff"
+                stroke="#34d399"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -252,14 +252,14 @@ export default function TrendModal({
               {points.map((p, i) => {
                 const x = indexToX(i, points.length);
                 const y = pctToY(Number(p.yes_percent || 0));
-                return <circle key={`y${i}`} cx={x} cy={y} r="3.5" fill="#58a6ff" />;
+                return <circle key={`y${i}`} cx={x} cy={y} r="3.5" fill="#34d399" />;
               })}
 
               {/* Data point dots for NO */}
               {points.map((p, i) => {
                 const x = indexToX(i, points.length);
                 const y = pctToY(Number(p.no_percent || 0));
-                return <circle key={`n${i}`} cx={x} cy={y} r="3" fill="#f59e0b" />;
+                return <circle key={`n${i}`} cx={x} cy={y} r="3" fill="#fb923c" />;
               })}
             </svg>
           </div>

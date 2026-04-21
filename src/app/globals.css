@@ -7,7 +7,9 @@
   --surface-2: #101b2e;
   --stroke: #25324a;
   --brand: #58a6ff;
-  --accent: #f59e0b;
+  --yes: #34d399;
+  --no: #fb923c;
+  --accent: #fb923c;
 }
 
 @theme inline {
@@ -17,6 +19,8 @@
   --color-surface-2: var(--surface-2);
   --color-stroke: var(--stroke);
   --color-brand: var(--brand);
+  --color-yes: var(--yes);
+  --color-no: var(--no);
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
