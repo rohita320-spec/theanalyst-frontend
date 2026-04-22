@@ -196,9 +196,11 @@ export default function LandingPage() {
     try {
       const token = localStorage.getItem("auth_token") || "";
       if (token) {
+        document.cookie = "ta_session=1; path=/; max-age=2592000; samesite=lax";
         window.location.href = "/feed";
         return;
       }
+      document.cookie = "ta_session=; path=/; max-age=0; samesite=lax";
     } catch {
       // Ignore storage access errors and keep the landing page visible.
     }

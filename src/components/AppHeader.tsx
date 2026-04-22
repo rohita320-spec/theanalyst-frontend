@@ -107,6 +107,7 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
+    document.cookie = "ta_session=; path=/; max-age=0; samesite=lax";
     sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Logged out successfully." }));
     window.dispatchEvent(new Event("auth-changed"));
     setAuthState({ email: null, role: null });
