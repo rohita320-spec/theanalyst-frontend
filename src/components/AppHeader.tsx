@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { logout } from "../lib/api";
+import { useEffect, useState } from "react";
+import { logout, me } from "../lib/api";
 
 type Props = {
   active: "feed" | "leaderboard" | "profile";
@@ -13,26 +13,103 @@ function fmt(value: number) {
   return new Intl.NumberFormat("en-US").format(value || 0);
 }
 
-export default function AppHeader({ active, pointsBalance = 0 }: Props) {
-  const [authState, setAuthState] = useState<{ email: string | null; role: string | null }>(() => {
-    if (typeof window === "undefined") {
-      return { email: null, role: null };
-    }
+type AuthNotice = {
+  tone: "success" | "warning";
+  message: string;
+};
 
-    try {
-      const raw = localStorage.getItem("auth_user");
-      if (!raw) {
-        return { email: null, role: null };
-      }
-      const user = JSON.parse(raw) as { email?: string; role?: string };
-      return {
-        email: user.email || null,
-        role: user.role || null,
-      };
-    } catch {
+function readStoredAuth() {
+  if (typeof window === "undefined") {
+    return { email: null, role: null };
+  }
+
+  try {
+    const raw = localStorage.getItem("auth_user");
+    if (!raw) {
       return { email: null, role: null };
     }
-  });
+    const user = JSON.parse(raw) as { email?: string; role?: string };
+    return {
+      email: user.email || null,
+      role: user.role || null,
+    };
+  } catch {
+    return { email: null, role: null };
+  }
+}
+
+export default function AppHeader({ active, pointsBalance = 0 }: Props) {
+  const [authState, setAuthState] = useState<{ email: string | null; role: string | null }>(() => readStoredAuth());
+  const [notice, setNotice] = useState<AuthNotice | null>(null);
+
+  useEffect(() => {
+    const syncAuth = () => {
+      setAuthState(readStoredAuth());
+    };
+
+    const syncNotice = () => {
+      try {
+        const raw = sessionStorage.getItem("auth_notice");
+        if (!raw) return;
+
+        const parsed = JSON.parse(raw) as { tone?: "success" | "warning"; message?: string };
+        if (parsed?.message) {
+          setNotice({
+            tone: parsed.tone === "warning" ? "warning" : "success",
+            message: parsed.message,
+          });
+        }
+        sessionStorage.removeItem("auth_notice");
+      } catch {
+        sessionStorage.removeItem("auth_notice");
+      }
+    };
+
+    const validateSession = async () => {
+      const token = localStorage.getItem("auth_token") || "";
+      if (!token) {
+        syncAuth();
+        return;
+      }
+
+      try {
+        await me(token);
+      } catch {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        setNotice({ tone: "warning", message: "You have been logged out. Please login again." });
+      } finally {
+        syncAuth();
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "auth_token" || event.key === "auth_user") {
+        syncAuth();
+      }
+    };
+
+    const onAuthChanged = () => {
+      syncAuth();
+      syncNotice();
+    };
+
+    syncNotice();
+    validateSession();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth-changed", onAuthChanged);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth-changed", onAuthChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [notice]);
 
   const authEmail = authState.email;
   const authRole = authState.role;
@@ -47,11 +124,27 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
+    sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Logged out successfully." }));
+    window.dispatchEvent(new Event("auth-changed"));
     setAuthState({ email: null, role: null });
+    window.location.href = "/auth/login";
   };
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[#0a1120]/80 backdrop-blur-xl">
+      {notice && (
+        <div className="mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6">
+          <div
+            className={`rounded-xl border px-4 py-2 text-sm ${
+              notice.tone === "success"
+                ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+                : "border-amber-400/35 bg-amber-500/10 text-amber-200"
+            }`}
+          >
+            {notice.message}
+          </div>
+        </div>
+      )}
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">The Analyst</p>

@@ -25,6 +25,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setProfile(null);
       const token = typeof window === "undefined" ? undefined : (localStorage.getItem("auth_token") || undefined);
       const [leaderboardRows, profileData] = await Promise.allSettled([
         fetchLeaderboard(period),
@@ -37,6 +38,8 @@ export default function LeaderboardPage() {
 
       if (profileData.status === "fulfilled") {
         setProfile(profileData.value.profile);
+      } else {
+        setProfile(null);
       }
 
       setLoading(false);

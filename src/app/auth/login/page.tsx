@@ -21,6 +21,14 @@ export default function LoginPage() {
       localStorage.setItem("auth_user", JSON.stringify(result.user));
       localStorage.setItem("app_theme", result.user.theme_preference || "dark");
       document.documentElement.setAttribute("data-theme", result.user.theme_preference || "dark");
+      sessionStorage.setItem(
+        "auth_notice",
+        JSON.stringify({
+          tone: "success",
+          message: `Logged in successfully. Welcome ${result.user.email}.`,
+        }),
+      );
+      window.dispatchEvent(new Event("auth-changed"));
       setMessage(`Logged in as ${result.user.role}. Redirecting...`);
       setTimeout(() => { window.location.href = (result.user.role === "admin" || result.user.role === "question_creator") ? "/admin" : "/feed"; }, 1000);
     } catch (err) {
