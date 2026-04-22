@@ -641,6 +641,7 @@ export default function AdminPage() {
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
           <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
           <div className="flex flex-wrap gap-3 text-sm">
+            <Link href="/" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page</Link>
             <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
             <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
             <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>

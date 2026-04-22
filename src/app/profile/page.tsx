@@ -44,6 +44,21 @@ export default function ProfilePage() {
   const [openPredictions, setOpenPredictions] = useState<UserPrediction[]>([]);
   const [closedPredictions, setClosedPredictions] = useState<UserPrediction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState("");
+  const [nameMsg, setNameMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [theme, setTheme] = useState<"dark" | "bright">("dark");
+
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("app_theme");
+      const normalized = savedTheme === "bright" ? "bright" : "dark";
+      setTheme(normalized);
+      document.documentElement.setAttribute("data-theme", normalized);
+    } catch {
+      setTheme("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -84,6 +99,42 @@ export default function ProfilePage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const fallbackName = (profile?.username || "").trim();
+    try {
+      const savedName = (localStorage.getItem("profile_display_name") || "").trim();
+      setDisplayName(savedName || fallbackName);
+      return;
+    } catch {
+      setDisplayName(fallbackName);
+    }
+  }, [profile?.username]);
+
+  const saveDisplayName = () => {
+    const normalized = displayName.trim();
+    if (!normalized) {
+      setNameMsg({ type: "error", text: "Name cannot be empty." });
+      return;
+    }
+    try {
+      localStorage.setItem("profile_display_name", normalized);
+    } catch {
+      // Ignore localStorage write failures and still show local session update.
+    }
+    setNameMsg({ type: "success", text: "Name updated." });
+  };
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "bright" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    try {
+      localStorage.setItem("app_theme", nextTheme);
+    } catch {
+      // Ignore localStorage write failures.
+    }
+  };
+
   const [predictionTab, setPredictionTab] = useState<"open" | "closed">("open");
 
   const openGroups = useMemo(() => groupByQuestion(openPredictions), [openPredictions]);
@@ -107,13 +158,51 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand)]/20 text-3xl font-bold text-[var(--brand)]">
-                      {(profile?.username || "?").charAt(0).toUpperCase()}
+                      {(displayName || profile?.username || "?").charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h2 className="text-3xl font-semibold text-white">{profile?.username || "analyst"}</h2>
+                      <h2 className="text-3xl font-semibold text-white">{displayName || profile?.username || "analyst"}</h2>
                       <p className="text-sm text-slate-400">
                         Answered {formatNumber(profile?.answered_questions_count || 0)} unique questions · net {formatNumber(profile?.net_points || 0)} pts
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Display Name</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={displayName}
+                          onChange={(e) => { setDisplayName(e.target.value); setNameMsg(null); }}
+                          placeholder="Enter your name"
+                          className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[var(--brand)] focus:outline-none"
+                        />
+                        <button
+                          onClick={saveDisplayName}
+                          className="rounded-xl bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+                        >
+                          Save
+                        </button>
+                      </div>
+                      {nameMsg && (
+                        <p className={`mt-1 text-xs ${nameMsg.type === "success" ? "text-emerald-300" : "text-red-300"}`}>
+                          {nameMsg.text}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Theme</p>
+                      <button
+                        onClick={toggleTheme}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white hover:border-[var(--brand)]"
+                        aria-label="Toggle theme"
+                      >
+                        <span className={`h-2.5 w-2.5 rounded-full ${theme === "dark" ? "bg-slate-300" : "bg-amber-300"}`} />
+                        {theme === "dark" ? "Dark Theme" : "Bright Theme"}
+                      </button>
+                      <p className="mt-1 text-xs text-slate-500">Default is dark. Toggle for a brighter visual mode.</p>
                     </div>
                   </div>
 

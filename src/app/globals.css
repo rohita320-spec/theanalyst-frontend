@@ -10,6 +10,45 @@
   --yes: #34d399;
   --no: #fb923c;
   --accent: #fb923c;
+  --bg-radial-a: rgba(88, 166, 255, 0.18);
+  --bg-radial-b: rgba(245, 158, 11, 0.12);
+  --bg-grad-top: #060a13;
+  --bg-grad-mid: #090f1d;
+  --bg-grad-bottom: #0a1222;
+}
+
+:root[data-theme="dark"] {
+  --background: #060a13;
+  --foreground: #e6ebf5;
+  --surface: #0d1422;
+  --surface-2: #101b2e;
+  --stroke: #25324a;
+  --brand: #58a6ff;
+  --yes: #34d399;
+  --no: #fb923c;
+  --accent: #fb923c;
+  --bg-radial-a: rgba(88, 166, 255, 0.18);
+  --bg-radial-b: rgba(245, 158, 11, 0.12);
+  --bg-grad-top: #060a13;
+  --bg-grad-mid: #090f1d;
+  --bg-grad-bottom: #0a1222;
+}
+
+:root[data-theme="bright"] {
+  --background: #edf3ff;
+  --foreground: #102038;
+  --surface: #f7faff;
+  --surface-2: #eef4ff;
+  --stroke: #c7d4ee;
+  --brand: #2563eb;
+  --yes: #0f9b6a;
+  --no: #ea7a2f;
+  --accent: #ea7a2f;
+  --bg-radial-a: rgba(59, 130, 246, 0.25);
+  --bg-radial-b: rgba(249, 115, 22, 0.18);
+  --bg-grad-top: #eef4ff;
+  --bg-grad-mid: #e6eefc;
+  --bg-grad-bottom: #dde8fb;
 }
 
 @theme inline {
@@ -36,9 +75,9 @@
 body {
   color: var(--foreground);
   background:
-    radial-gradient(70% 80% at 80% -10%, rgba(88, 166, 255, 0.18), transparent 55%),
-    radial-gradient(50% 60% at -10% 20%, rgba(245, 158, 11, 0.12), transparent 60%),
-    linear-gradient(180deg, #060a13 0%, #090f1d 35%, #0a1222 100%);
+    radial-gradient(70% 80% at 80% -10%, var(--bg-radial-a), transparent 55%),
+    radial-gradient(50% 60% at -10% 20%, var(--bg-radial-b), transparent 60%),
+    linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-mid) 35%, var(--bg-grad-bottom) 100%);
   font-family: var(--font-geist-sans), "Avenir Next", "Segoe UI", sans-serif;
 }
 

@@ -77,7 +77,7 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
           >
             My Profile
           </Link>
-          {authRole === "admin" && (
+          {(authRole === "admin" || authRole === "question_creator") && (
             <Link
               href="/admin"
               className="rounded-lg px-3 py-2 text-center text-sm text-[var(--brand)] transition-colors hover:text-white"
