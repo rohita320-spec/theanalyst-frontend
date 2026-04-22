@@ -174,6 +174,7 @@ export default function LandingPage() {
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
   const [questionsLoading, setQuestionsLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [demoVote, setDemoVote] = useState<"yes" | "no" | null>(null);
   const [demoYes, setDemoYes] = useState(DEMO_QUESTION.yes_percent);
   const [demoNo, setDemoNo] = useState(DEMO_QUESTION.no_percent);
@@ -192,6 +193,20 @@ export default function LandingPage() {
   const demoNetPoints = demoResolvedOutcome === "win" ? demoPayout - demoStake : -demoStake;
 
   useEffect(() => {
+    try {
+      const token = localStorage.getItem("auth_token") || "";
+      if (token) {
+        window.location.href = "/feed";
+        return;
+      }
+    } catch {
+      // Ignore storage access errors and keep the landing page visible.
+    }
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (checkingAuth) return;
     fetch(`${API_BASE}/feed_questions?limit=3&status=open`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
@@ -208,7 +223,15 @@ export default function LandingPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [checkingAuth]);
+
+  if (checkingAuth) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-4">
+        <p className="text-sm text-slate-400">Loading...</p>
+      </main>
+    );
+  }
 
   // Live animation — makes the graph feel alive while no vote is cast
   useEffect(() => {

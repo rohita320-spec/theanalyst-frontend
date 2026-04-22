@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { logout, me } from "../lib/api";
+import { logout } from "../lib/api";
 
 type Props = {
   active: "home" | "feed" | "leaderboard" | "profile";
@@ -66,24 +66,6 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
       }
     };
 
-    const validateSession = async () => {
-      const token = localStorage.getItem("auth_token") || "";
-      if (!token) {
-        syncAuth();
-        return;
-      }
-
-      try {
-        await me(token);
-      } catch {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        setNotice({ tone: "warning", message: "You have been logged out. Please login again." });
-      } finally {
-        syncAuth();
-      }
-    };
-
     const onStorage = (event: StorageEvent) => {
       if (event.key === "auth_token" || event.key === "auth_user") {
         syncAuth();
@@ -96,7 +78,7 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
     };
 
     syncNotice();
-    validateSession();
+  syncAuth();
     window.addEventListener("storage", onStorage);
     window.addEventListener("auth-changed", onAuthChanged);
 
@@ -128,7 +110,7 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
     sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Logged out successfully." }));
     window.dispatchEvent(new Event("auth-changed"));
     setAuthState({ email: null, role: null });
-    window.location.href = "/auth/login";
+    window.location.href = "/";
   };
 
   return (
@@ -157,7 +139,7 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
             href="/"
             className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "home" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
           >
-            Home
+            Landing
           </Link>
           <Link
             href="/feed"
