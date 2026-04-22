@@ -359,6 +359,15 @@ export async function logout(token?: string): Promise<{ success: boolean }> {
 }
 
 export async function fetchMeProfileSummary(token?: string): Promise<MeProfileSummaryPayload> {
+  if (USE_MOCK_DATA) {
+    return {
+      success: true,
+      user_id: DEMO_USER_ID,
+      profile: MOCK_PROFILE,
+      predictions: MOCK_USER_PREDICTIONS,
+    };
+  }
+
   const res = await fetch(`${API_BASE_URL}/me/profile_summary`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     credentials: "include",

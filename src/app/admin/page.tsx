@@ -617,6 +617,7 @@ export default function AdminPage() {
     q.status === "resolved" || q.closed_reason === "cancelled"
   );
   const now = new Date();
+  const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
 
   const roleBadge = (role: string) => {
     if (role === "admin") return "bg-[var(--brand)]/15 text-[var(--brand)]";
@@ -668,7 +669,7 @@ export default function AdminPage() {
                     <p className="text-sm font-medium text-white">{q.title}</p>
                     <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
                       q.status === "pending_approval" ? "bg-amber-500/15 text-amber-300" :
-                      q.status === "open" ? "bg-emerald-500/15 text-emerald-300" :
+                      q.status === "open" ? "status-open" :
                       q.status === "closed" ? "bg-slate-700/50 text-slate-300" :
                       q.status === "resolved" ? "bg-blue-500/15 text-blue-300" :
                       "bg-slate-700/50 text-slate-300"
@@ -740,7 +741,7 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
-                      <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                      <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
@@ -1066,36 +1067,38 @@ export default function AdminPage() {
                 <p>YES pool: <span className="text-white">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-white">{selectedQuestion.no_pool} pts</span></p>
                 <p>Initial split: <span className="text-slate-200">YES {Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-slate-200">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
-                <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
+                <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
                   <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
                 )}
               </div>
 
-              {/* Actions — available for all non-resolved, non-cancelled questions */}
-              {(selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled") && !confirmResolve && (
+              {/* Actions — delete is always available, lifecycle changes only for active questions */}
+              {!confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
-                  <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
-                    className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
-                    ✓ Resolve YES
-                  </button>
-                  <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving}
-                    className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
-                    ✗ Resolve NO
-                  </button>
-                  {/* Close Question — only available for open questions (stops predictions, remains pending) */}
-                  {selectedQuestion.status === "open" && (
-                    <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
-                      className="w-full rounded-lg border border-yellow-600/50 px-3 py-2 text-sm font-medium text-yellow-300 hover:border-yellow-400 hover:text-yellow-200 disabled:opacity-50">
-                      ⊘ Close Question (stop predictions)
-                    </button>
+                  {canTransitionSelectedQuestion && (
+                    <>
+                      <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
+                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+                        ✓ Resolve YES
+                      </button>
+                      <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving}
+                        className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
+                        ✗ Resolve NO
+                      </button>
+                      {selectedQuestion.status === "open" && (
+                        <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                          className="w-full rounded-lg border border-yellow-600/50 px-3 py-2 text-sm font-medium text-yellow-300 hover:border-yellow-400 hover:text-yellow-200 disabled:opacity-50">
+                          ⊘ Close Question (stop predictions)
+                        </button>
+                      )}
+                      <button onClick={() => setConfirmResolve({ answer: "cancel" })} disabled={!!resolving}
+                        className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
+                        ↩ Cancel (Refund All Points)
+                      </button>
+                    </>
                   )}
-                  {/* Cancel + Refund — available for both open and closed pending questions */}
-                  <button onClick={() => setConfirmResolve({ answer: "cancel" })} disabled={!!resolving}
-                    className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                    ↩ Cancel (Refund All Points)
-                  </button>
                   <button
                     onClick={async () => {
                       if (!window.confirm("Delete this question and related records? This cannot be undone.")) return;
@@ -1113,7 +1116,9 @@ export default function AdminPage() {
                         });
                         const body = await res.json();
                         if (body.success) {
-                          setResolveMsg({ type: "success", text: "Question deleted." });
+                          const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
+                          const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
+                          setResolveMsg({ type: "success", text: `Question deleted. Removed ${deletedPredictions} prediction(s) and ${deletedPositions} position(s).` });
                           await refreshQuestions();
                           setSelectedQuestion(null);
                         } else {
@@ -1134,7 +1139,7 @@ export default function AdminPage() {
               )}
 
               {/* Confirm resolve/close inline */}
-              {confirmResolve && (selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled") && (
+              {confirmResolve && canTransitionSelectedQuestion && (
                 <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
                   <p className="mb-3 text-sm text-slate-200">
                     {confirmResolve.answer === "close"
@@ -1235,7 +1240,7 @@ export default function AdminPage() {
                         type="datetime-local"
                         value={editQuestionClosingTime}
                         onChange={(e) => setEditQuestionClosingTime(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                        className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
                       <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
                       <textarea
@@ -1532,7 +1537,7 @@ export default function AdminPage() {
                       type="datetime-local"
                       value={createClosingTime}
                       onChange={(e) => setCreateClosingTime(e.target.value)}
-                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
+                      className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
                     />
                   </div>
                   <div>

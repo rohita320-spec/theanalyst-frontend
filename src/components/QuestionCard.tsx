@@ -37,7 +37,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   function statusBadge() {
     if (isResolved) return { label: "Resolved", cls: "bg-purple-500/15 text-purple-300" };
     if (!isOpen) return { label: "Closed", cls: "bg-amber-500/15 text-amber-300" };
-    return { label: "Open", cls: "bg-emerald-500/15 text-emerald-300" };
+    return { label: "Open", cls: "status-open" };
   }
 
   const badge = statusBadge();

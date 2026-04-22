@@ -17,6 +17,8 @@
   --bg-grad-top: #060a13;
   --bg-grad-mid: #090f1d;
   --bg-grad-bottom: #0a1222;
+  --status-open-text: #6ee7b7;
+  --status-open-bg: rgba(52, 211, 153, 0.16);
 }
 
 :root[data-theme="dark"] {
@@ -34,6 +36,8 @@
   --bg-grad-top: #060a13;
   --bg-grad-mid: #090f1d;
   --bg-grad-bottom: #0a1222;
+  --status-open-text: #6ee7b7;
+  --status-open-bg: rgba(52, 211, 153, 0.16);
 }
 
 :root[data-theme="bright"] {
@@ -53,6 +57,8 @@
   --bg-grad-top: #eef4ff;
   --bg-grad-mid: #e6eefc;
   --bg-grad-bottom: #dde8fb;
+  --status-open-text: #0b7a52;
+  --status-open-bg: rgba(11, 122, 82, 0.14);
 }
 
 @theme inline {
@@ -88,6 +94,45 @@ body {
 a,
 button {
   transition: all 160ms ease;
+}
+
+.status-open {
+  background-color: var(--status-open-bg) !important;
+  color: var(--status-open-text) !important;
+}
+
+.status-open-text {
+  color: var(--status-open-text) !important;
+}
+
+.date-time-input {
+  color-scheme: light;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.date-time-input::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: none;
+  cursor: pointer;
+}
+
+.date-time-input::-webkit-date-and-time-value,
+.date-time-input::-webkit-datetime-edit,
+.date-time-input::-webkit-datetime-edit-fields-wrapper,
+.date-time-input::-webkit-datetime-edit-text,
+.date-time-input::-webkit-datetime-edit-month-field,
+.date-time-input::-webkit-datetime-edit-day-field,
+.date-time-input::-webkit-datetime-edit-year-field,
+.date-time-input::-webkit-datetime-edit-hour-field,
+.date-time-input::-webkit-datetime-edit-minute-field {
+  color: #0f172a;
+}
+
+.date-time-input:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 50%, transparent);
 }
 
 :root[data-theme="bright"] .bg-\[\#0b1528\] {

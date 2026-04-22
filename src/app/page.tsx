@@ -414,7 +414,7 @@ export default function LandingPage() {
                   <p className="mb-1 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">{DEMO_QUESTION.category}</p>
                   <p className="text-sm font-semibold text-white">{DEMO_QUESTION.title}</p>
                 </div>
-                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">Open</span>
+                <span className="status-open rounded-full px-2.5 py-0.5 text-[11px] font-medium">Open</span>
               </div>
 
               <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
@@ -533,7 +533,7 @@ export default function LandingPage() {
                     <p className="mb-1 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">{demo.category}</p>
                     <p className="text-sm font-semibold text-white">{demo.question_text}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">Open</span>
+                  <span className="status-open rounded-full px-2.5 py-0.5 text-[11px] font-medium">Open</span>
                 </div>
 
                 <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">

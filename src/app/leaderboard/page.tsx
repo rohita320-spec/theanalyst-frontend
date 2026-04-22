@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader";
-import { fetchLeaderboard, fetchProfile, type LeaderboardRow, type ProfilePayload } from "../../lib/api";
-import { DEMO_USER_ID } from "../../lib/mockData";
+import { fetchLeaderboard, fetchMeProfileSummary, type LeaderboardRow, type ProfilePayload } from "../../lib/api";
 
 type Period = "weekly" | "monthly" | "quarterly";
 
@@ -26,9 +25,10 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      const token = typeof window === "undefined" ? undefined : (localStorage.getItem("auth_token") || undefined);
       const [leaderboardRows, profileData] = await Promise.allSettled([
         fetchLeaderboard(period),
-        fetchProfile(DEMO_USER_ID),
+        fetchMeProfileSummary(token),
       ]);
 
       if (leaderboardRows.status === "fulfilled") {
@@ -36,7 +36,7 @@ export default function LeaderboardPage() {
       }
 
       if (profileData.status === "fulfilled") {
-        setProfile(profileData.value);
+        setProfile(profileData.value.profile);
       }
 
       setLoading(false);
@@ -98,6 +98,7 @@ export default function LeaderboardPage() {
               <p className="mt-1 text-sm text-slate-400">@{topRow.username}</p>
             )}
             <p className="mt-1 text-sm text-[var(--brand)]">Net {formatNumber(topRow?.period_net_points || 0)} pts</p>
+            <p className="mt-1 text-sm text-slate-400">Live balance {formatNumber(topRow?.points_balance || 0)} pts</p>
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
             <p className="text-sm text-slate-400">Tracked Competitors</p>
@@ -125,7 +126,7 @@ export default function LeaderboardPage() {
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-2xl font-semibold text-white">{periodLabels[period]} Standings</h3>
-              <p className="text-sm text-slate-400">Top performance view with spend, ROI, and hit rate.</p>
+              <p className="text-sm text-slate-400">Top performance view with live balance, spend, ROI, and hit rate.</p>
             </div>
             <div className="rounded-full bg-[#0b1528] px-3 py-1 text-xs uppercase tracking-wide text-slate-400">
               {periodLabels[period]}
@@ -159,7 +160,11 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-5">
+                      <div className="grid gap-3 sm:grid-cols-6">
+                        <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">Balance</p>
+                          <p className="mt-1 font-semibold text-white">{formatNumber(entry.points_balance || 0)}</p>
+                        </div>
                         <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
                           <p className="text-[11px] uppercase tracking-wide text-slate-500">Net</p>
                           <p className={`mt-1 font-semibold ${Number(entry.period_net_points || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
