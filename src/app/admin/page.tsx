@@ -115,6 +115,7 @@ export default function AdminPage() {
   // Questions state
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [questionViewTab, setQuestionViewTab] = useState<"open" | "closed" | "resolved" | "all">("open");
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
   const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -608,15 +609,18 @@ export default function AdminPage() {
     );
   }
 
-  const openLifecycleQuestions = allQuestions.filter((q) =>
-    q.status === "open" ||
-    (q.status === "closed" && q.closed_reason !== "cancelled")
-  );
+  const openQuestions = allQuestions.filter((q) => q.status === "open");
   const closedQuestions = allQuestions.filter((q) => q.status === "closed" && q.closed_reason !== "cancelled");
-  const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved");
   const finalizedQuestions = allQuestions.filter((q) =>
     q.status === "resolved" || q.closed_reason === "cancelled"
   );
+  const filteredQuestions = questionViewTab === "open"
+    ? openQuestions
+    : questionViewTab === "closed"
+    ? closedQuestions
+    : questionViewTab === "resolved"
+    ? finalizedQuestions
+    : allQuestions;
   const now = new Date();
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
   const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
@@ -802,8 +806,8 @@ export default function AdminPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Data Summary</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Bubble Users" value={summary?.bubble_users_count ?? "—"} />
-          <StatCard label="Open Questions" value={openLifecycleQuestions.length} />
-          <StatCard label="Resolved Questions" value={resolvedQuestions.length} />
+          <StatCard label="Open Questions" value={openQuestions.length} />
+          <StatCard label="Resolved Questions" value={finalizedQuestions.length} />
           <StatCard label="Auth Accounts" value={summary?.auth_users_count ?? authUsers.length} />
         </div>
       </section>
@@ -986,37 +990,44 @@ export default function AdminPage() {
         )}
 
         <div className="mb-4 grid gap-2 sm:grid-cols-4">
-          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+          <button onClick={() => setQuestionViewTab("open")} className={`${questionViewTab === "open" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="status-open-text">Open</span>
-            <span className="admin-status-count">{openLifecycleQuestions.length}</span>
-          </div>
-          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+            <span className="admin-status-count">{openQuestions.length}</span>
+          </button>
+          <button onClick={() => setQuestionViewTab("closed")} className={`${questionViewTab === "closed" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="text-amber-500">Closed</span>
             <span className="admin-status-count">{closedQuestions.length}</span>
-          </div>
-          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+          </button>
+          <button onClick={() => setQuestionViewTab("resolved")} className={`${questionViewTab === "resolved" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="text-blue-500">Resolved</span>
             <span className="admin-status-count">{finalizedQuestions.length}</span>
-          </div>
-          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+          </button>
+          <button onClick={() => setQuestionViewTab("all")} className={`${questionViewTab === "all" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="admin-section-label">All</span>
             <span className="admin-status-count">{allQuestions.length}</span>
-          </div>
+          </button>
         </div>
 
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          {/* Open */}
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <p className="admin-section-label text-sm font-medium">Open ({openLifecycleQuestions.length})</p>
+              <span className={`h-2 w-2 rounded-full ${questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
+              <p className="admin-section-label text-sm font-medium">
+                {questionViewTab === "open"
+                  ? `Open (${openQuestions.length})`
+                  : questionViewTab === "closed"
+                  ? `Closed (${closedQuestions.length})`
+                  : questionViewTab === "resolved"
+                  ? `Resolved (${finalizedQuestions.length})`
+                  : `All (${allQuestions.length})`}
+              </p>
               <button onClick={refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
                 {questionsLoading ? "..." : "↻ Refresh"}
               </button>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {openLifecycleQuestions.length === 0 && <p className="text-xs text-slate-500">No open questions.</p>}
-              {openLifecycleQuestions.map((q) => {
+              {filteredQuestions.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
+              {filteredQuestions.map((q) => {
                 const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
                 const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
                 const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
@@ -1025,7 +1036,7 @@ export default function AdminPage() {
                   <button
                     key={q._id}
                     onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "border-[var(--brand)] bg-[var(--brand)]/10 text-white" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
+                    className={`admin-question-item w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
                   >
                     <p className="line-clamp-2 font-medium">{q.title}</p>
                     <p className="mt-1 text-xs text-slate-500">
@@ -1044,41 +1055,14 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Resolved (includes final cancelled outcomes) */}
-          <div className="flex-1">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-slate-500" />
-              <p className="admin-section-label text-sm font-medium">Resolved ({finalizedQuestions.length})</p>
-            </div>
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {finalizedQuestions.length === 0 && <p className="text-xs text-slate-500">None yet.</p>}
-              {finalizedQuestions.map((q) => (
-                <button
-                  key={q._id}
-                  onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "border-[var(--brand)] bg-[var(--brand)]/10 text-white" : "border-[var(--stroke)] bg-[#0b1528] text-slate-300 hover:border-slate-500"}`}
-                >
-                  <p className="line-clamp-2">{q.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    <span className={q.status === "closed" ? "text-amber-400" : "text-slate-400"}>
-                      {q.status === "closed" ? "closed (cancelled)" : q.status}
-                    </span> · {formatDate(q.closing_time ?? "")}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">Initial YES {Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
-                  <p className="mt-1 text-xs text-slate-400">YES {Number(q.yes_percent ?? 50).toFixed(2)}% · NO {Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2)}%</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Detail / action panel */}
           {selectedQuestion && (
-            <div className="w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none">
+            <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-white">Question Detail</h3>
                 <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
               </div>
-              <p className="mb-3 text-sm text-slate-200">{selectedQuestion.title}</p>
+              <p className="admin-detail-strong mb-3 text-sm">{selectedQuestion.title}</p>
               {selectedQuestion.status === "closed" && (
                 <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
                   {selectedQuestion.closed_reason === "time_closed"
@@ -1089,11 +1073,11 @@ export default function AdminPage() {
                 </p>
               )}
               <div className="mb-4 space-y-1 text-xs text-slate-400">
-                <p>Entry cost: <span className="text-white">{selectedQuestion.entry_cost} pts</span></p>
-                <p>Closing: <span className="text-white">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
-                <p>Category: <span className="text-white">{selectedQuestion.category || "—"}</span></p>
-                <p>YES pool: <span className="text-white">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-white">{selectedQuestion.no_pool} pts</span></p>
-                <p>Initial split: <span className="text-slate-200">YES {Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-slate-200">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
+                <p>Entry cost: <span className="admin-detail-strong">{selectedQuestion.entry_cost} pts</span></p>
+                <p>Closing: <span className="admin-detail-strong">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
+                <p>Category: <span className="admin-detail-strong">{selectedQuestion.category || "—"}</span></p>
+                <p>YES pool: <span className="admin-detail-strong">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="admin-detail-strong">{selectedQuestion.no_pool} pts</span></p>
+                <p>Initial split: <span className="admin-detail-strong">YES {Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="admin-detail-strong">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (

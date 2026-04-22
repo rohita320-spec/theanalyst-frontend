@@ -161,6 +161,13 @@ button {
   color: var(--admin-visibility-text);
 }
 
+.admin-status-tab-active {
+  border: 1px solid color-mix(in srgb, var(--brand) 65%, var(--stroke));
+  background: color-mix(in srgb, var(--brand) 18%, var(--surface));
+  color: var(--admin-visibility-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 28%, transparent);
+}
+
 .admin-status-count {
   color: var(--admin-visibility-muted);
 }
@@ -180,6 +187,62 @@ button {
 
 .admin-nav-link {
   color: var(--admin-visibility-text) !important;
+}
+
+.admin-menu-link {
+  color: var(--brand) !important;
+}
+
+.admin-menu-link:hover {
+  background: color-mix(in srgb, var(--brand) 16%, transparent);
+  color: var(--admin-visibility-text) !important;
+}
+
+.app-nav-link {
+  color: var(--admin-visibility-text) !important;
+}
+
+.app-nav-link:hover {
+  color: var(--foreground) !important;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+.app-nav-link-active {
+  background: #16243c !important;
+  color: #ffffff !important;
+}
+
+.admin-question-item {
+  color: var(--admin-visibility-text) !important;
+}
+
+.admin-question-item p:first-child {
+  color: var(--admin-visibility-text) !important;
+}
+
+.admin-question-item-active {
+  border-color: color-mix(in srgb, var(--brand) 65%, var(--stroke)) !important;
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface)) !important;
+  color: var(--foreground) !important;
+}
+
+.admin-question-item-active p,
+.admin-question-item-active span {
+  color: var(--foreground) !important;
+}
+
+.admin-detail-panel {
+  color: var(--admin-visibility-text);
+}
+
+.admin-detail-panel p,
+.admin-detail-panel label,
+.admin-detail-panel h3 {
+  color: inherit;
+}
+
+.admin-detail-strong {
+  color: var(--foreground) !important;
 }
 
 :root[data-theme="bright"] .bg-\[\#0b1528\] {

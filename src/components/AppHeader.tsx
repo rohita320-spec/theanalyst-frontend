@@ -61,26 +61,26 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
         <nav className="grid w-full grid-cols-3 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center">
           <Link
             href="/feed"
-            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "feed" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
+            className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "feed" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
           >
             Feed
           </Link>
           <Link
             href="/leaderboard"
-            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "leaderboard" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
+            className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "leaderboard" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
           >
             Leaderboard
           </Link>
           <Link
             href="/profile"
-            className={`rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "profile" ? "bg-[#16243c] text-white" : "text-slate-300 hover:text-white"}`}
+            className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "profile" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
           >
             My Profile
           </Link>
           {(authRole === "admin" || authRole === "question_creator") && (
             <Link
               href="/admin"
-              className="rounded-lg px-3 py-2 text-center text-sm text-[var(--brand)] transition-colors hover:text-white"
+              className="admin-menu-link rounded-lg px-3 py-2 text-center text-sm transition-colors"
             >
               Admin
             </Link>
