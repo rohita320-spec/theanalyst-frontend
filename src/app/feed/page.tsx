@@ -48,7 +48,6 @@ export default function FeedPage() {
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [authToken, setAuthToken] = useState("");
-  const [canAccess, setCanAccess] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,21 +61,11 @@ export default function FeedPage() {
   useEffect(() => {
     try {
       const token = localStorage.getItem("auth_token");
-      if (!token) {
-        sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Please login to access the feed." }));
-        window.location.href = "/";
-        setAuthToken("");
-        setLoggedIn(false);
-        setCanAccess(false);
-        return;
-      }
-      setAuthToken(token);
-      setLoggedIn(true);
-      setCanAccess(true);
+      setAuthToken(token || "");
+      setLoggedIn(!!token);
     } catch {
       setAuthToken("");
       setLoggedIn(false);
-      setCanAccess(false);
     }
   }, []);
 
@@ -102,17 +91,8 @@ export default function FeedPage() {
   };
 
   useEffect(() => {
-    if (!canAccess) return;
     loadData(selectedCategory, authToken || undefined);
-  }, [selectedCategory, authToken, canAccess]);
-
-  if (!canAccess) {
-    return (
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-4">
-        <p className="text-sm text-slate-400">Redirecting to landing page...</p>
-      </main>
-    );
-  }
+  }, [selectedCategory, authToken]);
 
   const filteredQuestions = useMemo(() => {
     let result = questions;
