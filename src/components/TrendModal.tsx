@@ -30,33 +30,67 @@ function indexToX(i: number, n: number) {
   return ML + (i / Math.max(n - 1, 1)) * CW;
 }
 
-function buildSeriesPath(points: HistoryPoint[], field: "yes_percent" | "no_percent") {
+function toTimestampMs(ts: string) {
+  const value = Date.parse(ts);
+  return Number.isFinite(value) ? value : null;
+}
+
+function buildXPositions(points: HistoryPoint[]) {
+  if (points.length <= 1) {
+    return [ML + CW / 2];
+  }
+
+  const times = points.map((p) => toTimestampMs(p.timestamp));
+  const validTimes = times.filter((t): t is number => t !== null);
+  if (validTimes.length >= 2) {
+    const minT = Math.min(...validTimes);
+    const maxT = Math.max(...validTimes);
+    if (maxT > minT) {
+      return times.map((t, i) => {
+        if (t === null) {
+          return indexToX(i, points.length);
+        }
+        return ML + ((t - minT) / (maxT - minT)) * CW;
+      });
+    }
+  }
+
+  return points.map((_, i) => indexToX(i, points.length));
+}
+
+function buildSeriesPath(points: HistoryPoint[], xPositions: number[], field: "yes_percent" | "no_percent") {
   if (points.length === 0) return "";
   if (points.length === 1) {
-    const x = ML + CW / 2;
+    const x = xPositions[0];
     const y = pctToY(Number(points[0][field] || 0));
-    return `M${x.toFixed(1)} ${y.toFixed(1)} L${(x + 1).toFixed(1)} ${y.toFixed(1)}`;
+    const leftX = Math.max(ML, x - 10);
+    const rightX = Math.min(ML + CW, x + 10);
+    return `M${leftX.toFixed(1)} ${y.toFixed(1)} L${rightX.toFixed(1)} ${y.toFixed(1)}`;
   }
   return points
     .map((p, i) => {
-      const x = indexToX(i, points.length);
+      const x = xPositions[i];
       const y = pctToY(Number(p[field] || 0));
       return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join(" ");
 }
 
-function buildAreaPath(points: HistoryPoint[], field: "yes_percent" | "no_percent") {
+function buildAreaPath(points: HistoryPoint[], xPositions: number[], field: "yes_percent" | "no_percent") {
   if (points.length < 2) return "";
-  const line = buildSeriesPath(points, field);
-  const lastX = indexToX(points.length - 1, points.length);
+  const line = buildSeriesPath(points, xPositions, field);
+  const lastX = xPositions[points.length - 1];
+  const firstX = xPositions[0];
   const baseY = (MT + CH).toFixed(1);
-  return `${line} L${lastX.toFixed(1)} ${baseY} L${ML.toFixed(1)} ${baseY} Z`;
+  return `${line} L${lastX.toFixed(1)} ${baseY} L${firstX.toFixed(1)} ${baseY} Z`;
 }
 
-function formatDateLabel(ts: string): string {
+function formatDateLabel(ts: string, mode: "hourly" | "daily" | "all"): string {
   try {
     const d = new Date(ts);
+    if (mode === "hourly") {
+      return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric" });
+    }
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   } catch {
     return "";
@@ -80,9 +114,10 @@ export default function TrendModal({
 }: Props) {
   if (!question) return null;
 
-  const yesPath = buildSeriesPath(points, "yes_percent");
-  const noPath = buildSeriesPath(points, "no_percent");
-  const yesAreaPath = buildAreaPath(points, "yes_percent");
+  const xPositions = buildXPositions(points);
+  const yesPath = buildSeriesPath(points, xPositions, "yes_percent");
+  const noPath = buildSeriesPath(points, xPositions, "no_percent");
+  const yesAreaPath = buildAreaPath(points, xPositions, "yes_percent");
 
   // Pick up to 5 evenly-spaced x-axis label indices
   const xLabelIndices: number[] = [];
@@ -203,8 +238,8 @@ export default function TrendModal({
 
               {/* X-axis labels */}
               {xLabelIndices.map((idx) => {
-                const x = indexToX(idx, points.length);
-                const label = formatDateLabel(points[idx].timestamp);
+                const x = xPositions[idx] ?? indexToX(idx, points.length);
+                const label = formatDateLabel(points[idx].timestamp, timeframe);
                 return (
                   <text
                     key={idx}
@@ -250,14 +285,14 @@ export default function TrendModal({
 
               {/* Data point dots for YES */}
               {points.map((p, i) => {
-                const x = indexToX(i, points.length);
+                const x = xPositions[i] ?? indexToX(i, points.length);
                 const y = pctToY(Number(p.yes_percent || 0));
                 return <circle key={`y${i}`} cx={x} cy={y} r="3.5" fill="#34d399" />;
               })}
 
               {/* Data point dots for NO */}
               {points.map((p, i) => {
-                const x = indexToX(i, points.length);
+                const x = xPositions[i] ?? indexToX(i, points.length);
                 const y = pctToY(Number(p.no_percent || 0));
                 return <circle key={`n${i}`} cx={x} cy={y} r="3" fill="#fb923c" />;
               })}
@@ -272,14 +307,14 @@ export default function TrendModal({
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{question.resolution_rules}</p>
           ) : (
             <div className="space-y-2 text-sm text-slate-400">
-              <p>This question will be resolved based on publicly verifiable data at the stated closing time. The admin will determine the outcome according to the resolution criteria and make a final determination.</p>
+              <p>This question will be resolved based on publicly verified data. The admin will determine the outcome according to the resolution criteria and make a final determination.</p>
               <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                 ⚠ Specific resolution rules have not been set for this question. Standard resolution procedures apply.
               </p>
             </div>
           )}
           <div className="mt-3 border-t border-[var(--stroke)] pt-3 text-xs text-slate-500">
-            <p>Resolution is determined by admin based on publicly verifiable data at the stated closing time. All decisions are final.</p>
+            <p>Resolution is determined by admin based on publicly verified data. Points distribution will be completed within 48 hours of resolution. Closing time only stops new predictions and does not determine resolution by itself.</p>
           </div>
         </div>
       </div>

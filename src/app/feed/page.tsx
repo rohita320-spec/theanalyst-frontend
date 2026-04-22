@@ -13,6 +13,7 @@ import {
   type HistoryPoint,
   type ProfilePayload,
 } from "../../lib/api";
+import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const categories = [
   "All",
@@ -96,13 +97,13 @@ export default function FeedPage() {
   const filteredQuestions = useMemo(() => {
     let result = questions;
     if (selectedCategory !== "All") result = result.filter((q) => q.category === selectedCategory);
-    if (selectedStatus !== "all") result = result.filter((q) => q.status === selectedStatus);
+    if (selectedStatus !== "all") result = result.filter((q) => getQuestionViewStatus(q) === selectedStatus);
     return result;
   }, [questions, selectedCategory, selectedStatus]);
 
-  const openQuestions = questions.filter((q) => q.status === "open").length;
-  const closedQuestions = questions.filter((q) => q.status === "closed").length;
-  const resolvedQuestions = questions.filter((q) => q.status === "resolved").length;
+  const openQuestions = questions.filter((q) => getQuestionViewStatus(q) === "open").length;
+  const closedQuestions = questions.filter((q) => getQuestionViewStatus(q) === "closed").length;
+  const resolvedQuestions = questions.filter((q) => getQuestionViewStatus(q) === "resolved").length;
   const totalPool = questions.filter((q) => q.status === "open").reduce((sum, q) => sum + q.yes_pool + q.no_pool, 0);
 
   const onOpenChart = async (question: FeedQuestion, tf: "hourly" | "daily" | "all" = timeframe) => {
@@ -175,7 +176,7 @@ export default function FeedPage() {
         "success",
         `✓ ${answer.toUpperCase()} analysis submitted! New balance: ${formatNumber(result.new_balance)} pts`,
       );
-      await loadData(selectedCategory);
+      await loadData(selectedCategory, authToken || undefined);
       if (selectedQuestion) await onOpenChart(question, timeframe);
     } catch (err) {
       setModalError(err instanceof Error ? err.message : "Submission failed. Check backend.");

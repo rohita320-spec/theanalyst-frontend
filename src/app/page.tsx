@@ -192,10 +192,10 @@ export default function LandingPage() {
   const demoNetPoints = demoResolvedOutcome === "win" ? demoPayout - demoStake : -demoStake;
 
   useEffect(() => {
-    fetch(`${API_BASE}/feed_questions?limit=6&status=open`)
+    fetch(`${API_BASE}/feed_questions?limit=3&status=open`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
-        if (body?.results?.length) setQuestions(body.results.slice(0, 6));
+        if (body?.results?.length) setQuestions(body.results.slice(0, 3));
       })
       .catch(() => {})
       .finally(() => setQuestionsLoading(false));

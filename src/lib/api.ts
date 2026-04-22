@@ -214,7 +214,10 @@ export async function fetchFeedQuestions(category?: string, status: string = "op
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/feed_questions?${params.toString()}`);
+    const res = await fetch(`${API_BASE_URL}/feed_questions?${params.toString()}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
     const body = await parseJson<{ results: FeedQuestion[] }>(res);
     return body.results || [];
   } catch {

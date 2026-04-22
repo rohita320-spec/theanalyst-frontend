@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { me, type FeedQuestion } from "../../lib/api";
+import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -609,11 +610,9 @@ export default function AdminPage() {
     );
   }
 
-  const openQuestions = allQuestions.filter((q) => q.status === "open");
-  const closedQuestions = allQuestions.filter((q) => q.status === "closed" && q.closed_reason !== "cancelled");
-  const finalizedQuestions = allQuestions.filter((q) =>
-    q.status === "resolved" || q.closed_reason === "cancelled"
-  );
+  const openQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "open");
+  const closedQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "closed");
+  const finalizedQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "resolved");
   const filteredQuestions = questionViewTab === "open"
     ? openQuestions
     : questionViewTab === "closed"
