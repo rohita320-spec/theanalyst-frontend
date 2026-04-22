@@ -22,7 +22,6 @@ export default function SignupPage() {
       });
       localStorage.setItem("auth_token", result.token);
       localStorage.setItem("auth_user", JSON.stringify(result.user));
-      document.cookie = "ta_session=1; path=/; max-age=2592000; samesite=lax";
       localStorage.setItem("app_theme", result.user.theme_preference || "dark");
       document.documentElement.setAttribute("data-theme", result.user.theme_preference || "dark");
       sessionStorage.setItem(
