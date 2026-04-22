@@ -19,6 +19,10 @@
   --bg-grad-bottom: #0a1222;
   --status-open-text: #6ee7b7;
   --status-open-bg: rgba(52, 211, 153, 0.16);
+  --admin-visibility-text: #dbe7f7;
+  --admin-visibility-muted: #9fb3d1;
+  --admin-chip-bg: rgba(15, 23, 42, 0.42);
+  --admin-link-bg: #091228;
 }
 
 :root[data-theme="dark"] {
@@ -38,6 +42,10 @@
   --bg-grad-bottom: #0a1222;
   --status-open-text: #6ee7b7;
   --status-open-bg: rgba(52, 211, 153, 0.16);
+  --admin-visibility-text: #dbe7f7;
+  --admin-visibility-muted: #9fb3d1;
+  --admin-chip-bg: rgba(15, 23, 42, 0.42);
+  --admin-link-bg: #091228;
 }
 
 :root[data-theme="bright"] {
@@ -59,6 +67,10 @@
   --bg-grad-bottom: #dde8fb;
   --status-open-text: #0b7a52;
   --status-open-bg: rgba(11, 122, 82, 0.14);
+  --admin-visibility-text: #18314f;
+  --admin-visibility-muted: #35506f;
+  --admin-chip-bg: rgba(37, 99, 235, 0.1);
+  --admin-link-bg: #e5eefc;
 }
 
 @theme inline {
@@ -135,6 +147,41 @@ button {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 50%, transparent);
 }
 
+.admin-section-label {
+  color: var(--admin-visibility-text) !important;
+}
+
+.admin-section-muted {
+  color: var(--admin-visibility-muted) !important;
+}
+
+.admin-status-tab {
+  border: 1px solid var(--stroke);
+  background: var(--admin-chip-bg);
+  color: var(--admin-visibility-text);
+}
+
+.admin-status-count {
+  color: var(--admin-visibility-muted);
+}
+
+.admin-quick-link {
+  border-color: var(--stroke) !important;
+  background: var(--admin-link-bg) !important;
+}
+
+.admin-quick-link-title {
+  color: var(--admin-visibility-text) !important;
+}
+
+.admin-quick-link-meta {
+  color: var(--admin-visibility-muted) !important;
+}
+
+.admin-nav-link {
+  color: var(--admin-visibility-text) !important;
+}
+
 :root[data-theme="bright"] .bg-\[\#0b1528\] {
   background-color: #edf3ff !important;
 }
@@ -160,15 +207,15 @@ button {
 }
 
 :root[data-theme="bright"] .text-slate-300 {
-  color: var(--muted-foreground) !important;
+  color: #233a59 !important;
 }
 
 :root[data-theme="bright"] .text-slate-400 {
-  color: var(--soft-foreground) !important;
+  color: #37506f !important;
 }
 
 :root[data-theme="bright"] .text-slate-500 {
-  color: #64748b !important;
+  color: #516887 !important;
 }
 
 :root[data-theme="bright"] .placeholder\:text-slate-600::placeholder {

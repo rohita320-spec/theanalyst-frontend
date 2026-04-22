@@ -612,12 +612,14 @@ export default function AdminPage() {
     q.status === "open" ||
     (q.status === "closed" && q.closed_reason !== "cancelled")
   );
+  const closedQuestions = allQuestions.filter((q) => q.status === "closed" && q.closed_reason !== "cancelled");
   const resolvedQuestions = allQuestions.filter((q) => q.status === "resolved");
   const finalizedQuestions = allQuestions.filter((q) =>
     q.status === "resolved" || q.closed_reason === "cancelled"
   );
   const now = new Date();
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
+  const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
 
   const roleBadge = (role: string) => {
     if (role === "admin") return "bg-[var(--brand)]/15 text-[var(--brand)]";
@@ -908,7 +910,7 @@ export default function AdminPage() {
 
         <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Storage Status</p>
+            <p className="admin-section-muted mb-2 text-xs font-semibold uppercase tracking-wide">Storage Status</p>
             {storageStatus ? (
               <div className="space-y-1 text-sm text-slate-300">
                 <p>Mode: <span className="text-white">{storageStatus.storage_mode}</span></p>
@@ -918,22 +920,29 @@ export default function AdminPage() {
                 {storageStatus.error && <p className="text-red-400">{storageStatus.error}</p>}
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Storage details unavailable.</p>
+              <p className="admin-section-muted text-sm">Storage details unavailable.</p>
             )}
             <div className="mt-3 space-y-2 border-t border-[var(--stroke)] pt-3 text-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live Services</p>
-              <a href={`${storageStatus?.backend_base_url || API_BASE}/health`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
-                <span className="text-slate-300">Backend API (Railway)</span>
-                <span className="text-emerald-400">↗ /health</span>
+              <p className="admin-section-muted text-xs font-semibold uppercase tracking-wide">Live Services</p>
+              <a href={`${storageStatus?.backend_base_url || API_BASE}/health`} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
+                <span className="admin-quick-link-title">Backend API (Railway)</span>
+                <span className="text-emerald-500">↗ /health</span>
               </a>
-              <a href={storageStatus?.api_docs_url || `${API_BASE}/docs`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
-                <span className="text-slate-300">API Docs (Swagger)</span>
-                <span className="text-slate-400">↗ /docs</span>
+              <a href={storageStatus?.api_docs_url || `${API_BASE}/docs`} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
+                <span className="admin-quick-link-title">API Docs (Swagger)</span>
+                <span className="admin-quick-link-meta">↗ /docs</span>
               </a>
-              <a href={storageStatus?.frontend_url || "/"} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg border border-[var(--stroke)] bg-[#091228] px-3 py-2 text-xs hover:border-slate-500">
-                <span className="text-slate-300">Frontend (Railway)</span>
-                <span className="text-slate-400">↗ live site</span>
+              <a href={publicAppUrl} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
+                <span className="admin-quick-link-title">Frontend (Railway)</span>
+                <span className="admin-quick-link-meta">↗ live site</span>
               </a>
+              <div className="admin-quick-link rounded-lg border px-3 py-3 text-xs">
+                <p className="admin-quick-link-title font-semibold">Final Public App Link</p>
+                <a href={publicAppUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[var(--brand)] hover:underline">
+                  {publicAppUrl}
+                </a>
+                <p className="admin-quick-link-meta mt-1">Use this same live link for browsing, signup, and login.</p>
+              </div>
             </div>
           </div>
 
@@ -976,13 +985,32 @@ export default function AdminPage() {
           </div>
         )}
 
+        <div className="mb-4 grid gap-2 sm:grid-cols-4">
+          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+            <span className="status-open-text">Open</span>
+            <span className="admin-status-count">{openLifecycleQuestions.length}</span>
+          </div>
+          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+            <span className="text-amber-500">Closed</span>
+            <span className="admin-status-count">{closedQuestions.length}</span>
+          </div>
+          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+            <span className="text-blue-500">Resolved</span>
+            <span className="admin-status-count">{finalizedQuestions.length}</span>
+          </div>
+          <div className="admin-status-tab flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium">
+            <span className="admin-section-label">All</span>
+            <span className="admin-status-count">{allQuestions.length}</span>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           {/* Open */}
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <p className="text-sm font-medium text-slate-300">Open ({openLifecycleQuestions.length})</p>
-              <button onClick={refreshQuestions} className="ml-auto text-xs text-slate-500 hover:text-slate-300">
+              <p className="admin-section-label text-sm font-medium">Open ({openLifecycleQuestions.length})</p>
+              <button onClick={refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
                 {questionsLoading ? "..." : "↻ Refresh"}
               </button>
             </div>
@@ -1020,7 +1048,7 @@ export default function AdminPage() {
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-slate-500" />
-              <p className="text-sm font-medium text-slate-300">Resolved ({finalizedQuestions.length})</p>
+              <p className="admin-section-label text-sm font-medium">Resolved ({finalizedQuestions.length})</p>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {finalizedQuestions.length === 0 && <p className="text-xs text-slate-500">None yet.</p>}
@@ -1710,13 +1738,17 @@ export default function AdminPage() {
           <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
             🧪 System Test Page
           </Link>
-          <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
-          <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
-          <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
-          <a href={`${API_BASE}/docs`} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+          <Link href="/feed" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
+          <Link href="/leaderboard" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
+          <Link href="/profile" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
+          <a href={`${API_BASE}/docs`} target="_blank" rel="noreferrer" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">
             API Docs ↗
           </a>
+          <a href={publicAppUrl} target="_blank" rel="noreferrer" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+            Public App ↗
+          </a>
         </div>
+        <p className="admin-section-muted mt-3 text-sm">Share <span className="font-medium text-[var(--brand)]">{publicAppUrl}</span> with users. The same live link is used for browsing, signup, and login.</p>
       </section>
     </main>
   );
