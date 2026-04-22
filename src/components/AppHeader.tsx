@@ -134,13 +134,15 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
           <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
         </div>
 
-        <nav className="grid w-full grid-cols-4 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center">
-          <Link
-            href="/"
-            className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "home" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
-          >
-            Landing
-          </Link>
+        <nav className={`grid w-full gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center ${authEmail ? "grid-cols-3" : "grid-cols-4"}`}>
+          {!authEmail && (
+            <Link
+              href="/"
+              className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "home" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
+            >
+              Public
+            </Link>
+          )}
           <Link
             href="/feed"
             className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "feed" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}

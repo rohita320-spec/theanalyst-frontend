@@ -171,6 +171,8 @@ function DemoTrendChart({ points }: { points: number[] }) {
 }
 
 export default function LandingPage() {
+  const [authStateKnown, setAuthStateKnown] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
   const [questionsLoading, setQuestionsLoading] = useState(true);
@@ -190,6 +192,35 @@ export default function LandingPage() {
   const demoStake = DEMO_QUESTION.entry_cost;
   const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
   const demoNetPoints = demoResolvedOutcome === "win" ? demoPayout - demoStake : -demoStake;
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem("auth_token") || "";
+      const loggedIn = !!token;
+      setIsLoggedIn(loggedIn);
+      setAuthStateKnown(true);
+      if (loggedIn) {
+        window.location.replace("/feed");
+      }
+    } catch {
+      setIsLoggedIn(false);
+      setAuthStateKnown(true);
+    }
+  }, []);
+
+  if (authStateKnown && isLoggedIn) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4">
+        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6 text-center">
+          <p className="text-sm text-slate-300">You are already logged in.</p>
+          <p className="mt-1 text-xs text-slate-400">Redirecting you to Feed...</p>
+          <Link href="/feed" className="mt-4 inline-block rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110">
+            Open Feed
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   useEffect(() => {
     fetch(`${API_BASE}/feed_questions?limit=3&status=open`)
