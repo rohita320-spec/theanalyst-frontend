@@ -6,7 +6,17 @@ import { me, type FeedQuestion } from "../../lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type AuthUserRow = { id: string; email: string; role: string; created_at?: string };
+type AuthUserRow = {
+  id: string;
+  email: string;
+  role: string;
+  name?: string;
+  username?: string;
+  theme_preference?: string;
+  leaderboard_eligible?: boolean;
+  prediction_count?: number;
+  created_at?: string;
+};
 type Summary = {
   bubble_users_count: number;
   bubble_questions_count: number;
@@ -140,6 +150,8 @@ export default function AdminPage() {
   const [targetRole, setTargetRole] = useState("admin");
   const [changingRole, setChangingRole] = useState(false);
   const [roleMsg, setRoleMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deleteConfirmUserId, setDeleteConfirmUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string>("");
   // Legacy alias (used by refreshUsers below)
   const [adminMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -502,6 +514,17 @@ export default function AdminPage() {
     setRoleMsg(null);
   };
 
+  const refreshUsers = async () => {
+    const usersRes = await fetch(`${API_BASE}/admin/users`, {
+      credentials: "include",
+      headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+    });
+    if (usersRes.ok) {
+      const body = await usersRes.json();
+      setAuthUsers(body.users || []);
+    }
+  };
+
   const handleRoleChange = async () => {
     if (!roleModal) return;
     setChangingRole(true);
@@ -519,11 +542,7 @@ export default function AdminPage() {
       const body = await res.json();
       if (body.success) {
         setRoleMsg({ type: "success", text: `✓ ${roleModal.email} is now ${body.user.role}.` });
-        const usersRes = await fetch(`${API_BASE}/admin/users`, {
-          credentials: "include",
-          headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
-        });
-        if (usersRes.ok) { const ub = await usersRes.json(); setAuthUsers(ub.users || []); }
+        await refreshUsers();
         setTimeout(() => { setRoleModal(null); setRoleMsg(null); }, 1500);
       } else {
         setRoleMsg({ type: "error", text: body.detail || "Failed to change role." });
@@ -532,6 +551,34 @@ export default function AdminPage() {
       setRoleMsg({ type: "error", text: "Network error." });
     } finally {
       setChangingRole(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setDeletingUserId(userId);
+    setRoleMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/delete_user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        setRoleMsg({ type: "success", text: "User deleted successfully." });
+        setDeleteConfirmUserId(null);
+        await refreshUsers();
+      } else {
+        setRoleMsg({ type: "error", text: body.detail || "Failed to delete user." });
+      }
+    } catch {
+      setRoleMsg({ type: "error", text: "Network error." });
+    } finally {
+      setDeletingUserId("");
     }
   };
 
@@ -1305,9 +1352,9 @@ export default function AdminPage() {
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <h2 className="mb-4 text-base font-semibold text-white">Registered Auth Accounts ({authUsers.length})</h2>
 
-        {adminMsg && (
-          <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${adminMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-            {adminMsg.text}
+        {(adminMsg || roleMsg) && (
+          <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${(roleMsg || adminMsg)?.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+            {(roleMsg || adminMsg)?.text}
           </div>
         )}
 
@@ -1318,31 +1365,67 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-[var(--surface)]">
                 <tr className="border-b border-[var(--stroke)] text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="pb-2 pr-4">Email</th>
+                  <th className="pb-2 pr-4">User</th>
                   <th className="pb-2 pr-4">Role</th>
+                  <th className="pb-2 pr-4">Participation</th>
+                  <th className="pb-2 pr-4">Theme</th>
                   <th className="pb-2 pr-4">Created</th>
-                  <th className="pb-2">Change Role</th>
+                  <th className="pb-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--stroke)]">
                 {authUsers.map((u) => (
                   <tr key={u.id} className="text-slate-300">
-                    <td className="py-2.5 pr-4 font-medium text-white">{u.email}</td>
+                    <td className="py-2.5 pr-4">
+                      <p className="font-medium text-white">{u.name || u.username || u.email}</p>
+                      <p className="text-xs text-slate-400">@{u.username || "user"} · {u.email}</p>
+                    </td>
                     <td className="py-2.5 pr-4">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadge(u.role)}`}>
                         {u.role}
                       </span>
                     </td>
+                    <td className="py-2.5 pr-4 text-xs text-slate-400">
+                      <p>{u.prediction_count || 0} predictions</p>
+                      <p>{u.leaderboard_eligible ? "Eligible" : "Not on leaderboard"}</p>
+                    </td>
+                    <td className="py-2.5 pr-4 text-slate-400">{u.theme_preference || "dark"}</td>
                     <td className="py-2.5 pr-4 text-slate-400">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                     </td>
                     <td className="py-2.5">
-                      <button
-                        onClick={() => openRoleModal(u)}
-                        className="text-xs text-[var(--brand)] hover:text-white"
-                      >
-                        Change Role
-                      </button>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() => openRoleModal(u)}
+                          className="text-xs text-[var(--brand)] hover:text-white"
+                        >
+                          Change Role
+                        </button>
+                        {deleteConfirmUserId === u.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              disabled={deletingUserId === u.id}
+                              className="text-xs text-red-400 hover:text-red-300 disabled:opacity-60"
+                            >
+                              {deletingUserId === u.id ? "Deleting..." : "Confirm Delete"}
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmUserId(null)}
+                              className="text-xs text-slate-400 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirmUserId(u.id)}
+                            className="text-xs text-red-400 hover:text-red-300"
+                          >
+                            Delete User
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

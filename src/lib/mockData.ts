@@ -68,6 +68,7 @@ export const MOCK_QUESTIONS: FeedQuestion[] = [
 export const MOCK_LEADERBOARD: LeaderboardRow[] = [
   {
     _id: "u-1",
+    name: "Macro Lens",
     username: "macrolens",
     points_balance: 14550,
     points_earned_total: 4280,
@@ -83,6 +84,7 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
   },
   {
     _id: "u-2",
+    name: "Chart Alpha",
     username: "chart_alpha",
     points_balance: 12620,
     points_earned_total: 3910,
@@ -98,6 +100,7 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
   },
   {
     _id: "u-3",
+    name: "Signal Room",
     username: "signalroom",
     points_balance: 11890,
     points_earned_total: 3420,
@@ -113,6 +116,7 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
   },
   {
     _id: DEMO_USER_ID,
+    name: "Test Eleven",
     username: "test11",
     points_balance: 10794.86,
     points_earned_total: 1250,
@@ -131,7 +135,11 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
 export const MOCK_PROFILE: ProfilePayload = {
   success: true,
   _id: DEMO_USER_ID,
+  name: "Test Eleven",
   username: "test11",
+  theme_preference: "dark",
+  leaderboard_eligible: true,
+  prediction_count: 27,
   points_balance: 10794.86,
   points_earned_total: 1250,
   leaderboard_score: 1250,

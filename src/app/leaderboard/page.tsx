@@ -69,7 +69,7 @@ export default function LeaderboardPage() {
             </div>
             <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">Leaderboard</h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-slate-400 sm:text-lg">
-              Ranked by net performance for the selected period. Score = points earned minus points used, so positive and negative outcomes both matter.
+              Ranked by net performance for the selected period. Only users with actual prediction participation are included. Score = points earned minus points used, so positive and negative outcomes both matter.
             </p>
           </div>
 
@@ -93,7 +93,10 @@ export default function LeaderboardPage() {
         <section className="mb-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
             <p className="text-sm text-slate-400">Top {periodLabels[period]} Performer</p>
-            <p className="mt-2 text-2xl font-semibold text-white">{topRow?.username || "-"}</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{topRow?.name || topRow?.username || "-"}</p>
+            {topRow?.username && (
+              <p className="mt-1 text-sm text-slate-400">@{topRow.username}</p>
+            )}
             <p className="mt-1 text-sm text-[var(--brand)]">Net {formatNumber(topRow?.period_net_points || 0)} pts</p>
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
@@ -151,8 +154,8 @@ export default function LeaderboardPage() {
                           #{entry.rank}
                         </div>
                         <div>
-                          <p className="text-base font-semibold text-white">{entry.username}</p>
-                          <p className="text-sm text-slate-400">All-time points earned {formatNumber(entry.points_earned_total)}</p>
+                          <p className="text-base font-semibold text-white">{entry.name || entry.username}</p>
+                          <p className="text-sm text-slate-400">@{entry.username} · All-time points earned {formatNumber(entry.points_earned_total)}</p>
                         </div>
                       </div>
 

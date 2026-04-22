@@ -25,11 +25,13 @@ export type FeedQuestion = {
 
 export type LeaderboardRow = {
   _id: string;
+  name?: string;
   username: string;
   points_balance: number;
   points_earned_total: number;
   leaderboard_score: number;
   rank: number;
+  prediction_count?: number;
   period_label?: "weekly" | "monthly" | "quarterly" | "all";
   period_points_spent?: number;
   period_points_earned?: number;
@@ -43,7 +45,11 @@ export type LeaderboardRow = {
 export type ProfilePayload = {
   success: boolean;
   _id: string;
+  name?: string;
   username: string;
+  theme_preference?: "dark" | "bright";
+  leaderboard_eligible?: boolean;
+  prediction_count?: number;
   points_balance: number;
   points_earned_total: number;
   leaderboard_score: number;
@@ -74,6 +80,9 @@ export type AuthUser = {
   id: string;
   email: string;
   role: "user" | "admin" | "question_creator";
+  name?: string;
+  username?: string;
+  theme_preference?: "dark" | "bright";
 };
 
 export type AuthResponse = {
@@ -116,6 +125,13 @@ export type MeProfileSummaryPayload = {
   user_id: string;
   profile: ProfilePayload;
   predictions: UserPredictionsPayload;
+};
+
+export type UpdateProfilePreferencesResult = {
+  success: boolean;
+  message: string;
+  user: AuthUser;
+  profile: ProfilePayload;
 };
 
 export type PlacePredictionResult = {
@@ -351,4 +367,20 @@ export async function fetchMeProfileSummary(token?: string): Promise<MeProfileSu
     credentials: "include",
   });
   return parseJson<MeProfileSummaryPayload>(res);
+}
+
+export async function updateMeProfilePreferences(
+  token: string,
+  payload: { name?: string; username?: string; theme_preference?: "dark" | "bright" },
+): Promise<UpdateProfilePreferencesResult> {
+  const res = await fetch(`${API_BASE_URL}/me/profile_preferences`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return parseJson<UpdateProfilePreferencesResult>(res);
 }

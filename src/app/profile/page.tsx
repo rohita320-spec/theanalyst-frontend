@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader";
-import { fetchMeProfileSummary, fetchProfile, fetchUserPredictions, type ProfilePayload, type UserPrediction } from "../../lib/api";
+import { fetchMeProfileSummary, fetchProfile, fetchUserPredictions, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value || 0);
@@ -44,8 +44,11 @@ export default function ProfilePage() {
   const [openPredictions, setOpenPredictions] = useState<UserPrediction[]>([]);
   const [closedPredictions, setClosedPredictions] = useState<UserPrediction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authToken, setAuthToken] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [nameMsg, setNameMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [username, setUsername] = useState("");
+  const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [theme, setTheme] = useState<"dark" | "bright">("dark");
 
   useEffect(() => {
@@ -71,8 +74,15 @@ export default function ProfilePage() {
 
       if (token) {
         try {
+          setAuthToken(token);
           const meData = await fetchMeProfileSummary(token);
           setProfile(meData.profile);
+          setDisplayName(meData.profile.name || meData.profile.username || "");
+          setUsername(meData.profile.username || "");
+          const nextTheme = meData.profile.theme_preference === "bright" ? "bright" : "dark";
+          setTheme(nextTheme);
+          document.documentElement.setAttribute("data-theme", nextTheme);
+          localStorage.setItem("app_theme", nextTheme);
           setOpenPredictions(meData.predictions.open || []);
           setClosedPredictions(meData.predictions.closed || []);
           setLoading(false);
@@ -100,39 +110,58 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    const fallbackName = (profile?.username || "").trim();
-    try {
-      const savedName = (localStorage.getItem("profile_display_name") || "").trim();
-      setDisplayName(savedName || fallbackName);
+    if (!profile) {
       return;
-    } catch {
-      setDisplayName(fallbackName);
     }
-  }, [profile?.username]);
+    setDisplayName(profile.name || profile.username || "");
+    setUsername(profile.username || "");
+  }, [profile]);
 
-  const saveDisplayName = () => {
-    const normalized = displayName.trim();
-    if (!normalized) {
-      setNameMsg({ type: "error", text: "Name cannot be empty." });
+  const saveProfilePreferences = async (nextTheme?: "dark" | "bright") => {
+    const normalizedName = displayName.trim();
+    const normalizedUsername = username.trim();
+    const finalTheme = nextTheme || theme;
+    if (!authToken) {
+      setProfileMsg({ type: "error", text: "Please log in again to update your profile." });
       return;
     }
-    try {
-      localStorage.setItem("profile_display_name", normalized);
-    } catch {
-      // Ignore localStorage write failures and still show local session update.
+    if (!normalizedName) {
+      setProfileMsg({ type: "error", text: "Name cannot be empty." });
+      return;
     }
-    setNameMsg({ type: "success", text: "Name updated." });
+    if (!normalizedUsername) {
+      setProfileMsg({ type: "error", text: "Username cannot be empty." });
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileMsg(null);
+    try {
+      const result = await updateMeProfilePreferences(authToken, {
+        name: normalizedName,
+        username: normalizedUsername,
+        theme_preference: finalTheme,
+      });
+      setProfile(result.profile);
+      setTheme((result.user.theme_preference === "bright" ? "bright" : "dark"));
+      document.documentElement.setAttribute("data-theme", result.user.theme_preference || "dark");
+      localStorage.setItem("app_theme", result.user.theme_preference || "dark");
+      localStorage.setItem("auth_user", JSON.stringify(result.user));
+      setProfileMsg({ type: "success", text: result.message || "Profile updated." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update profile.";
+      setProfileMsg({ type: "error", text: msg });
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  const toggleTheme = () => {
+  const toggleTheme = async () => {
     const nextTheme = theme === "dark" ? "bright" : "dark";
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
-    try {
-      localStorage.setItem("app_theme", nextTheme);
-    } catch {
-      // Ignore localStorage write failures.
-    }
+    localStorage.setItem("app_theme", nextTheme);
+    await saveProfilePreferences(nextTheme);
   };
 
   const [predictionTab, setPredictionTab] = useState<"open" | "closed">("open");
@@ -169,25 +198,35 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="mt-5 grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Display Name</label>
-                      <div className="flex gap-2">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Name</label>
                         <input
                           value={displayName}
-                          onChange={(e) => { setDisplayName(e.target.value); setNameMsg(null); }}
+                          onChange={(e) => { setDisplayName(e.target.value); setProfileMsg(null); }}
                           placeholder="Enter your name"
                           className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[var(--brand)] focus:outline-none"
                         />
-                        <button
-                          onClick={saveDisplayName}
-                          className="rounded-xl bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
-                        >
-                          Save
-                        </button>
                       </div>
-                      {nameMsg && (
-                        <p className={`mt-1 text-xs ${nameMsg.type === "success" ? "text-emerald-300" : "text-red-300"}`}>
-                          {nameMsg.text}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Username</label>
+                        <input
+                          value={username}
+                          onChange={(e) => { setUsername(e.target.value); setProfileMsg(null); }}
+                          placeholder="Choose a username"
+                          className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[var(--brand)] focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => saveProfilePreferences()}
+                        disabled={savingProfile}
+                        className="rounded-xl bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-60"
+                      >
+                        {savingProfile ? "Saving..." : "Save Profile"}
+                      </button>
+                      {profileMsg && (
+                        <p className={`mt-1 text-xs ${profileMsg.type === "success" ? "text-emerald-300" : "text-red-300"}`}>
+                          {profileMsg.text}
                         </p>
                       )}
                     </div>
@@ -196,13 +235,18 @@ export default function ProfilePage() {
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Theme</p>
                       <button
                         onClick={toggleTheme}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white hover:border-[var(--brand)]"
+                        disabled={savingProfile}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white hover:border-[var(--brand)] disabled:opacity-60"
                         aria-label="Toggle theme"
                       >
                         <span className={`h-2.5 w-2.5 rounded-full ${theme === "dark" ? "bg-slate-300" : "bg-amber-300"}`} />
                         {theme === "dark" ? "Dark Theme" : "Bright Theme"}
                       </button>
-                      <p className="mt-1 text-xs text-slate-500">Default is dark. Toggle for a brighter visual mode.</p>
+                      <p className="mt-1 text-xs text-slate-500">This preference is saved to your account and applied on your next session.</p>
+                      <div className="mt-4 rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] p-3 text-xs text-slate-300">
+                        <p>Leaderboard eligibility: <span className="font-semibold text-white">{profile?.leaderboard_eligible ? "Eligible" : "Not eligible yet"}</span></p>
+                        <p className="mt-1">Prediction count: <span className="font-semibold text-white">{profile?.prediction_count || 0}</span></p>
+                      </div>
                     </div>
                   </div>
 

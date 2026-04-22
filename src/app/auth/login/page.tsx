@@ -19,8 +19,10 @@ export default function LoginPage() {
       const result = await login({ email: email.trim(), password });
       localStorage.setItem("auth_token", result.token);
       localStorage.setItem("auth_user", JSON.stringify(result.user));
+      localStorage.setItem("app_theme", result.user.theme_preference || "dark");
+      document.documentElement.setAttribute("data-theme", result.user.theme_preference || "dark");
       setMessage(`Logged in as ${result.user.role}. Redirecting...`);
-      setTimeout(() => { window.location.href = result.user.role === "admin" ? "/admin" : "/feed"; }, 1000);
+      setTimeout(() => { window.location.href = (result.user.role === "admin" || result.user.role === "question_creator") ? "/admin" : "/feed"; }, 1000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setMessage(msg);

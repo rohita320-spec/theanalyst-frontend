@@ -10,6 +10,8 @@
   --yes: #34d399;
   --no: #fb923c;
   --accent: #fb923c;
+  --muted-foreground: #cbd5e1;
+  --soft-foreground: #94a3b8;
   --bg-radial-a: rgba(88, 166, 255, 0.18);
   --bg-radial-b: rgba(245, 158, 11, 0.12);
   --bg-grad-top: #060a13;
@@ -44,6 +46,8 @@
   --yes: #0f9b6a;
   --no: #ea7a2f;
   --accent: #ea7a2f;
+  --muted-foreground: #334155;
+  --soft-foreground: #64748b;
   --bg-radial-a: rgba(59, 130, 246, 0.25);
   --bg-radial-b: rgba(249, 115, 22, 0.18);
   --bg-grad-top: #eef4ff;
@@ -84,4 +88,44 @@ body {
 a,
 button {
   transition: all 160ms ease;
+}
+
+:root[data-theme="bright"] .bg-\[\#0b1528\] {
+  background-color: #edf3ff !important;
+}
+
+:root[data-theme="bright"] .bg-\[\#0d1b2e\] {
+  background-color: #e3ebfb !important;
+}
+
+:root[data-theme="bright"] .bg-\[\#16243c\] {
+  background-color: #d4e2fb !important;
+}
+
+:root[data-theme="bright"] .bg-\[\#0a1120\]\/80 {
+  background-color: rgba(237, 243, 255, 0.86) !important;
+}
+
+:root[data-theme="bright"] .bg-slate-800\/60 {
+  background-color: rgba(212, 226, 251, 0.75) !important;
+}
+
+:root[data-theme="bright"] .text-white {
+  color: var(--foreground) !important;
+}
+
+:root[data-theme="bright"] .text-slate-300 {
+  color: var(--muted-foreground) !important;
+}
+
+:root[data-theme="bright"] .text-slate-400 {
+  color: var(--soft-foreground) !important;
+}
+
+:root[data-theme="bright"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+:root[data-theme="bright"] .placeholder\:text-slate-600::placeholder {
+  color: #94a3b8 !important;
 }
