@@ -6,14 +6,13 @@ import QuestionCard from "../../components/QuestionCard";
 import TrendModal from "../../components/TrendModal";
 import {
   fetchFeedQuestions,
+  fetchMeProfileSummary,
   placePrediction,
-  fetchProfile,
   fetchQuestionHistory,
   type FeedQuestion,
   type HistoryPoint,
   type ProfilePayload,
 } from "../../lib/api";
-import { DEMO_USER_ID } from "../../lib/mockData";
 
 const categories = [
   "All",
@@ -75,20 +74,24 @@ export default function FeedPage() {
     notifTimerRef.current = setTimeout(() => setNotification(null), 4500);
   }
 
-  const loadData = async (category: string) => {
+  const loadData = async (category: string, token?: string) => {
     setLoading(true);
     const [questionsData, profileData] = await Promise.allSettled([
       fetchFeedQuestions(category, "all"),
-      fetchProfile(DEMO_USER_ID),
+      token ? fetchMeProfileSummary(token) : Promise.resolve(null),
     ]);
     if (questionsData.status === "fulfilled") setQuestions(questionsData.value);
-    if (profileData.status === "fulfilled") setProfile(profileData.value);
+    if (profileData.status === "fulfilled") {
+      setProfile(profileData.value?.profile ?? null);
+    } else {
+      setProfile(null);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadData(selectedCategory);
-  }, [selectedCategory]);
+    loadData(selectedCategory, authToken || undefined);
+  }, [selectedCategory, authToken]);
 
   const filteredQuestions = useMemo(() => {
     let result = questions;
@@ -240,10 +243,10 @@ export default function FeedPage() {
             {(["open", "closed", "resolved", "all"] as const).map((s) => {
               const counts: Record<string, number> = { open: openQuestions, closed: closedQuestions, resolved: resolvedQuestions, all: questions.length };
               const colors: Record<string, string> = {
-                open: selectedStatus === s ? "border-emerald-400 bg-emerald-400/15 text-emerald-300" : "border-[var(--stroke)] text-slate-400 hover:border-emerald-400/50",
-                closed: selectedStatus === s ? "border-amber-400 bg-amber-400/15 text-amber-300" : "border-[var(--stroke)] text-slate-400 hover:border-amber-400/50",
-                resolved: selectedStatus === s ? "border-purple-400 bg-purple-400/15 text-purple-300" : "border-[var(--stroke)] text-slate-400 hover:border-purple-400/50",
-                all: selectedStatus === s ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-400 hover:border-slate-500",
+                open: selectedStatus === s ? "feed-status-tab-active-open" : "feed-status-tab",
+                closed: selectedStatus === s ? "feed-status-tab-active-closed" : "feed-status-tab",
+                resolved: selectedStatus === s ? "feed-status-tab-active-resolved" : "feed-status-tab",
+                all: selectedStatus === s ? "feed-status-tab-active-all" : "feed-status-tab",
               };
               return (
                 <button

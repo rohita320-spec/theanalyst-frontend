@@ -805,10 +805,10 @@ export default function AdminPage() {
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Data Summary</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Bubble Users" value={summary?.bubble_users_count ?? "—"} />
+          <StatCard label="Users" value={summary?.auth_users_count ?? authUsers.length} />
           <StatCard label="Open Questions" value={openQuestions.length} />
           <StatCard label="Resolved Questions" value={finalizedQuestions.length} />
-          <StatCard label="Auth Accounts" value={summary?.auth_users_count ?? authUsers.length} />
+          <StatCard label="Pending Approvals" value={pendingQuestions.length} />
         </div>
       </section>
 
@@ -1703,7 +1703,7 @@ export default function AdminPage() {
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">PostgreSQL (Data Layer)</p>
-            <p className="text-slate-400">PostgreSQL is the persistent database for all platform data — users, questions, predictions, balances, outcomes, and audit logs. It stores every event and acts as the authoritative data store outside Bubble. Used for auth, leaderboard scores, and complete audit trails.</p>
+            <p className="text-slate-400">PostgreSQL is the persistent database for all platform data — users, questions, predictions, balances, outcomes, and audit logs. It stores every event and acts as the authoritative data store for the platform. Used for auth, leaderboard scores, and complete audit trails.</p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">Question Lifecycle</p>
@@ -1732,7 +1732,6 @@ export default function AdminPage() {
             Public App ↗
           </a>
         </div>
-        <p className="admin-section-muted mt-3 text-sm">Share <span className="font-medium text-[var(--brand)]">{publicAppUrl}</span> with users. The same live link is used for browsing, signup, and login.</p>
       </section>
     </main>
   );

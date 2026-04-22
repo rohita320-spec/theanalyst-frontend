@@ -117,6 +117,55 @@ button {
   color: var(--status-open-text) !important;
 }
 
+.status-closed {
+  background-color: rgba(234, 122, 47, 0.14) !important;
+  color: #c75c16 !important;
+}
+
+.status-resolved {
+  background-color: rgba(37, 99, 235, 0.14) !important;
+  color: #2457c5 !important;
+}
+
+.feed-status-tab {
+  border-color: var(--stroke) !important;
+  background: color-mix(in srgb, var(--surface) 88%, transparent) !important;
+  color: var(--admin-visibility-text) !important;
+}
+
+.feed-status-tab:hover {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--stroke)) !important;
+  color: var(--foreground) !important;
+}
+
+.feed-status-tab-active-open {
+  border-color: color-mix(in srgb, var(--yes) 60%, var(--stroke)) !important;
+  background: color-mix(in srgb, var(--yes) 15%, var(--surface)) !important;
+  color: var(--yes) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--yes) 22%, transparent);
+}
+
+.feed-status-tab-active-closed {
+  border-color: color-mix(in srgb, var(--no) 55%, var(--stroke)) !important;
+  background: color-mix(in srgb, var(--no) 13%, var(--surface)) !important;
+  color: var(--no) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--no) 20%, transparent);
+}
+
+.feed-status-tab-active-resolved {
+  border-color: color-mix(in srgb, var(--brand) 60%, var(--stroke)) !important;
+  background: color-mix(in srgb, var(--brand) 14%, var(--surface)) !important;
+  color: var(--brand) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.feed-status-tab-active-all {
+  border-color: color-mix(in srgb, var(--brand) 60%, var(--stroke)) !important;
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface)) !important;
+  color: var(--admin-visibility-text) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
 .date-time-input {
   color-scheme: light;
   background-color: #f8fafc !important;
