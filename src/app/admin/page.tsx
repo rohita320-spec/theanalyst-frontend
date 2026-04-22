@@ -164,6 +164,31 @@ export default function AdminPage() {
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [myQuestions, setMyQuestions] = useState<MyQuestion[]>([]);
   const [myQuestionsLoading, setMyQuestionsLoading] = useState(false);
+  const [authNotice, setAuthNotice] = useState<{ tone: "success" | "warning"; message: string } | null>(null);
+  const [copyMsg, setCopyMsg] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("auth_notice");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { tone?: "success" | "warning"; message?: string };
+      if (parsed?.message) {
+        setAuthNotice({
+          tone: parsed.tone === "warning" ? "warning" : "success",
+          message: parsed.message,
+        });
+      }
+      sessionStorage.removeItem("auth_notice");
+    } catch {
+      sessionStorage.removeItem("auth_notice");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authNotice) return;
+    const id = window.setTimeout(() => setAuthNotice(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [authNotice]);
 
   useEffect(() => {
     const run = async () => {
@@ -624,6 +649,17 @@ export default function AdminPage() {
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
   const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
 
+  const copyLandingLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicAppUrl);
+      setCopyMsg("Landing page link copied.");
+      window.setTimeout(() => setCopyMsg(""), 2200);
+    } catch {
+      setCopyMsg("Copy failed. Please copy the link manually.");
+      window.setTimeout(() => setCopyMsg(""), 2500);
+    }
+  };
+
   const roleBadge = (role: string) => {
     if (role === "admin") return "bg-[var(--brand)]/15 text-[var(--brand)]";
     if (role === "question_creator") return "bg-purple-500/15 text-purple-300";
@@ -634,6 +670,15 @@ export default function AdminPage() {
   if (userRole === "question_creator") {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        {authNotice && (
+          <div className={`mb-5 rounded-xl border px-4 py-2 text-sm ${
+            authNotice.tone === "success"
+              ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+              : "border-amber-400/35 bg-amber-500/10 text-amber-200"
+          }`}>
+            {authNotice.message}
+          </div>
+        )}
         <div className="mb-6 flex flex-col gap-1">
           <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
           <h1 className="text-3xl font-semibold text-white">Contributor Dashboard</h1>
@@ -697,6 +742,18 @@ export default function AdminPage() {
         {/* Quick Links */}
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
           <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
+          <div className="mb-4 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--brand)]">Public Landing Page</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 px-3 py-1.5 text-[var(--brand)] hover:bg-[var(--brand)]/10">
+                Open Public Link ↗
+              </a>
+              <button onClick={copyLandingLink} className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                Copy Link
+              </button>
+              {copyMsg && <span className="text-xs text-slate-400">{copyMsg}</span>}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-3 text-sm">
             <Link href="/" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page</Link>
             <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
@@ -794,6 +851,15 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      {authNotice && (
+        <div className={`mb-5 rounded-xl border px-4 py-2 text-sm ${
+          authNotice.tone === "success"
+            ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+            : "border-amber-400/35 bg-amber-500/10 text-amber-200"
+        }`}>
+          {authNotice.message}
+        </div>
+      )}
       <div className="mb-6 flex flex-col gap-1">
         <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
         <h1 className="text-3xl font-semibold text-white">Admin Dashboard</h1>

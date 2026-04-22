@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader";
-import { fetchMeProfileSummary, fetchProfile, fetchUserPredictions, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
+import { fetchMeProfileSummary, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value || 0);
@@ -71,6 +71,12 @@ export default function ProfilePage() {
         token = "";
       }
 
+      if (!token) {
+        sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Please login to view your profile." }));
+        window.location.href = "/";
+        return;
+      }
+
       if (token) {
         try {
           setAuthToken(token);
@@ -86,22 +92,11 @@ export default function ProfilePage() {
           setLoading(false);
           return;
         } catch {
-          // fallback below
+          sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Your session expired. Please login again." }));
+          window.location.href = "/";
+          return;
         }
       }
-
-      const [profileData, predictionsData] = await Promise.allSettled([
-        fetchProfile("1775921102309x411727911287468540"),
-        fetchUserPredictions("1775921102309x411727911287468540"),
-      ]);
-
-      if (profileData.status === "fulfilled") setProfile(profileData.value);
-      if (predictionsData.status === "fulfilled") {
-        setOpenPredictions(predictionsData.value.open || []);
-        setClosedPredictions(predictionsData.value.closed || []);
-      }
-
-      setLoading(false);
     };
 
     load();

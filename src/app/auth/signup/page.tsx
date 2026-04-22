@@ -24,6 +24,14 @@ export default function SignupPage() {
       localStorage.setItem("auth_user", JSON.stringify(result.user));
       localStorage.setItem("app_theme", result.user.theme_preference || "dark");
       document.documentElement.setAttribute("data-theme", result.user.theme_preference || "dark");
+      sessionStorage.setItem(
+        "auth_notice",
+        JSON.stringify({
+          tone: "success",
+          message: `Logged in successfully. Welcome ${result.user.email}.`,
+        }),
+      );
+      window.dispatchEvent(new Event("auth-changed"));
       setMessage(`Account created as ${result.user.role}. Redirecting...`);
       setTimeout(() => { window.location.href = (result.user.role === "admin" || result.user.role === "question_creator") ? "/admin" : "/feed"; }, 1000);
     } catch (err) {
@@ -70,7 +78,7 @@ export default function SignupPage() {
 
         <div className="mt-6 flex items-center justify-between text-sm text-slate-400">
           <Link href="/auth/login" className="hover:text-white">Already have an account</Link>
-          <Link href="/feed" className="hover:text-white">Go to feed</Link>
+          <Link href="/" className="hover:text-white">Back to home</Link>
         </div>
         <div className="mt-4 border-t border-[var(--stroke)] pt-3 text-xs text-slate-500">
           <p>

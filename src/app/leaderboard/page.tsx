@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader";
-import { fetchLeaderboard, fetchMeProfileSummary, type LeaderboardRow, type ProfilePayload } from "../../lib/api";
+import { fetchLeaderboard, type LeaderboardRow } from "../../lib/api";
 
 type Period = "weekly" | "monthly" | "quarterly";
 
@@ -18,51 +18,46 @@ function formatNumber(value: number) {
 
 export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
-  const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("weekly");
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setProfile(null);
-      const token = typeof window === "undefined" ? undefined : (localStorage.getItem("auth_token") || undefined);
-      const [leaderboardRows, profileData] = await Promise.allSettled([
-        fetchLeaderboard(period),
-        fetchMeProfileSummary(token),
-      ]);
-
-      if (leaderboardRows.status === "fulfilled") {
-        setRows(leaderboardRows.value);
-      }
-
-      if (profileData.status === "fulfilled") {
-        setProfile(profileData.value.profile);
-      } else {
-        setProfile(null);
-      }
-
+      const leaderboardRows = await fetchLeaderboard(period);
+      setRows(leaderboardRows);
       setLoading(false);
     };
 
     load();
   }, [period]);
 
-  const topRow = rows[0];
+  const eligibleRows = useMemo(() => {
+    return rows.filter((row) => {
+      const resolved = Number(row.period_correct_predictions || 0) + Number(row.period_incorrect_predictions || 0);
+      const spend = Number(row.period_points_spent || 0);
+      const earned = Number(row.period_points_earned || 0);
+      const lost = Number(row.period_points_lost || 0);
+      const net = Number(row.period_net_points || 0);
+      return resolved > 0 || spend > 0 || earned > 0 || lost > 0 || net !== 0;
+    });
+  }, [rows]);
+
+  const topRow = eligibleRows[0];
   const avgNet = useMemo(() => {
-    if (!rows.length) return 0;
-    const total = rows.reduce((sum, row) => sum + Number(row.period_net_points || 0), 0);
-    return total / rows.length;
-  }, [rows]);
+    if (!eligibleRows.length) return 0;
+    const total = eligibleRows.reduce((sum, row) => sum + Number(row.period_net_points || 0), 0);
+    return total / eligibleRows.length;
+  }, [eligibleRows]);
   const avgRoi = useMemo(() => {
-    if (!rows.length) return 0;
-    const total = rows.reduce((sum, row) => sum + Number(row.period_roi_percent || 0), 0);
-    return total / rows.length;
-  }, [rows]);
+    if (!eligibleRows.length) return 0;
+    const total = eligibleRows.reduce((sum, row) => sum + Number(row.period_roi_percent || 0), 0);
+    return total / eligibleRows.length;
+  }, [eligibleRows]);
 
   return (
     <div className="min-h-screen text-slate-100">
-      <AppHeader active="leaderboard" pointsBalance={profile?.points_balance || 0} />
+      <AppHeader active="leaderboard" showPointsBalance={false} />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
         <section className="mb-6 rounded-[2rem] border border-[var(--stroke)] bg-[var(--surface)] p-6 sm:p-8">
@@ -105,7 +100,7 @@ export default function LeaderboardPage() {
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
             <p className="text-sm text-slate-400">Tracked Competitors</p>
-            <p className="mt-2 text-2xl font-semibold text-white">{rows.length}</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{eligibleRows.length}</p>
             <p className="mt-1 text-sm text-slate-400">Average net {formatNumber(avgNet)} pts</p>
           </div>
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
@@ -141,7 +136,7 @@ export default function LeaderboardPage() {
           ) : (
             <div className="max-h-[600px] overflow-y-auto pr-1">
             <div className="space-y-3">
-              {rows.map((entry) => {
+              {eligibleRows.map((entry) => {
                 const totalResolved = Number(entry.period_correct_predictions || 0) + Number(entry.period_incorrect_predictions || 0);
                 const accuracy = totalResolved > 0
                   ? Math.round((Number(entry.period_correct_predictions || 0) / totalResolved) * 100)

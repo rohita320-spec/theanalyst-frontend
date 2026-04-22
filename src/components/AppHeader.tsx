@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { logout, me } from "../lib/api";
 
 type Props = {
-  active: "feed" | "leaderboard" | "profile";
+  active: "home" | "feed" | "leaderboard" | "profile";
   pointsBalance?: number;
+  showPointsBalance?: boolean;
 };
 
 function fmt(value: number) {
@@ -38,7 +39,7 @@ function readStoredAuth() {
   }
 }
 
-export default function AppHeader({ active, pointsBalance = 0 }: Props) {
+export default function AppHeader({ active, pointsBalance = 0, showPointsBalance = true }: Props) {
   const [authState, setAuthState] = useState<{ email: string | null; role: string | null }>(() => readStoredAuth());
   const [notice, setNotice] = useState<AuthNotice | null>(null);
 
@@ -151,7 +152,13 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
           <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
         </div>
 
-        <nav className="grid w-full grid-cols-3 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center">
+        <nav className="grid w-full grid-cols-4 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 md:flex md:w-auto md:items-center">
+          <Link
+            href="/"
+            className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "home" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
+          >
+            Home
+          </Link>
           <Link
             href="/feed"
             className={`app-nav-link rounded-lg px-3 py-2 text-center text-sm transition-colors ${active === "feed" ? "app-nav-link-active" : "text-slate-300 hover:text-white"}`}
@@ -181,10 +188,12 @@ export default function AppHeader({ active, pointsBalance = 0 }: Props) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-left sm:text-right">
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Points Balance</p>
-            <p className="text-lg font-semibold text-[var(--brand)]">{fmt(pointsBalance)}</p>
-          </div>
+          {showPointsBalance && (
+            <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-left sm:text-right">
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">Points Balance</p>
+              <p className="text-lg font-semibold text-[var(--brand)]">{fmt(pointsBalance)}</p>
+            </div>
+          )}
 
           {authEmail ? (
             <div className="flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2">

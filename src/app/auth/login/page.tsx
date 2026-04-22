@@ -75,7 +75,7 @@ export default function LoginPage() {
 
         <div className="mt-6 flex items-center justify-between text-sm text-slate-400">
           <Link href="/auth/signup" className="hover:text-white">Create account</Link>
-          <Link href="/feed" className="hover:text-white">Go to feed</Link>
+          <Link href="/" className="hover:text-white">Back to home</Link>
         </div>
       </div>
     </main>
