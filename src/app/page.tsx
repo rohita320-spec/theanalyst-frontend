@@ -330,10 +330,9 @@ export default function LandingPage() {
             <p className="text-xs uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
             <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
           </div>
-          <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 sm:grid-cols-5 md:w-auto md:items-center">
+          <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 sm:grid-cols-4 md:w-auto md:items-center">
             <Link href="/feed" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Feed</Link>
             <Link href="/leaderboard" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Leaderboard</Link>
-            <Link href="/test" className="rounded-lg px-3 py-2 text-center text-sm text-[var(--brand)] hover:text-white">Test</Link>
             <Link href="/auth/login" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Sign in</Link>
             <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-3 py-2 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up</Link>
           </div>
@@ -344,20 +343,19 @@ export default function LandingPage() {
       <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 pb-4 pt-5 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5 sm:p-6">
           <p className="mb-1.5 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-3 py-0.5 text-[11px] font-medium tracking-wide text-[var(--brand)]">
-            Forecasting Platform | Points-Based Participation
+            Points-Based Participation
           </p>
           <h1 className="mb-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
             Submit Your Analysis
           </h1>
           <p className="mb-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Explore event-driven questions, submit your view using points on YES or NO, and monitor how outcomes influence your ranking.
+            Explore event-driven questions, submit your view using points on YES or NO, and track how outcomes affect your ranking.
           </p>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row">
             <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
             <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-5 py-2.5 text-center text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white">Browse questions</Link>
-            <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-5 py-2.5 text-center text-sm font-medium text-[var(--brand)] hover:bg-[var(--brand)]/20">Open test page</Link>
           </div>
-          <p className="text-xs text-slate-500">Informational and educational use only. See <Link href="/rules" className="underline hover:text-slate-300">Rules & Guidelines</Link>, <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link>, and <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
+          <p className="text-xs text-slate-500">For informational and educational use only. See <Link href="/rules" className="underline hover:text-slate-300">Rules</Link>, <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link>, and <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
         </div>
 
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4">

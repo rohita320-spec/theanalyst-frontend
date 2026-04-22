@@ -443,7 +443,7 @@ export default function AdminPage() {
           <StatCard label="Bubble Users" value={summary?.bubble_users_count ?? "—"} />
           <StatCard label="Open Questions" value={openLifecycleQuestions.length} />
           <StatCard label="Resolved Questions" value={resolvedQuestions.length} />
-          <StatCard label="Auth Accounts (local)" value={summary?.auth_users_count ?? authUsers.length} />
+          <StatCard label="Auth Accounts" value={summary?.auth_users_count ?? authUsers.length} />
         </div>
       </section>
 
