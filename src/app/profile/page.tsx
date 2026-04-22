@@ -45,7 +45,6 @@ export default function ProfilePage() {
   const [closedPredictions, setClosedPredictions] = useState<UserPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -77,7 +76,6 @@ export default function ProfilePage() {
           setAuthToken(token);
           const meData = await fetchMeProfileSummary(token);
           setProfile(meData.profile);
-          setDisplayName(meData.profile.name || meData.profile.username || "");
           setUsername(meData.profile.username || "");
           const nextTheme = meData.profile.theme_preference === "bright" ? "bright" : "dark";
           setTheme(nextTheme);
@@ -113,20 +111,14 @@ export default function ProfilePage() {
     if (!profile) {
       return;
     }
-    setDisplayName(profile.name || profile.username || "");
     setUsername(profile.username || "");
   }, [profile]);
 
   const saveProfilePreferences = async (nextTheme?: "dark" | "bright") => {
-    const normalizedName = displayName.trim();
     const normalizedUsername = username.trim();
     const finalTheme = nextTheme || theme;
     if (!authToken) {
       setProfileMsg({ type: "error", text: "Please log in again to update your profile." });
-      return;
-    }
-    if (!normalizedName) {
-      setProfileMsg({ type: "error", text: "Name cannot be empty." });
       return;
     }
     if (!normalizedUsername) {
@@ -138,7 +130,6 @@ export default function ProfilePage() {
     setProfileMsg(null);
     try {
       const result = await updateMeProfilePreferences(authToken, {
-        name: normalizedName,
         username: normalizedUsername,
         theme_preference: finalTheme,
       });
@@ -187,10 +178,10 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand)]/20 text-3xl font-bold text-[var(--brand)]">
-                      {(displayName || profile?.username || "?").charAt(0).toUpperCase()}
+                      {(username || profile?.username || "?").charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h2 className="text-3xl font-semibold text-white">{displayName || profile?.username || "analyst"}</h2>
+                      <h2 className="text-3xl font-semibold text-white">@{username || profile?.username || "analyst"}</h2>
                       <p className="text-sm text-slate-400">
                         Answered {formatNumber(profile?.answered_questions_count || 0)} unique questions · net {formatNumber(profile?.net_points || 0)} pts
                       </p>
@@ -199,15 +190,6 @@ export default function ProfilePage() {
 
                   <div className="mt-5 grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 sm:grid-cols-2">
                     <div className="space-y-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Name</label>
-                        <input
-                          value={displayName}
-                          onChange={(e) => { setDisplayName(e.target.value); setProfileMsg(null); }}
-                          placeholder="Enter your name"
-                          className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[var(--brand)] focus:outline-none"
-                        />
-                      </div>
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Username</label>
                         <input

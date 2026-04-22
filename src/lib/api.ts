@@ -25,7 +25,6 @@ export type FeedQuestion = {
 
 export type LeaderboardRow = {
   _id: string;
-  name?: string;
   username: string;
   points_balance: number;
   points_earned_total: number;
@@ -45,7 +44,6 @@ export type LeaderboardRow = {
 export type ProfilePayload = {
   success: boolean;
   _id: string;
-  name?: string;
   username: string;
   theme_preference?: "dark" | "bright";
   leaderboard_eligible?: boolean;
@@ -80,7 +78,6 @@ export type AuthUser = {
   id: string;
   email: string;
   role: "user" | "admin" | "question_creator";
-  name?: string;
   username?: string;
   theme_preference?: "dark" | "bright";
 };
@@ -371,7 +368,7 @@ export async function fetchMeProfileSummary(token?: string): Promise<MeProfileSu
 
 export async function updateMeProfilePreferences(
   token: string,
-  payload: { name?: string; username?: string; theme_preference?: "dark" | "bright" },
+  payload: { username?: string; theme_preference?: "dark" | "bright" },
 ): Promise<UpdateProfilePreferencesResult> {
   const res = await fetch(`${API_BASE_URL}/me/profile_preferences`, {
     method: "PATCH",

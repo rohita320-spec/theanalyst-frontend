@@ -10,7 +10,6 @@ type AuthUserRow = {
   id: string;
   email: string;
   role: string;
-  name?: string;
   username?: string;
   theme_preference?: string;
   leaderboard_eligible?: boolean;
@@ -569,7 +568,12 @@ export default function AdminPage() {
       });
       const body = await res.json();
       if (body.success) {
-        setRoleMsg({ type: "success", text: "User deleted successfully." });
+        const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
+        const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
+        setRoleMsg({
+          type: "success",
+          text: `User deleted successfully. Purged ${deletedPredictions} prediction(s) and ${deletedPositions} position(s).`,
+        });
         setDeleteConfirmUserId(null);
         await refreshUsers();
       } else {
@@ -1377,7 +1381,7 @@ export default function AdminPage() {
                 {authUsers.map((u) => (
                   <tr key={u.id} className="text-slate-300">
                     <td className="py-2.5 pr-4">
-                      <p className="font-medium text-white">{u.name || u.username || u.email}</p>
+                      <p className="font-medium text-white">@{u.username || "user"}</p>
                       <p className="text-xs text-slate-400">@{u.username || "user"} · {u.email}</p>
                     </td>
                     <td className="py-2.5 pr-4">
