@@ -47,6 +47,28 @@ type SmokeTestResult = {
   summary: SmokeTestSummary;
 };
 
+type PendingQuestion = {
+  _id: string;
+  title: string;
+  category: string;
+  entry_cost: number;
+  closing_time?: string;
+  created_by_email?: string;
+  created_at?: string;
+  resolution_rules?: string | null;
+};
+
+type MyQuestion = {
+  _id: string;
+  title: string;
+  category: string;
+  entry_cost: number;
+  closing_time?: string;
+  status: string;
+  created_at?: string;
+  resolution_rules?: string | null;
+};
+
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-5">
@@ -121,22 +143,45 @@ export default function AdminPage() {
   // Legacy alias (used by refreshUsers below)
   const [adminMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Role & creator/pending state
+  const [userRole, setUserRole] = useState<"admin" | "question_creator">("admin");
+  const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [approveMsg, setApproveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
+  const [myQuestions, setMyQuestions] = useState<MyQuestion[]>([]);
+  const [myQuestionsLoading, setMyQuestionsLoading] = useState(false);
+
   useEffect(() => {
     const run = async () => {
       const token = localStorage.getItem("auth_token") || "";
       try {
         const result = await me(token || undefined);
-        if (result.user.role !== "admin") {
+        if (result.user.role !== "admin" && result.user.role !== "question_creator") {
           setState("forbidden");
-          setError("Your account is not an admin. Login with an admin account.");
+          setError("Your account does not have admin access. Login with an admin or creator account.");
           return;
         }
         setAdminEmail(result.user.email || "");
         setAdminToken(token);
+        setUserRole(result.user.role as "admin" | "question_creator");
         setState("allowed");
 
+        if (result.user.role === "question_creator") {
+          // Creators only see their own submitted questions
+          const myQRes = await fetch(`${API_BASE}/creator/my_questions`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
+          if (myQRes.ok) {
+            const body = await myQRes.json();
+            setMyQuestions(body.results || []);
+          }
+          return;
+        }
+
         // Fetch admin data + questions in parallel
-        const [usersRes, summaryRes, questionsRes, storageRes] = await Promise.allSettled([
+        const [usersRes, summaryRes, questionsRes, storageRes, pendingRes] = await Promise.allSettled([
           fetch(`${API_BASE}/admin/users`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -147,6 +192,10 @@ export default function AdminPage() {
           }),
           fetch(`${API_BASE}/feed_questions?limit=100&status=all`, { credentials: "include" }),
           fetch(`${API_BASE}/admin/storage_status`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          }),
+          fetch(`${API_BASE}/admin/pending_questions`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
@@ -168,6 +217,10 @@ export default function AdminPage() {
           const body = await storageRes.value.json();
           setStorageStatus(body);
         }
+        if (pendingRes.status === "fulfilled" && pendingRes.value.ok) {
+          const body = await pendingRes.value.json();
+          setPendingQuestions(body.results || []);
+        }
       } catch {
         setState("forbidden");
         setError("Session check failed. Please login again.");
@@ -187,6 +240,87 @@ export default function AdminPage() {
       }
     } finally {
       setQuestionsLoading(false);
+    }
+  };
+
+  const refreshPendingQuestions = async () => {
+    setPendingLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/pending_questions`, {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setPendingQuestions(body.results || []);
+      }
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
+  const refreshMyQuestions = async () => {
+    setMyQuestionsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/creator/my_questions`, {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setMyQuestions(body.results || []);
+      }
+    } finally {
+      setMyQuestionsLoading(false);
+    }
+  };
+
+  const handleApproveQuestion = async (questionId: string) => {
+    setApproveMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/approve_question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ question_id: questionId }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        setApproveMsg({ type: "success", text: "Question approved and is now live!" });
+        await Promise.all([refreshPendingQuestions(), refreshQuestions()]);
+      } else {
+        setApproveMsg({ type: "error", text: body.detail || "Failed to approve question." });
+      }
+    } catch {
+      setApproveMsg({ type: "error", text: "Network error. Please try again." });
+    }
+  };
+
+  const handleRejectQuestion = async (questionId: string) => {
+    setApproveMsg(null);
+    setRejectConfirm(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/reject_question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ question_id: questionId }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        setApproveMsg({ type: "success", text: "Question rejected and removed." });
+        await refreshPendingQuestions();
+      } else {
+        setApproveMsg({ type: "error", text: body.detail || "Failed to reject question." });
+      }
+    } catch {
+      setApproveMsg({ type: "error", text: "Network error. Please try again." });
     }
   };
 
@@ -307,9 +441,20 @@ export default function AdminPage() {
       if (body.success) {
         const yesPercent = Number(body.yes_percent ?? probability).toFixed(2);
         const noPercent = Number(body.no_percent ?? (100 - probability)).toFixed(2);
-        setCreateMsg({ type: "success", text: `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%` });
+        const successText = body.pending_approval
+          ? "Question submitted for review! An admin will approve it shortly."
+          : `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%`;
+        setCreateMsg({ type: "success", text: successText });
         setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateStep("form");
-        setTimeout(() => { setCreateModalOpen(false); setCreateMsg(null); refreshQuestions(); }, 1500);
+        setTimeout(() => {
+          setCreateModalOpen(false);
+          setCreateMsg(null);
+          if (body.pending_approval) {
+            refreshMyQuestions();
+          } else {
+            refreshQuestions();
+          }
+        }, 1500);
       } else {
         setCreateMsg({ type: "error", text: body.detail || "Failed to create question." });
         setCreateStep("form");
@@ -428,6 +573,167 @@ export default function AdminPage() {
     return "bg-slate-700/50 text-slate-300";
   };
 
+  // ── Creator Dashboard ──────────────────────────────────────────────────────
+  if (userRole === "question_creator") {
+    return (
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col gap-1">
+          <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
+          <h1 className="text-3xl font-semibold text-white">Contributor Dashboard</h1>
+          <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
+        </div>
+
+        {/* Submit a Question */}
+        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-white">Submit a Question</h2>
+              <p className="text-sm text-slate-400">Questions go to admin review before going live in the feed.</p>
+            </div>
+            <button
+              onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
+              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+            >
+              + New Question
+            </button>
+          </div>
+        </section>
+
+        {/* My Submitted Questions */}
+        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">My Submitted Questions</h2>
+            <button onClick={refreshMyQuestions} className="text-xs text-slate-500 hover:text-slate-300">
+              {myQuestionsLoading ? "Loading..." : "↻ Refresh"}
+            </button>
+          </div>
+          {myQuestions.length === 0 ? (
+            <p className="text-sm text-slate-400">No questions yet. Submit your first question above.</p>
+          ) : (
+            <div className="space-y-3">
+              {myQuestions.map((q) => (
+                <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium text-white">{q.title}</p>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                      q.status === "pending_approval" ? "bg-amber-500/15 text-amber-300" :
+                      q.status === "open" ? "bg-emerald-500/15 text-emerald-300" :
+                      q.status === "closed" ? "bg-slate-700/50 text-slate-300" :
+                      q.status === "resolved" ? "bg-blue-500/15 text-blue-300" :
+                      "bg-slate-700/50 text-slate-300"
+                    }`}>
+                      {q.status === "pending_approval" ? "Pending Review" : q.status.charAt(0).toUpperCase() + q.status.slice(1)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-[11px] text-slate-400">
+                    <span>Category: {q.category}</span>
+                    <span>Entry: {q.entry_cost} pts</span>
+                    {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
+                    {q.created_at && <span>Submitted: {new Date(q.created_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Quick Links */}
+        <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
+            <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
+            <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
+          </div>
+        </section>
+
+        {/* Create Question Modal */}
+        {createModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
+            <div className="w-full max-w-lg rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6" onClick={(e) => e.stopPropagation()}>
+              {createStep === "form" ? (
+                <>
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Submit New Question</h3>
+                    <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
+                  </div>
+                  {createMsg && (
+                    <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                      {createMsg.text}
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
+                      <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder="e.g., Will Bitcoin reach $50k by end of Q2?" className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
+                      <select value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                        <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
+                      <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                        <optgroup label="Tier 1"><option value="50">50 pts</option><option value="100">100 pts</option><option value="200">200 pts</option></optgroup>
+                        <optgroup label="Tier 2"><option value="300">300 pts</option><option value="400">400 pts</option><option value="500">500 pts</option></optgroup>
+                        <optgroup label="Tier 3"><option value="600">600 pts</option><option value="700">700 pts</option><option value="800">800 pts</option></optgroup>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES %</label>
+                      <input type="number" min={1} max={99} step={0.1} value={createInitialProbability} onChange={(e) => setCreateInitialProbability(e.target.value)} placeholder="e.g. 65" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                      <p className="mt-1 text-xs text-slate-500">NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
+                      <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
+                      <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                    </div>
+                    <div className="flex gap-3">
+                      <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
+                      <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Confirm Submission</h3>
+                    <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
+                  </div>
+                  <div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
+                    <div className="flex flex-wrap gap-6">
+                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
+                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p><p className="mt-1 text-white">{createEntryCost} pts</p></div>
+                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
+                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
+                    </div>
+                    {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
+                  </div>
+                  {createMsg && (
+                    <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                      {createMsg.text}
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
+                    <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? "Submitting..." : "✓ Submit for Review"}</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex flex-col gap-1">
@@ -446,6 +752,86 @@ export default function AdminPage() {
           <StatCard label="Auth Accounts" value={summary?.auth_users_count ?? authUsers.length} />
         </div>
       </section>
+
+      {/* Pending Approvals */}
+      {(pendingQuestions.length > 0 || pendingLoading) && (
+        <section className="mb-8 rounded-2xl border border-amber-500/30 bg-[var(--surface)] p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-white">
+                Pending Approvals
+                <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-300">
+                  {pendingQuestions.length}
+                </span>
+              </h2>
+              <p className="text-sm text-slate-400">Review and approve or reject questions submitted by contributors.</p>
+            </div>
+            <button onClick={refreshPendingQuestions} className="text-xs text-slate-500 hover:text-slate-300">
+              {pendingLoading ? "Loading..." : "↻ Refresh"}
+            </button>
+          </div>
+          {approveMsg && (
+            <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${approveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+              {approveMsg.text}
+            </div>
+          )}
+          <div className="space-y-3">
+            {pendingQuestions.map((q) => (
+              <div key={q._id} className="rounded-xl border border-amber-500/20 bg-[#0b1528] p-4">
+                <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-white">{q.title}</p>
+                    <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-400">
+                      <span>Category: {q.category}</span>
+                      <span>Entry: {q.entry_cost} pts</span>
+                      {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
+                      {q.created_by_email && <span>By: <span className="text-purple-300">{q.created_by_email}</span></span>}
+                      {q.created_at && <span>Submitted: {formatDate(q.created_at)}</span>}
+                    </div>
+                    {q.resolution_rules && (
+                      <p className="mt-1.5 text-xs text-slate-400 line-clamp-2">{q.resolution_rules}</p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex shrink-0 gap-2 sm:ml-4 sm:mt-0">
+                    {rejectConfirm === q._id ? (
+                      <>
+                        <span className="self-center text-xs text-red-400">Confirm reject?</span>
+                        <button
+                          onClick={() => handleRejectQuestion(q._id)}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                        >
+                          Yes, Reject
+                        </button>
+                        <button
+                          onClick={() => setRejectConfirm(null)}
+                          className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleApproveQuestion(q._id)}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => setRejectConfirm(q._id)}
+                          className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+                        >
+                          ✕ Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

@@ -14,11 +14,12 @@ export type FeedQuestion = {
   yes_pool: number;
   no_pool: number;
   entry_cost: number;
-  status: "open" | "closed" | "resolved";
+  status: "open" | "closed" | "resolved" | "pending_approval";
   closed_reason?: "time_closed" | "admin_closed" | "cancelled" | string | null;
   closing_time?: string;
   closes_label?: string;
   resolution_rules?: string | null;
+  created_by_email?: string;
   metadata?: Record<string, unknown> | null;
 };
 
@@ -72,7 +73,7 @@ export type HistoryPoint = {
 export type AuthUser = {
   id: string;
   email: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "question_creator";
 };
 
 export type AuthResponse = {
