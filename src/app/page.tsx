@@ -238,11 +238,13 @@ export default function LandingPage() {
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const forcePublicView = params.get("public") === "1";
       const token = localStorage.getItem("auth_token") || "";
       const loggedIn = !!token;
       setIsLoggedIn(loggedIn);
       setAuthStateKnown(true);
-      if (loggedIn) {
+      if (loggedIn && !forcePublicView) {
         window.location.replace("/feed");
       }
     } catch {

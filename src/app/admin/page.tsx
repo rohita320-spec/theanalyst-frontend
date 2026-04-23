@@ -756,10 +756,11 @@ export default function AdminPage() {
   const now = new Date();
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
   const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
+  const publicLandingUrl = `${publicAppUrl.replace(/\/$/, "")}/?public=1`;
 
   const copyLandingLink = async () => {
     try {
-      await navigator.clipboard.writeText(publicAppUrl);
+      await navigator.clipboard.writeText(publicLandingUrl);
       setCopyMsg("Landing page link copied.");
       window.setTimeout(() => setCopyMsg(""), 2200);
     } catch {
@@ -853,7 +854,7 @@ export default function AdminPage() {
           <div className="mb-4 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 p-3">
             <p className="text-xs uppercase tracking-wide text-[var(--brand)]">Public Landing Page</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-              <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 px-3 py-1.5 text-[var(--brand)] hover:bg-[var(--brand)]/10">
+              <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 px-3 py-1.5 text-[var(--brand)] hover:bg-[var(--brand)]/10">
                 Open Public Link ↗
               </a>
               <button onClick={copyLandingLink} className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
@@ -863,7 +864,7 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page ↗</a>
+            <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page ↗</a>
             <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
             <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
             <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
@@ -1198,14 +1199,14 @@ export default function AdminPage() {
                 <span className="admin-quick-link-title">API Docs (Swagger)</span>
                 <span className="admin-quick-link-meta">↗ /docs</span>
               </a>
-              <a href={publicAppUrl} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
+              <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
                 <span className="admin-quick-link-title">Public Landing Page (Railway)</span>
                 <span className="admin-quick-link-meta">↗ live site</span>
               </a>
               <div className="admin-quick-link rounded-lg border px-3 py-3 text-xs">
                 <p className="admin-quick-link-title font-semibold">Final Public App Link</p>
-                <a href={publicAppUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[var(--brand)] hover:underline">
-                  {publicAppUrl}
+                <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[var(--brand)] hover:underline">
+                  {publicLandingUrl}
                 </a>
                 <p className="admin-quick-link-meta mt-1">Use this same live link for browsing, signup, and login.</p>
               </div>
@@ -1520,7 +1521,7 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionInitialYes(e.target.value)}
                         className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
-                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline (does not reset live market split)</p>
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline</p>
                       <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
                       <input
                         type="datetime-local"
@@ -1535,14 +1536,6 @@ export default function AdminPage() {
                         rows={3}
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
                         placeholder="Describe YES and NO conditions..."
-                      />
-                      <label className="text-xs font-medium text-slate-300">Metadata (JSON, optional)</label>
-                      <textarea
-                        value={editQuestionMetadata}
-                        onChange={(e) => setEditQuestionMetadata(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder='{"source": "...", "notes": "..."}'
                       />
                       {editQuestionMsg && (
                         <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
@@ -1998,7 +1991,7 @@ export default function AdminPage() {
       <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
         <div className="flex flex-wrap gap-3 text-sm">
-          <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
+          <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
             🌐 Public Landing Page ↗
           </a>
           <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
