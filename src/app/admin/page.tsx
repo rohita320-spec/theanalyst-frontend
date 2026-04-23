@@ -863,7 +863,7 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <Link href="/" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page</Link>
+            <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Landing Page ↗</a>
             <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
             <Link href="/leaderboard" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
             <Link href="/profile" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
@@ -1510,6 +1510,17 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionEntryCost(e.target.value)}
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
+                      <label className="text-xs font-medium text-slate-300">Initial YES % <span className="text-slate-500 font-normal">(baseline split)</span></label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={0.1}
+                        value={editQuestionInitialYes}
+                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · Updates the starting baseline (does not reset live market split)</p>
                       <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
                       <input
                         type="datetime-local"
@@ -1525,17 +1536,6 @@ export default function AdminPage() {
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
                         placeholder="Describe YES and NO conditions..."
                       />
-                      <label className="text-xs font-medium text-slate-300">Initial YES %</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        step={0.1}
-                        value={editQuestionInitialYes}
-                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
                       <label className="text-xs font-medium text-slate-300">Metadata (JSON, optional)</label>
                       <textarea
                         value={editQuestionMetadata}
@@ -1998,9 +1998,9 @@ export default function AdminPage() {
       <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <h2 className="mb-4 text-base font-semibold text-white">Quick Links</h2>
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link href="/" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
-            🌐 Landing Page (Guest View)
-          </Link>
+          <a href={publicAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
+            🌐 Public Landing Page ↗
+          </a>
           <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
             🧪 System Test Page
           </Link>
@@ -2009,9 +2009,6 @@ export default function AdminPage() {
           <Link href="/profile" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
           <a href={`${API_BASE}/docs`} target="_blank" rel="noreferrer" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">
             API Docs ↗
-          </a>
-          <a href={publicAppUrl} target="_blank" rel="noreferrer" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">
-            Public App ↗
           </a>
         </div>
       </section>

@@ -89,6 +89,27 @@ const DEMO_PREVIEW_QUESTIONS: DemoQuestion[] = [
 // Richer starting history for the demo sparkline
 const INITIAL_TREND = [54, 57, 55, 59, 58, 61, 60, 62];
 
+// Pure helper — lives at module level so useState initialiser can use it
+function buildMiniSeries(center: number, seed: number): number[] {
+  const points: number[] = [];
+  for (let i = 0; i < 8; i++) {
+    const wave = Math.sin((i + 1 + seed) * 0.9) * 3.2;
+    const drift = (i - 3) * 0.35;
+    const val = Math.max(10, Math.min(90, center + wave + drift));
+    points.push(Math.round(val * 10) / 10);
+  }
+  return points;
+}
+
+// Pre-seed each demo card with a unique starting series
+function seedDemoCardSeries(): Record<string, number[]> {
+  const result: Record<string, number[]> = {};
+  for (const demo of DEMO_PREVIEW_QUESTIONS) {
+    result[demo.id] = buildMiniSeries(demo.yes_percent, demo.id.length + 3);
+  }
+  return result;
+}
+
 const DEMO_RULES = [
   "Outcome is determined at close using publicly verifiable data.",
   "YES resolves true when the stated condition is satisfied.",
@@ -207,7 +228,7 @@ export default function LandingPage() {
   const [cardOutcomes, setCardOutcomes] = useState<Record<string, "win" | "loss" | null>>({});
   const [cardYesPct, setCardYesPct] = useState<Record<string, number>>({});
   const [cardNoPct, setCardNoPct] = useState<Record<string, number>>({});
-  const [demoCardSeries, setDemoCardSeries] = useState<Record<string, number[]>>({});
+  const [demoCardSeries, setDemoCardSeries] = useState<Record<string, number[]>>(seedDemoCardSeries);
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoStake = DEMO_QUESTION.entry_cost;
   const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
@@ -359,16 +380,6 @@ export default function LandingPage() {
     setTrendPoints(INITIAL_TREND);
   };
 
-  const buildMiniSeries = (center: number, seed: number) => {
-    const points: number[] = [];
-    for (let i = 0; i < 7; i++) {
-      const wave = Math.sin((i + 1 + seed) * 0.9) * 2.1;
-      const drift = (i - 3) * 0.25;
-      const val = Math.max(15, Math.min(85, center + wave + drift));
-      points.push(Math.round(val * 10) / 10);
-    }
-    return points;
-  };
 
   const handleCardVote = (demo: DemoQuestion, side: "yes" | "no") => {
     const cardId = demo.id;
