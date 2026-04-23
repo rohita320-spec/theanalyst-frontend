@@ -751,6 +751,7 @@ export default function LandingPage() {
           <Link href="/disclaimer" className="hover:text-slate-300">Disclaimer</Link>
           <Link href="/auth/signup" className="hover:text-slate-300">Sign up</Link>
         </div>
+        <p className="mt-2 text-[11px] text-slate-600">Auto deploy test 2: 20260423T181609Z</p>
       </footer>
     </main>
   );
