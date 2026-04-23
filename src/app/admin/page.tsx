@@ -62,6 +62,10 @@ type PendingQuestion = {
   title: string;
   category: string;
   entry_cost: number;
+  yes_percent?: number;
+  no_percent?: number;
+  initial_yes_percent?: number;
+  initial_no_percent?: number;
   closing_time?: string;
   created_by_email?: string;
   created_at?: string;
@@ -159,6 +163,7 @@ export default function AdminPage() {
   // Role & creator/pending state
   const [userRole, setUserRole] = useState<"admin" | "question_creator">("admin");
   const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
+  const [pendingInitialYes, setPendingInitialYes] = useState<Record<string, string>>({});
   const [pendingLoading, setPendingLoading] = useState(false);
   const [approveMsg, setApproveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -257,7 +262,16 @@ export default function AdminPage() {
         }
         if (pendingRes.status === "fulfilled" && pendingRes.value.ok) {
           const body = await pendingRes.value.json();
-          setPendingQuestions(body.results || []);
+          const rows = body.results || [];
+          setPendingQuestions(rows);
+          setPendingInitialYes((prev) => {
+            const next = { ...prev };
+            for (const row of rows) {
+              const seed = Number(row.initial_yes_percent ?? row.yes_percent ?? 50);
+              if (next[row._id] == null) next[row._id] = String(seed);
+            }
+            return next;
+          });
         }
       } catch {
         setState("forbidden");
@@ -290,7 +304,16 @@ export default function AdminPage() {
       });
       if (res.ok) {
         const body = await res.json();
-        setPendingQuestions(body.results || []);
+        const rows = body.results || [];
+        setPendingQuestions(rows);
+        setPendingInitialYes((prev) => {
+          const next = { ...prev };
+          for (const row of rows) {
+            const seed = Number(row.initial_yes_percent ?? row.yes_percent ?? 50);
+            if (next[row._id] == null) next[row._id] = String(seed);
+          }
+          return next;
+        });
       }
     } finally {
       setPendingLoading(false);
@@ -315,6 +338,13 @@ export default function AdminPage() {
 
   const handleApproveQuestion = async (questionId: string) => {
     setApproveMsg(null);
+    const rawInitialYes = (pendingInitialYes[questionId] ?? "").trim();
+    const parsedInitialYes = rawInitialYes === "" ? null : Number(rawInitialYes);
+    if (parsedInitialYes !== null && (Number.isNaN(parsedInitialYes) || parsedInitialYes < 1 || parsedInitialYes > 99)) {
+      setApproveMsg({ type: "error", text: "Initial YES % must be between 1 and 99." });
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/admin/approve_question`, {
         method: "POST",
@@ -323,7 +353,10 @@ export default function AdminPage() {
           ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify({ question_id: questionId }),
+        body: JSON.stringify({
+          question_id: questionId,
+          ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
+        }),
       });
       const body = await res.json();
       if (body.success) {
@@ -915,6 +948,28 @@ export default function AdminPage() {
                     {q.resolution_rules && (
                       <p className="mt-1.5 text-xs text-slate-400 line-clamp-2">{q.resolution_rules}</p>
                     )}
+                    <div className="mt-2 flex flex-wrap items-end gap-3">
+                      <label className="text-[11px] text-slate-400">
+                        Initial YES %
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          step={0.1}
+                          value={pendingInitialYes[q._id] ?? String(Number(q.initial_yes_percent ?? q.yes_percent ?? 50))}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setPendingInitialYes((prev) => ({ ...prev, [q._id]: value }));
+                          }}
+                          className="mt-1 block w-28 rounded-md border border-[var(--stroke)] bg-[#091224] px-2 py-1 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                        />
+                      </label>
+                      <div className="text-[11px] text-slate-500">
+                        Initial NO %: {(
+                          100 - Number(pendingInitialYes[q._id] ?? q.initial_yes_percent ?? q.yes_percent ?? 50)
+                        ).toFixed(2)}%
+                      </div>
+                    </div>
                   </div>
                   <div className="mt-3 flex shrink-0 gap-2 sm:ml-4 sm:mt-0">
                     {rejectConfirm === q._id ? (

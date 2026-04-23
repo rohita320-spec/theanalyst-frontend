@@ -74,6 +74,16 @@ const DEMO_PREVIEW_QUESTIONS: DemoQuestion[] = [
     entry_cost: 260,
     pool_points: 16200,
   },
+  {
+    id: "demo_entertainment_1",
+    question_text: "Will a Marvel film top the global box office in May?",
+    category: "Entertainment",
+    yes_percent: 55,
+    no_percent: 45,
+    status: "open",
+    entry_cost: 200,
+    pool_points: 11800,
+  },
 ];
 
 // Richer starting history for the demo sparkline
@@ -197,6 +207,7 @@ export default function LandingPage() {
   const [cardOutcomes, setCardOutcomes] = useState<Record<string, "win" | "loss" | null>>({});
   const [cardYesPct, setCardYesPct] = useState<Record<string, number>>({});
   const [cardNoPct, setCardNoPct] = useState<Record<string, number>>({});
+  const [demoCardSeries, setDemoCardSeries] = useState<Record<string, number[]>>({});
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoStake = DEMO_QUESTION.entry_cost;
   const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
@@ -244,11 +255,47 @@ export default function LandingPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (body?.results?.length) {
-          setDemoQuestions(body.results);
+          const nextQuestions = body.results as DemoQuestion[];
+          setDemoQuestions(nextQuestions);
+          setDemoCardSeries(() => {
+            const seeded: Record<string, number[]> = {};
+            for (const demo of nextQuestions.slice(0, 4)) {
+              const source = (demo.chart_points || []).map((p) => p.yes_percent);
+              seeded[demo.id] = source.length > 1 ? source : buildMiniSeries(demo.yes_percent, demo.id.length + 3);
+            }
+            return seeded;
+          });
         }
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!demoQuestions.length) return;
+    const intervalId = setInterval(() => {
+      setDemoCardSeries((prev) => {
+        const next: Record<string, number[]> = { ...prev };
+        for (const demo of demoQuestions.slice(0, 4)) {
+          const currentSeries = next[demo.id] && next[demo.id].length > 1
+            ? next[demo.id]
+            : (demo.chart_points || []).map((p) => p.yes_percent);
+          const fallback = currentSeries.length > 1
+            ? currentSeries
+            : buildMiniSeries(cardYesPct[demo.id] ?? demo.yes_percent, demo.id.length + 3);
+
+          const last = fallback[fallback.length - 1];
+          const center = cardYesPct[demo.id] ?? demo.yes_percent;
+          const meanRevert = (center - last) * 0.2;
+          const randomShock = (Math.random() - 0.5) * 3.6;
+          const nextValue = Math.max(5, Math.min(95, last + meanRevert + randomShock));
+          next[demo.id] = [...fallback.slice(-13), Math.round(nextValue * 10) / 10];
+        }
+        return next;
+      });
+    }, 1200);
+
+    return () => clearInterval(intervalId);
+  }, [demoQuestions, cardYesPct]);
 
   // Live animation — makes the graph feel alive while no vote is cast
   useEffect(() => {
@@ -568,7 +615,9 @@ export default function LandingPage() {
                   const spent = demo.entry_cost ?? 220;
                   const outcomePoints = outcome === "win" ? Math.round(spent * 1.8) : 0;
                   const net = outcomePoints - spent;
-                  const chartPoints = chartYesValues.length > 0 ? chartYesValues : buildMiniSeries(yesNow, demo.id.length + 3);
+                  const chartPoints = demoCardSeries[demo.id]?.length
+                    ? demoCardSeries[demo.id]
+                    : (chartYesValues.length > 0 ? chartYesValues : buildMiniSeries(yesNow, demo.id.length + 3));
 
                   return (
                     <>
