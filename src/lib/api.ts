@@ -33,12 +33,15 @@ export type LeaderboardRow = {
   prediction_count?: number;
   period_label?: "weekly" | "monthly" | "quarterly" | "all";
   period_points_spent?: number;
+  period_resolved_points_spent?: number;
   period_points_earned?: number;
   period_points_lost?: number;
+  period_points_refunded?: number;
   period_net_points?: number;
   period_roi_percent?: number;
   period_correct_predictions?: number;
   period_incorrect_predictions?: number;
+  period_refunded_predictions?: number;
 };
 
 export type ProfilePayload = {
