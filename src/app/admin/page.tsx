@@ -146,6 +146,7 @@ export default function AdminPage() {
   const [editQuestionEntryCost, setEditQuestionEntryCost] = useState("");
   const [editQuestionClosingTime, setEditQuestionClosingTime] = useState("");
   const [editQuestionRules, setEditQuestionRules] = useState("");
+  const [editQuestionInitialYes, setEditQuestionInitialYes] = useState("");
   const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
   const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -164,6 +165,13 @@ export default function AdminPage() {
   const [userRole, setUserRole] = useState<"admin" | "question_creator">("admin");
   const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
   const [pendingInitialYes, setPendingInitialYes] = useState<Record<string, string>>({});
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const [pendingEditQuestionText, setPendingEditQuestionText] = useState("");
+  const [pendingEditCategory, setPendingEditCategory] = useState("General");
+  const [pendingEditEntryCost, setPendingEditEntryCost] = useState("");
+  const [pendingEditClosingTime, setPendingEditClosingTime] = useState("");
+  const [pendingEditRules, setPendingEditRules] = useState("");
+  const [pendingEditSubmitting, setPendingEditSubmitting] = useState(false);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [approveMsg, setApproveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -392,6 +400,73 @@ export default function AdminPage() {
       }
     } catch {
       setApproveMsg({ type: "error", text: "Network error. Please try again." });
+    }
+  };
+
+  const handleStartPendingEdit = (q: PendingQuestion) => {
+    setPendingEditId(q._id);
+    setPendingEditQuestionText(q.title || "");
+    setPendingEditCategory(q.category || "General");
+    setPendingEditEntryCost(String(q.entry_cost ?? ""));
+    setPendingEditClosingTime(formatDateTimeLocal(q.closing_time));
+    setPendingEditRules(q.resolution_rules || "");
+    setApproveMsg(null);
+  };
+
+  const handleSavePendingEdit = async (q: PendingQuestion) => {
+    if (!pendingEditQuestionText.trim()) {
+      setApproveMsg({ type: "error", text: "Pending question text cannot be empty." });
+      return;
+    }
+    const cost = Number(pendingEditEntryCost);
+    if (!Number.isFinite(cost) || cost < 50) {
+      setApproveMsg({ type: "error", text: "Entry cost must be at least 50." });
+      return;
+    }
+    if (!pendingEditClosingTime) {
+      setApproveMsg({ type: "error", text: "Closing time is required." });
+      return;
+    }
+
+    const rawInitialYes = (pendingInitialYes[q._id] ?? "").trim();
+    const parsedInitialYes = rawInitialYes === "" ? null : Number(rawInitialYes);
+    if (parsedInitialYes !== null && (Number.isNaN(parsedInitialYes) || parsedInitialYes < 1 || parsedInitialYes > 99)) {
+      setApproveMsg({ type: "error", text: "Initial YES % must be between 1 and 99." });
+      return;
+    }
+
+    setPendingEditSubmitting(true);
+    setApproveMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/edit_question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          question_id: q._id,
+          question_text: pendingEditQuestionText.trim(),
+          category: pendingEditCategory,
+          entry_cost: cost,
+          closing_time: new Date(pendingEditClosingTime).toISOString(),
+          resolution_rules: pendingEditRules.trim(),
+          ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
+        }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        setApproveMsg({ type: "success", text: "Pending question updated. You can now approve." });
+        setPendingEditId(null);
+        await refreshPendingQuestions();
+      } else {
+        setApproveMsg({ type: "error", text: body.detail || "Failed to update pending question." });
+      }
+    } catch {
+      setApproveMsg({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setPendingEditSubmitting(false);
     }
   };
 
@@ -970,6 +1045,67 @@ export default function AdminPage() {
                         ).toFixed(2)}%
                       </div>
                     </div>
+                    {pendingEditId === q._id && (
+                      <div className="mt-3 grid gap-2 rounded-lg border border-[var(--stroke)] bg-[#091224] p-3">
+                        <input
+                          value={pendingEditQuestionText}
+                          onChange={(e) => setPendingEditQuestionText(e.target.value)}
+                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                          placeholder="Question text"
+                        />
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <select
+                            value={pendingEditCategory}
+                            onChange={(e) => setPendingEditCategory(e.target.value)}
+                            className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                          >
+                            <option>Crypto</option>
+                            <option>Economy</option>
+                            <option>Entertainment</option>
+                            <option>General</option>
+                            <option>Global events</option>
+                            <option>Markets</option>
+                            <option>Sports</option>
+                          </select>
+                          <input
+                            type="number"
+                            min={50}
+                            value={pendingEditEntryCost}
+                            onChange={(e) => setPendingEditEntryCost(e.target.value)}
+                            className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                            placeholder="Entry cost"
+                          />
+                        </div>
+                        <input
+                          type="datetime-local"
+                          value={pendingEditClosingTime}
+                          onChange={(e) => setPendingEditClosingTime(e.target.value)}
+                          className="date-time-input w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                        />
+                        <textarea
+                          value={pendingEditRules}
+                          onChange={(e) => setPendingEditRules(e.target.value)}
+                          rows={2}
+                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                          placeholder="Resolution rules"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setPendingEditId(null)}
+                            className="flex-1 rounded-md border border-[var(--stroke)] px-2 py-1.5 text-xs text-slate-300 hover:text-white"
+                          >
+                            Cancel Edit
+                          </button>
+                          <button
+                            onClick={() => handleSavePendingEdit(q)}
+                            disabled={pendingEditSubmitting}
+                            className="flex-1 rounded-md bg-[var(--brand)] px-2 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                          >
+                            {pendingEditSubmitting ? "Saving..." : "Save Pending Edit"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-3 flex shrink-0 gap-2 sm:ml-4 sm:mt-0">
                     {rejectConfirm === q._id ? (
@@ -990,6 +1126,12 @@ export default function AdminPage() {
                       </>
                     ) : (
                       <>
+                        <button
+                          onClick={() => handleStartPendingEdit(q)}
+                          className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:text-white"
+                        >
+                          ✎ Edit
+                        </button>
                         <button
                           onClick={() => handleApproveQuestion(q._id)}
                           className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
@@ -1326,6 +1468,7 @@ export default function AdminPage() {
                           setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
                           setEditQuestionClosingTime(formatDateTimeLocal(selectedQuestion.closing_time));
                           setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                          setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
                           setEditQuestionMetadata(selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "");
                           setEditQuestionMsg(null);
                         }}
@@ -1382,6 +1525,17 @@ export default function AdminPage() {
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
                         placeholder="Describe YES and NO conditions..."
                       />
+                      <label className="text-xs font-medium text-slate-300">Initial YES %</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={0.1}
+                        value={editQuestionInitialYes}
+                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
                       <label className="text-xs font-medium text-slate-300">Metadata (JSON, optional)</label>
                       <textarea
                         value={editQuestionMetadata}
@@ -1412,6 +1566,11 @@ export default function AdminPage() {
                             }
                             if (!editQuestionClosingTime) {
                               setEditQuestionMsg({ type: "error", text: "Closing time is required" });
+                              return;
+                            }
+                            const initialYes = Number(editQuestionInitialYes);
+                            if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) {
+                              setEditQuestionMsg({ type: "error", text: "Initial YES % must be between 1 and 99" });
                               return;
                             }
 
@@ -1447,6 +1606,7 @@ export default function AdminPage() {
                                   entry_cost: entryCost,
                                   closing_time: new Date(editQuestionClosingTime).toISOString(),
                                   resolution_rules: editQuestionRules.trim(),
+                                  initial_yes_percent: initialYes,
                                   ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
                                 }),
                               });
@@ -1464,6 +1624,8 @@ export default function AdminPage() {
                                     entry_cost: entryCost,
                                     closing_time: new Date(editQuestionClosingTime).toISOString(),
                                     resolution_rules: editQuestionRules.trim() || null,
+                                    initial_yes_percent: initialYes,
+                                    initial_no_percent: Math.round((100 - initialYes) * 100) / 100,
                                     ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
                                   } : prev);
                                 }

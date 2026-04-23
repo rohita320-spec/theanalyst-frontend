@@ -285,14 +285,14 @@ export default function LandingPage() {
 
           const last = fallback[fallback.length - 1];
           const center = cardYesPct[demo.id] ?? demo.yes_percent;
-          const meanRevert = (center - last) * 0.2;
-          const randomShock = (Math.random() - 0.5) * 3.6;
+          const meanRevert = (center - last) * 0.12;
+          const randomShock = (Math.random() - 0.5) * 5.4;
           const nextValue = Math.max(5, Math.min(95, last + meanRevert + randomShock));
           next[demo.id] = [...fallback.slice(-13), Math.round(nextValue * 10) / 10];
         }
         return next;
       });
-    }, 1200);
+    }, 900);
 
     return () => clearInterval(intervalId);
   }, [demoQuestions, cardYesPct]);
