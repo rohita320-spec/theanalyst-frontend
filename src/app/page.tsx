@@ -742,6 +742,7 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-[var(--stroke)] py-4 text-center text-xs text-slate-500">
         <div className="flex flex-wrap justify-center gap-4">
+          <span hidden data-autodeploy-proof="autodeploy-20260423T175820Z">autodeploy-20260423T175820Z</span>
           <a href={PUBLIC_SITE_URL} target="_blank" rel="noreferrer" className="hover:text-slate-300">Public Landing Page ↗</a>
           <Link href="/feed" className="hover:text-slate-300">Feed</Link>
           <Link href="/leaderboard" className="hover:text-slate-300">Leaderboard</Link>
