@@ -214,6 +214,7 @@ function DemoTrendChart({ points }: { points: number[] }) {
 export default function LandingPage() {
   const [authStateKnown, setAuthStateKnown] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [forcePublicView, setForcePublicView] = useState(false);
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
   const [questionsLoading, setQuestionsLoading] = useState(true);
@@ -239,21 +240,23 @@ export default function LandingPage() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const forcePublicView = params.get("public") === "1";
+      const forcePublicParam = params.get("public") === "1";
       const token = localStorage.getItem("auth_token") || "";
       const loggedIn = !!token;
+      setForcePublicView(forcePublicParam);
       setIsLoggedIn(loggedIn);
       setAuthStateKnown(true);
-      if (loggedIn && !forcePublicView) {
+      if (loggedIn && !forcePublicParam) {
         window.location.replace("/feed");
       }
     } catch {
       setIsLoggedIn(false);
+      setForcePublicView(false);
       setAuthStateKnown(true);
     }
   }, []);
 
-  if (authStateKnown && isLoggedIn) {
+  if (authStateKnown && isLoggedIn && !forcePublicView) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4">
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6 text-center">
@@ -742,7 +745,6 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-[var(--stroke)] py-4 text-center text-xs text-slate-500">
         <div className="flex flex-wrap justify-center gap-4">
-          <span hidden data-autodeploy-proof="autodeploy-20260423T175820Z">autodeploy-20260423T175820Z</span>
           <a href={PUBLIC_SITE_URL} target="_blank" rel="noreferrer" className="hover:text-slate-300">Public Landing Page ↗</a>
           <Link href="/feed" className="hover:text-slate-300">Feed</Link>
           <Link href="/leaderboard" className="hover:text-slate-300">Leaderboard</Link>
@@ -751,7 +753,6 @@ export default function LandingPage() {
           <Link href="/disclaimer" className="hover:text-slate-300">Disclaimer</Link>
           <Link href="/auth/signup" className="hover:text-slate-300">Sign up</Link>
         </div>
-        <p className="mt-2 text-[11px] text-slate-600">Auto deploy test 2: 20260423T181609Z</p>
       </footer>
     </main>
   );
