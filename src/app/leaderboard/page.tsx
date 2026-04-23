@@ -158,7 +158,7 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-7">
+                      <div className="grid gap-3 sm:grid-cols-6">
                         <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
                           <p className="text-[11px] uppercase tracking-wide text-slate-500">Balance</p>
                           <p className="mt-1 font-semibold text-white">{formatNumber(entry.points_balance || 0)}</p>
@@ -177,12 +177,6 @@ export default function LeaderboardPage() {
                           <p className="text-[11px] uppercase tracking-wide text-slate-500">Spent / Lost</p>
                           <p className="mt-1 font-semibold text-white">
                             {formatNumber((entry.period_resolved_points_spent ?? entry.period_points_spent) || 0)} / {formatNumber(entry.period_points_lost || 0)}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
-                          <p className="text-[11px] uppercase tracking-wide text-slate-500">Refunded</p>
-                          <p className="mt-1 font-semibold text-white">
-                            {formatNumber(entry.period_points_refunded || 0)}
                           </p>
                         </div>
                         <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
