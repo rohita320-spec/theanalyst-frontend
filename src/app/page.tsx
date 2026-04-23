@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theanalyst-frontend-production.up.railway.app";
 
 type FeedQuestion = {
   _id: string;
@@ -229,6 +230,7 @@ export default function LandingPage() {
   const [cardYesPct, setCardYesPct] = useState<Record<string, number>>({});
   const [cardNoPct, setCardNoPct] = useState<Record<string, number>>({});
   const [demoCardSeries, setDemoCardSeries] = useState<Record<string, number[]>>(seedDemoCardSeries);
+  const demoTickRef = useRef(0);
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoStake = DEMO_QUESTION.entry_cost;
   const demoPayout = demoResolvedOutcome === "win" ? Math.round(demoStake * 1.85) : 0;
@@ -294,6 +296,8 @@ export default function LandingPage() {
   useEffect(() => {
     if (!demoQuestions.length) return;
     const intervalId = setInterval(() => {
+      demoTickRef.current += 1;
+      const tick = demoTickRef.current;
       setDemoCardSeries((prev) => {
         const next: Record<string, number[]> = { ...prev };
         for (const demo of demoQuestions.slice(0, 4)) {
@@ -306,14 +310,17 @@ export default function LandingPage() {
 
           const last = fallback[fallback.length - 1];
           const center = cardYesPct[demo.id] ?? demo.yes_percent;
-          const meanRevert = (center - last) * 0.12;
-          const randomShock = (Math.random() - 0.5) * 5.4;
-          const nextValue = Math.max(5, Math.min(95, last + meanRevert + randomShock));
+          const phase = (demo.id.length % 7) * 0.7;
+          const wave1 = Math.sin((tick + phase) * 0.62) * 2.9;
+          const wave2 = Math.cos((tick + phase) * 0.31) * 1.7;
+          const meanRevert = (center - last) * 0.24;
+          const randomShock = (Math.random() - 0.5) * 2.2;
+          const nextValue = Math.max(5, Math.min(95, last + meanRevert + wave1 + wave2 + randomShock));
           next[demo.id] = [...fallback.slice(-13), Math.round(nextValue * 10) / 10];
         }
         return next;
       });
-    }, 900);
+    }, 800);
 
     return () => clearInterval(intervalId);
   }, [demoQuestions, cardYesPct]);
@@ -733,6 +740,7 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-[var(--stroke)] py-4 text-center text-xs text-slate-500">
         <div className="flex flex-wrap justify-center gap-4">
+          <a href={PUBLIC_SITE_URL} target="_blank" rel="noreferrer" className="hover:text-slate-300">Public Landing Page ↗</a>
           <Link href="/feed" className="hover:text-slate-300">Feed</Link>
           <Link href="/leaderboard" className="hover:text-slate-300">Leaderboard</Link>
           <Link href="/rules" className="hover:text-slate-300">Rules & Guidelines</Link>

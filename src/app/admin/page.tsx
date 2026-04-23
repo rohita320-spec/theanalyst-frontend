@@ -1199,7 +1199,7 @@ export default function AdminPage() {
                 <span className="admin-quick-link-meta">↗ /docs</span>
               </a>
               <a href={publicAppUrl} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
-                <span className="admin-quick-link-title">Frontend (Railway)</span>
+                <span className="admin-quick-link-title">Public Landing Page (Railway)</span>
                 <span className="admin-quick-link-meta">↗ live site</span>
               </a>
               <div className="admin-quick-link rounded-lg border px-3 py-3 text-xs">
@@ -1339,7 +1339,7 @@ export default function AdminPage() {
                 <p>Closing: <span className="admin-detail-strong">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
                 <p>Category: <span className="admin-detail-strong">{selectedQuestion.category || "—"}</span></p>
                 <p>YES pool: <span className="admin-detail-strong">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="admin-detail-strong">{selectedQuestion.no_pool} pts</span></p>
-                <p>Initial split: <span className="admin-detail-strong">YES {Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="admin-detail-strong">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
+                <p>Initial Percentage (YES %): <span className="admin-detail-strong">{Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="admin-detail-strong">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
                 <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
@@ -1510,7 +1510,7 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionEntryCost(e.target.value)}
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
-                      <label className="text-xs font-medium text-slate-300">Initial YES % <span className="text-slate-500 font-normal">(baseline split)</span></label>
+                      <label className="text-xs font-medium text-slate-300">Initial Percentage (YES %) <span className="text-slate-500 font-normal">(baseline split)</span></label>
                       <input
                         type="number"
                         min={1}
@@ -1520,7 +1520,7 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionInitialYes(e.target.value)}
                         className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
-                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · Updates the starting baseline (does not reset live market split)</p>
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline (does not reset live market split)</p>
                       <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
                       <input
                         type="datetime-local"
