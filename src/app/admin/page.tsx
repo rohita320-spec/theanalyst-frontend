@@ -536,7 +536,7 @@ export default function AdminPage() {
           await refreshQuestions();
           setSelectedQuestion(null);
         } else {
-          setResolveMsg({ type: "error", text: body.message || "Failed to resolve question." });
+          setResolveMsg({ type: "error", text: body.detail || body.message || "Failed to resolve question." });
         }
       }
     } catch {
