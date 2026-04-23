@@ -240,7 +240,7 @@ export default function LandingPage() {
       .catch(() => {})
       .finally(() => setQuestionsLoading(false));
 
-    fetch(`${API_BASE}/landing/demo_questions?limit=5`)
+    fetch(`${API_BASE}/landing/demo_questions?limit=4`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (body?.results?.length) {
@@ -554,7 +554,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {demoQuestions.slice(0, 5).map((demo) => {
+            {demoQuestions.slice(0, 4).map((demo) => {
               const chartData = demo.chart_points || [];
               const chartYesValues = chartData.length > 0 ? chartData.map((p) => p.yes_percent) : [];
               return (
