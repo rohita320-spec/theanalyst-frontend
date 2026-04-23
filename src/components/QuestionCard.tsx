@@ -1,6 +1,7 @@
 "use client";
 
 import type { FeedQuestion } from "../lib/api";
+import { getQuestionSideLabels } from "../lib/marketPreview";
 
 type Props = {
   question: FeedQuestion;
@@ -33,6 +34,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const widthTotal = safeYes + safeNo;
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
   const noWidth = 100 - yesWidth;
+  const sideLabels = getQuestionSideLabels(question);
 
   function statusBadge() {
     if (isResolved) return { label: "Resolved", cls: "status-resolved" };
@@ -48,7 +50,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     if (!loggedIn) return "Login to Participate";
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
-    return side === "yes" ? "Analyze YES" : "Analyze NO";
+    const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
+    return `Analyze ${sideLabel}`;
   }
 
   return (
@@ -81,8 +84,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
 
         <div className="mt-2 flex justify-between text-xs font-medium">
-          <span className="text-[var(--yes)]">YES {formatPct(safeYes)}</span>
-          <span className="text-[var(--no)]">NO {formatPct(safeNo)}</span>
+          <span className="text-[var(--yes)]">{sideLabels.yesLabel} {formatPct(safeYes)}</span>
+          <span className="text-[var(--no)]">{sideLabels.noLabel} {formatPct(safeNo)}</span>
         </div>
       </div>
 

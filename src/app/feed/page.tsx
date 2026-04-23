@@ -15,6 +15,7 @@ import {
   type HistoryPoint,
   type ProfilePayload,
 } from "../../lib/api";
+import { buildPredictionPreview, getAnswerDisplayLabel, getQuestionSideLabels } from "../../lib/marketPreview";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const categories = [
@@ -32,6 +33,11 @@ type Notification = { type: "success" | "error" | "info"; text: string };
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value || 0);
+}
+
+function formatSignedNumber(value: number) {
+  const prefix = value > 0 ? "+" : "";
+  return `${prefix}${formatNumber(value)}`;
 }
 
 export default function FeedPage() {
@@ -188,6 +194,13 @@ export default function FeedPage() {
     }
   };
 
+  const previewPoints = parseInt(pointsInput, 10);
+  const preview = confirmModal && Number.isFinite(previewPoints)
+    ? buildPredictionPreview(confirmModal.question, confirmModal.answer, previewPoints)
+    : null;
+  const selectedSideLabel = confirmModal ? getAnswerDisplayLabel(confirmModal.question, confirmModal.answer) : "";
+  const confirmSideLabels = confirmModal ? getQuestionSideLabels(confirmModal.question) : null;
+
   return (
     <div className="min-h-screen text-slate-100">
       <AppHeader active="feed" pointsBalance={profile?.points_balance || 0} />
@@ -324,7 +337,7 @@ export default function FeedPage() {
                     : "bg-orange-500/20 text-orange-300"
                 }`}
               >
-                {confirmModal.answer.toUpperCase()}
+                {selectedSideLabel} ({confirmModal.answer.toUpperCase()})
               </span>
             </div>
 
@@ -356,6 +369,47 @@ export default function FeedPage() {
               </p>
               <p>Your balance: <span className="text-slate-300">{(profile?.points_balance || 0).toLocaleString()} pts</span></p>
             </div>
+
+            {preview && confirmSideLabels && (
+              <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Preview</p>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-slate-500">Avg entry price</p>
+                    <p className="mt-1 font-semibold text-white">{formatNumber(preview.avgEntryPrice)} pts/share</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Shares received</p>
+                    <p className="mt-1 font-semibold text-white">{preview.sharesReceived.toFixed(4)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Projected {confirmSideLabels.yesLabel}</p>
+                    <p className="mt-1 font-semibold text-emerald-300">{preview.projectedYesPercent.toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Projected {confirmSideLabels.noLabel}</p>
+                    <p className="mt-1 font-semibold text-orange-300">{preview.projectedNoPercent.toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Projected pool</p>
+                    <p className="mt-1 font-semibold text-white">{formatNumber(preview.projectedTotalPool)} pts</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">If {selectedSideLabel} wins now</p>
+                    <p className="mt-1 font-semibold text-white">{formatNumber(preview.immediateWinPayoutEstimate)} pts</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-slate-500">Immediate win P/L</p>
+                    <p className={`mt-1 font-semibold ${preview.immediateWinProfitEstimate >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                      {formatSignedNumber(preview.immediateWinProfitEstimate)} pts
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-[11px] text-slate-500">
+                  This preview uses the current engine exactly. Final payout changes if more points enter either side before resolution.
+                </p>
+              </div>
+            )}
 
             {/* Error message */}
             {modalError && (

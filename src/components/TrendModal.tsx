@@ -1,6 +1,7 @@
 "use client";
 
 import type { FeedQuestion, HistoryPoint } from "../lib/api";
+import { getQuestionSideLabels } from "../lib/marketPreview";
 
 type Props = {
   question: FeedQuestion | null;
@@ -114,6 +115,8 @@ export default function TrendModal({
 }: Props) {
   if (!question) return null;
 
+  const sideLabels = getQuestionSideLabels(question);
+
   const xPositions = buildXPositions(points);
   const yesPath = buildSeriesPath(points, xPositions, "yes_percent");
   const noPath = buildSeriesPath(points, xPositions, "no_percent");
@@ -165,15 +168,15 @@ export default function TrendModal({
         {!loading && lastPoint && (
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Current YES</p>
+              <p className="text-xs text-slate-400">Current {sideLabels.yesLabel}</p>
               <p className="mt-1 text-lg font-semibold text-[var(--yes)]">{formatPct(lastPoint.yes_percent)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Current NO</p>
+              <p className="text-xs text-slate-400">Current {sideLabels.noLabel}</p>
               <p className="mt-1 text-lg font-semibold text-[var(--no)]">{formatPct(lastPoint.no_percent)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Start YES</p>
+              <p className="text-xs text-slate-400">Start {sideLabels.yesLabel}</p>
               <p className="mt-1 text-lg font-semibold text-slate-300">{formatPct(firstPoint?.yes_percent || 0)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
@@ -193,11 +196,11 @@ export default function TrendModal({
             <div className="mb-3 flex items-center gap-4 px-1">
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
                 <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--yes)]" />
-                YES %
+                {sideLabels.yesLabel} %
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
                 <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--no)]" />
-                NO %
+                {sideLabels.noLabel} %
               </span>
             </div>
 

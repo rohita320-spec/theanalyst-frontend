@@ -13,6 +13,8 @@ export type FeedQuestion = {
   initial_no_percent?: number;
   yes_pool: number;
   no_pool: number;
+  total_yes_shares?: number;
+  total_no_shares?: number;
   entry_cost: number;
   status: "open" | "closed" | "resolved" | "pending_approval";
   closed_reason?: "time_closed" | "admin_closed" | "cancelled" | string | null;
