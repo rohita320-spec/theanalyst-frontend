@@ -24,6 +24,15 @@ type DemoQuestion = {
   status: string;
   entry_cost?: number;
   pool_points?: number;
+  initial_yes_percent?: number;
+  initial_no_percent?: number;
+  yes_pool?: number;
+  no_pool?: number;
+  total_pool?: number;
+  closing_time?: string;
+  closes_label?: string;
+  chart_points?: Array<{ timestamp: string; yes_percent: number; no_percent: number }>;
+  trend_points?: Array<{ timestamp: string; yes_percent: number; no_percent: number }>;
 };
 
 const DEMO_QUESTION = {
@@ -231,7 +240,7 @@ export default function LandingPage() {
       .catch(() => {})
       .finally(() => setQuestionsLoading(false));
 
-    fetch(`${API_BASE}/landing/demo_questions?limit=3`)
+    fetch(`${API_BASE}/landing/demo_questions?limit=5`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (body?.results?.length) {
@@ -545,7 +554,10 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {demoQuestions.slice(0, 3).map((demo) => (
+            {demoQuestions.slice(0, 5).map((demo) => {
+              const chartData = demo.chart_points || [];
+              const chartYesValues = chartData.length > 0 ? chartData.map((p) => p.yes_percent) : [];
+              return (
               <div key={demo.id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
                 {(() => {
                   const yesNow = cardYesPct[demo.id] ?? demo.yes_percent;
@@ -556,6 +568,7 @@ export default function LandingPage() {
                   const spent = demo.entry_cost ?? 220;
                   const outcomePoints = outcome === "win" ? Math.round(spent * 1.8) : 0;
                   const net = outcomePoints - spent;
+                  const chartPoints = chartYesValues.length > 0 ? chartYesValues : buildMiniSeries(yesNow, demo.id.length + 3);
 
                   return (
                     <>
@@ -570,7 +583,7 @@ export default function LandingPage() {
                 <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <div className="mb-2 flex justify-between text-[11px] text-slate-400">
                     <span>Entry: {demo.entry_cost ?? 220} pts</span>
-                    <span>Pool: {(demo.pool_points ?? 14800).toLocaleString()} pts</span>
+                    <span>Pool: {(demo.total_pool ?? demo.pool_points ?? 14800).toLocaleString()} pts</span>
                   </div>
                   <ProbBar yes={yesNow} no={noNow} />
                   <div className="mt-1.5 flex justify-between text-xs">
@@ -581,7 +594,7 @@ export default function LandingPage() {
 
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
-                  <DemoTrendChart points={buildMiniSeries(yesNow, demo.id.length + 3)} />
+                  <DemoTrendChart points={chartPoints} />
                   <div className="mt-2 flex items-center gap-4 px-1">
                     <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--yes)]" /> YES %</span>
                     <span className="flex items-center gap-1.5 text-[11px] text-slate-300"><span className="inline-block h-2 w-4 rounded-sm bg-[var(--no)]" /> NO %</span>
@@ -642,7 +655,8 @@ export default function LandingPage() {
                   );
                 })()}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           <div className="mt-4 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
