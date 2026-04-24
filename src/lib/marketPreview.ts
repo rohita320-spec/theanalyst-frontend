@@ -59,6 +59,8 @@ const logoDomainMap: Record<string, string> = {
   google: "google.com",
   alphabet: "abc.xyz",
   apple: "apple.com",
+  appl: "apple.com",
+  aapl: "apple.com",
   amazon: "amazon.com",
   aws: "aws.amazon.com",
   meta: "meta.com",
@@ -66,6 +68,7 @@ const logoDomainMap: Record<string, string> = {
   netflix: "netflix.com",
   tesla: "tesla.com",
   nvidia: "nvidia.com",
+  nvda: "nvidia.com",
   amd: "amd.com",
   intel: "intel.com",
   qualcomm: "qualcomm.com",
@@ -123,7 +126,45 @@ const logoDomainMap: Record<string, string> = {
   nfl: "nfl.com",
   fed: "federalreserve.gov",
   "federal reserve": "federalreserve.gov",
+  nasdaq: "nasdaq.com",
+  bse: "bseindia.com",
+  "bombay stock exchange": "bseindia.com",
+  sensex: "bseindia.com",
 };
+
+function normalizeLogoUrl(url: string): string {
+  const trimmed = String(url || "").trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.hostname !== "logo.clearbit.com") {
+      return trimmed;
+    }
+
+    const domain = parsed.pathname.replace(/^\/+/, "").toLowerCase();
+    const domainFixes: Record<string, string> = {
+      "appl.com": "apple.com",
+      "aapl.com": "apple.com",
+      "nvda.com": "nvidia.com",
+      "bse.com": "bseindia.com",
+    };
+    const fixedDomain = domainFixes[domain];
+    if (!fixedDomain) {
+      return trimmed;
+    }
+
+    parsed.pathname = `/${fixedDomain}`;
+    if (!parsed.searchParams.has("size")) {
+      parsed.searchParams.set("size", "128");
+    }
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+}
 
 export type PredictionPreview = {
   avgEntryPrice: number;
@@ -254,14 +295,14 @@ export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
         // Case: plain string - could be URL or entity name
         const trimmed = item.trim();
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          url = trimmed; // It's a URL
+          url = normalizeLogoUrl(trimmed); // It's a URL (normalize legacy aliases)
         } else {
           url = resolveLogo(trimmed); // It's an entity name, resolve it
           label = trimmed;
         }
       } else if (typeof item === "object" && item?.url) {
         // Case: object with url property
-        url = String(item.url).trim();
+        url = normalizeLogoUrl(String(item.url).trim());
         if (!(url.startsWith("http://") || url.startsWith("https://"))) {
           // It's not a URL, treat as entity name
           url = resolveLogo(url);
