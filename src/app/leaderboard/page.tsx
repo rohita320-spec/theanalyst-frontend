@@ -67,9 +67,6 @@ export default function LeaderboardPage() {
               Net Rankings
             </div>
             <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">Leaderboard</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-sm text-slate-400 sm:text-lg">
-              Ranked by net performance for the selected period. Tap any row to open full stats.
-            </p>
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
@@ -97,7 +94,6 @@ export default function LeaderboardPage() {
               <p className="mt-1 text-sm text-slate-400">@{topRow.username}</p>
             )}
             <p className="mt-1 text-sm text-[var(--brand)]">Net {formatNumber(topRow?.period_net_points || 0)} pts</p>
-            <p className="mt-1 text-xs text-slate-400">Live balance {formatNumber(topRow?.points_balance || 0)} pts</p>
           </div>
           <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
             <p className="text-sm text-slate-400">Tracked Competitors</p>
@@ -193,19 +189,15 @@ export default function LeaderboardPage() {
                     {isExpanded && (
                       <div className="mt-3 grid gap-2 border-t border-[var(--stroke)] pt-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
-                          <p className="text-slate-500">Balance</p>
-                          <p className="mt-1 font-semibold text-white">{formatNumber(entry.points_balance || 0)} pts</p>
-                        </div>
-                        <div className="rounded-lg bg-slate-800/60 px-3 py-2">
-                          <p className="text-slate-500">Period earned</p>
+                          <p className="text-slate-500">Points earned</p>
                           <p className="mt-1 font-semibold text-white">{formatNumber(entry.period_points_earned || 0)} pts</p>
                         </div>
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
-                          <p className="text-slate-500">Period spent</p>
+                          <p className="text-slate-500">Points spent</p>
                           <p className="mt-1 font-semibold text-white">{formatNumber((entry.period_resolved_points_spent ?? entry.period_points_spent) || 0)} pts</p>
                         </div>
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
-                          <p className="text-slate-500">Period lost</p>
+                          <p className="text-slate-500">Points lost</p>
                           <p className="mt-1 font-semibold text-white">{formatNumber(entry.period_points_lost || 0)} pts</p>
                         </div>
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
@@ -215,10 +207,6 @@ export default function LeaderboardPage() {
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
                           <p className="text-slate-500">Incorrect</p>
                           <p className="mt-1 font-semibold text-white">{entry.period_incorrect_predictions || 0}</p>
-                        </div>
-                        <div className="rounded-lg bg-slate-800/60 px-3 py-2">
-                          <p className="text-slate-500">Resolved picks</p>
-                          <p className="mt-1 font-semibold text-white">{totalResolved}</p>
                         </div>
                         <div className="rounded-lg bg-slate-800/60 px-3 py-2">
                           <p className="text-slate-500">All-time earned</p>

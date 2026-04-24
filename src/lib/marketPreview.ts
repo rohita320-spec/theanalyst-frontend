@@ -17,8 +17,7 @@ export type QuestionLogo = {
   label?: string;
 };
 
-// Direct logo URLs for crypto — CoinGecko CDN (stable). Takes priority over Clearbit.
-const directLogoUrlMap: Record<string, string> = {
+const logoUrlMap: Record<string, string> = {
   bitcoin: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
   btc: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
   ethereum: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
@@ -27,50 +26,30 @@ const directLogoUrlMap: Record<string, string> = {
   sol: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
   bnb: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
   xrp: "https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png",
-  ripple: "https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png",
   cardano: "https://assets.coingecko.com/coins/images/975/small/cardano.png",
   ada: "https://assets.coingecko.com/coins/images/975/small/cardano.png",
-  dogecoin: "https://assets.coingecko.com/coins/images/5/small/dogecoin.png",
   doge: "https://assets.coingecko.com/coins/images/5/small/dogecoin.png",
-  avalanche: "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png",
   avax: "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png",
-  polkadot: "https://assets.coingecko.com/coins/images/12171/small/polkadot.png",
   dot: "https://assets.coingecko.com/coins/images/12171/small/polkadot.png",
-  chainlink: "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png",
   link: "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png",
-  polygon: "https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png",
   matic: "https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png",
-  toncoin: "https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png",
   ton: "https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png",
   shib: "https://assets.coingecko.com/coins/images/11939/small/shiba.png",
-  "shiba inu": "https://assets.coingecko.com/coins/images/11939/small/shiba.png",
-  litecoin: "https://assets.coingecko.com/coins/images/2/small/litecoin.png",
   ltc: "https://assets.coingecko.com/coins/images/2/small/litecoin.png",
-  tether: "https://assets.coingecko.com/coins/images/325/small/Tether.png",
   usdt: "https://assets.coingecko.com/coins/images/325/small/Tether.png",
-  "usd coin": "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
   usdc: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
   sui: "https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg",
-  aptos: "https://assets.coingecko.com/coins/images/26455/small/aptos_round.png",
   apt: "https://assets.coingecko.com/coins/images/26455/small/aptos_round.png",
   near: "https://assets.coingecko.com/coins/images/10365/small/near_icon.png",
-  cosmos: "https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png",
   atom: "https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png",
-  stellar: "https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png",
   xlm: "https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png",
-  uniswap: "https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png",
   uni: "https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png",
   aave: "https://assets.coingecko.com/coins/images/12645/small/AAVE.png",
-  filecoin: "https://assets.coingecko.com/coins/images/12817/small/filecoin.png",
   fil: "https://assets.coingecko.com/coins/images/12817/small/filecoin.png",
-  "internet computer": "https://assets.coingecko.com/coins/images/14495/small/Internet_Computer_logo.png",
   icp: "https://assets.coingecko.com/coins/images/14495/small/Internet_Computer_logo.png",
-  hedera: "https://assets.coingecko.com/coins/images/3688/small/hbar.png",
   hbar: "https://assets.coingecko.com/coins/images/3688/small/hbar.png",
   pepe: "https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg",
-  arbitrum: "https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg",
   arb: "https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg",
-  optimism: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png",
   op: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png",
 };
 
@@ -230,70 +209,65 @@ function cleanLogoEntries(input: Array<string | QuestionLogo>) {
   return entries;
 }
 
-function buildLogoFromEntity(name: string) {
-  const normalized = name.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
-  if (!normalized) return null;
-
-  // First: direct URL map (crypto and special entities)
-  const direct = directLogoUrlMap[normalized];
+function resolveLogo(name: string): string | null {
+  if (!name) return null;
+  const key = name.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
+  if (!key) return null;
+  const direct = logoUrlMap[key];
   if (direct) return direct;
-
-  // Second: Clearbit via domain map
-  const mapped = logoDomainMap[normalized];
-  const domain = mapped || `${normalized.split(" ")[0]}.com`;
+  const domain = logoDomainMap[key] || `${key.split(" ")[0]}.com`;
   return `https://logo.clearbit.com/${domain}?size=128`;
 }
 
-export function getQuestionLogos(question: FeedQuestion) {
-  const sideLabels = getQuestionSideLabels(question);
+export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
+  // 1. Explicit metadata.logos (backend-set, highest priority)
   const rawLogos = question.metadata?.logos;
-  if (Array.isArray(rawLogos)) {
-    const direct = cleanLogoEntries(
-      rawLogos.filter((item): item is string | QuestionLogo => {
-        if (typeof item === "string") return true;
-        if (typeof item === "object" && item !== null && "url" in item) return true;
-        return false;
-      }) as Array<string | QuestionLogo>,
-    );
-    if (direct.length) return direct;
+  if (Array.isArray(rawLogos) && rawLogos.length) {
+    try {
+      const entries = cleanLogoEntries(
+        rawLogos.filter((item): item is string | QuestionLogo =>
+          typeof item === "string" || (typeof item === "object" && item?.url)
+        ) as (string | QuestionLogo)[],
+      );
+      if (entries.length) return entries;
+    } catch {}
   }
 
-  const rawEntities = question.metadata?.entity_names;
-  if (Array.isArray(rawEntities)) {
-    const generated = rawEntities
-      .filter((item): item is string => typeof item === "string")
-      .map((name) => ({
-        url: buildLogoFromEntity(name),
-        label: name,
-      }))
-      .filter((logo): logo is { url: string; label: string } => typeof logo.url === "string");
-
-    const cleanGenerated = cleanLogoEntries(generated);
-    if (cleanGenerated.length) {
-      return cleanGenerated;
-    }
+  // 2. Explicit entity_names (backend-set, generate logos)
+  const entities = question.metadata?.entity_names;
+  if (Array.isArray(entities) && entities.length) {
+    const entries = entities
+      .map((e) => {
+        const url = resolveLogo(e);
+        return url ? { url, label: e } : null;
+      })
+      .filter((item): item is { url: string; label: string } => !!item);
+    if (entries.length) return entries;
   }
 
-  const inferredCandidates: string[] = [];
-  if (sideLabels.yesLabel !== "YES") inferredCandidates.push(sideLabels.yesLabel);
-  if (sideLabels.noLabel !== "NO") inferredCandidates.push(sideLabels.noLabel);
-
-  if (inferredCandidates.length === 0) {
-    const title = String(question.title || "");
-    Object.keys(logoDomainMap).forEach((key) => {
-      if (title.toLowerCase().includes(key)) {
-        inferredCandidates.push(key);
-      }
-    });
-  }
-
-  const inferred = cleanLogoEntries(
-    inferredCandidates
-      .slice(0, 2)
-      .map((name) => ({ url: buildLogoFromEntity(name), label: name }))
-      .filter((logo): logo is { url: string; label: string } => typeof logo.url === "string"),
-  );
-
+  // 3. Infer from title + side labels
+  const sideLabels = getQuestionSideLabels(question);
+  const candidates = new Set<string>();
+  const searchText = `${question.title} ${sideLabels.yesLabel} ${sideLabels.noLabel}`.toLowerCase();
+  
+  if (sideLabels.yesLabel !== "YES") candidates.add(sideLabels.yesLabel);
+  if (sideLabels.noLabel !== "NO") candidates.add(sideLabels.noLabel);
+  
+  Object.keys(logoDomainMap).forEach((key) => {
+    if (searchText.includes(key)) candidates.add(key);
+  });
+  Object.keys(logoUrlMap).forEach((key) => {
+    if (searchText.includes(key)) candidates.add(key);
+  });
+  
+  const inferred = Array.from(candidates)
+    .slice(0, 2)
+    .map((name) => {
+      const url = resolveLogo(name);
+      return url ? { url, label: name } : null;
+    })
+    .filter((item): item is { url: string; label: string } => !!item);
+  
   return inferred;
 }
 
