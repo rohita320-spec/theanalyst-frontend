@@ -114,6 +114,10 @@ function parseCommaList(raw: string) {
     .filter(Boolean);
 }
 
+function parseLogoEntries(raw: string) {
+  return parseCommaList(raw).map((url) => ({ url }));
+}
+
 export default function AdminPage() {
   const [state, setState] = useState<"checking" | "allowed" | "forbidden">("checking");
   const [adminToken, setAdminToken] = useState("");
@@ -429,7 +433,16 @@ export default function AdminPage() {
       ? q.metadata?.entity_names.filter((item): item is string => typeof item === "string")
       : [];
     const logos = Array.isArray(q.metadata?.logos)
-      ? q.metadata?.logos.filter((item): item is string => typeof item === "string")
+      ? q.metadata?.logos
+          .map((item) => {
+            if (typeof item === "string") return item;
+            if (typeof item === "object" && item !== null && "url" in item) {
+              const rawUrl = (item as { url?: unknown }).url;
+              return typeof rawUrl === "string" ? rawUrl : "";
+            }
+            return "";
+          })
+          .filter((item): item is string => Boolean(item))
       : [];
     setPendingEditEntityNames(entityNames.join(", "));
     setPendingEditLogos(logos.join(", "));
@@ -476,7 +489,7 @@ export default function AdminPage() {
           closing_time: new Date(pendingEditClosingTime).toISOString(),
           resolution_rules: pendingEditRules.trim(),
           entity_names: parseCommaList(pendingEditEntityNames),
-          logos: parseCommaList(pendingEditLogos),
+          logos: parseLogoEntries(pendingEditLogos),
           ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
         }),
       });
@@ -606,7 +619,7 @@ export default function AdminPage() {
           closing_time: createClosingTime,
           initial_probability: probability,
           entity_names: parseCommaList(createEntityNames),
-          logos: parseCommaList(createLogoUrls),
+          logos: parseLogoEntries(createLogoUrls),
           ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
         }),
       });
@@ -1524,7 +1537,16 @@ export default function AdminPage() {
                             ? selectedQuestion.metadata?.entity_names.filter((item): item is string => typeof item === "string")
                             : [];
                           const logos = Array.isArray(selectedQuestion.metadata?.logos)
-                            ? selectedQuestion.metadata?.logos.filter((item): item is string => typeof item === "string")
+                            ? selectedQuestion.metadata?.logos
+                                .map((item) => {
+                                  if (typeof item === "string") return item;
+                                  if (typeof item === "object" && item !== null && "url" in item) {
+                                    const rawUrl = (item as { url?: unknown }).url;
+                                    return typeof rawUrl === "string" ? rawUrl : "";
+                                  }
+                                  return "";
+                                })
+                                .filter((item): item is string => Boolean(item))
                             : [];
                           setEditQuestionEntityNames(entityNames.join(", "));
                           setEditQuestionLogos(logos.join(", "));
@@ -1672,7 +1694,7 @@ export default function AdminPage() {
                                   resolution_rules: editQuestionRules.trim(),
                                   initial_yes_percent: initialYes,
                                   entity_names: parseCommaList(editQuestionEntityNames),
-                                  logos: parseCommaList(editQuestionLogos),
+                                  logos: parseLogoEntries(editQuestionLogos),
                                   ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
                                 }),
                               });

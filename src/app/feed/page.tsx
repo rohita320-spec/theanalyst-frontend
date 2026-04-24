@@ -131,14 +131,14 @@ export default function FeedPage() {
   const onAnalyze = (question: FeedQuestion, answer: "yes" | "no") => {
     // Auth gate
     if (!loggedIn) {
-      showNotification("info", "Please login to submit an analysis.");
+      showNotification("info", "Please login to place a position.");
       window.location.href = "/auth/login";
       return;
     }
 
     // Market must be open
     if (question.status !== "open") {
-      showNotification("error", "This question is closed for new analyses.");
+      showNotification("error", "This question is closed for new positions.");
       return;
     }
 
@@ -153,7 +153,7 @@ export default function FeedPage() {
     const { question, answer } = confirmModal;
     const pts = parseInt(pointsInput, 10);
     if (isNaN(pts) || pts <= 0) {
-      setModalError("Points to spend must be greater than zero.");
+      setModalError("Amount must be greater than zero.");
       return;
     }
 
@@ -165,7 +165,7 @@ export default function FeedPage() {
 
     const maxAllowed = Math.floor((profile?.points_balance || 10000) * 0.3);
     if (pts > maxAllowed) {
-      setModalError(`Exceeds max analysis limit (${maxAllowed} pts = 30% of your balance).`);
+      setModalError(`Exceeds max position limit (${maxAllowed} pts = 30% of your balance).`);
       return;
     }
 
@@ -177,13 +177,13 @@ export default function FeedPage() {
     try {
       const result = await placePrediction(authToken, question._id, answer, pts);
       if (!result.success) {
-        setModalError(result.message || "Analysis could not be submitted.");
+        setModalError(result.message || "Position could not be submitted.");
         return;
       }
       setConfirmModal(null);
       showNotification(
         "success",
-        `✓ ${answer.toUpperCase()} analysis submitted! New balance: ${formatNumber(result.new_balance)} pts`,
+        `✓ ${answer.toUpperCase()} position submitted! New balance: ${formatNumber(result.new_balance)} pts`,
       );
       await loadData(selectedCategory, authToken || undefined);
       if (selectedQuestion) await onOpenChart(question, timeframe);
@@ -222,24 +222,28 @@ export default function FeedPage() {
           </div>
         )}
 
-        <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">The Analyst</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">High-Signal Analysis Feed</h2>
-          <p className="mt-1 text-sm text-slate-400">Same data. Better structure. Cleaner hierarchy.</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-            <div className="mr-auto">
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">Points Balance</p>
-              <p className="text-3xl font-semibold text-[var(--brand)]">{formatNumber(profile?.points_balance || 0)} <span className="text-base text-slate-300">pts</span></p>
+        <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[radial-gradient(120%_90%_at_10%_10%,#13203a_0%,#0c1527_55%,#0a1120_100%)] p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <img
+                src="/AN.png"
+                alt="The Analyst symbol"
+                className="h-10 w-10 rounded-lg border border-white/10 object-cover"
+              />
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Curated Markets</p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">High-Signal Analysis Feed</h2>
+              </div>
             </div>
             {!loggedIn && (
-              <>
+              <div className="flex items-center gap-2">
                 <Link href="/auth/login" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
                   Log in
                 </Link>
                 <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110">
-                  Sign up
+                  Join Now
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </section>
@@ -339,7 +343,7 @@ export default function FeedPage() {
             {/* Header */}
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-widest text-slate-500">Confirm Analysis</p>
+                <p className="text-xs uppercase tracking-widest text-slate-500">Confirm Position</p>
                 <h2 className="mt-1 text-base font-semibold text-white line-clamp-2">{confirmModal.question.title}</h2>
               </div>
               <button
@@ -367,7 +371,7 @@ export default function FeedPage() {
             {/* Points input */}
             <div className="mb-2">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                Points to spend
+                Position size (points)
               </label>
               <input
                 type="number"
@@ -458,7 +462,7 @@ export default function FeedPage() {
                     : "bg-[var(--no)] text-slate-950 hover:brightness-110"
                 }`}
               >
-                {modalSubmitting ? "Submitting..." : "Submit Analysis"}
+                {modalSubmitting ? "Submitting..." : "Submit Position"}
               </button>
             </div>
           </div>

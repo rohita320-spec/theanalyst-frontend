@@ -12,6 +12,11 @@ export type QuestionSideLabels = {
   noLabel: string;
 };
 
+export type QuestionLogo = {
+  url: string;
+  label?: string;
+};
+
 const logoDomainMap: Record<string, string> = {
   microsoft: "microsoft.com",
   google: "google.com",
@@ -94,15 +99,22 @@ function readMetadataString(question: FeedQuestion, key: string) {
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
-function cleanLogoUrls(input: string[]) {
+function cleanLogoEntries(input: Array<string | QuestionLogo>) {
   const deduped = new Set<string>();
+  const entries: QuestionLogo[] = [];
+
   for (const raw of input) {
-    const candidate = String(raw || "").trim();
-    if (!candidate) continue;
-    if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue;
-    deduped.add(candidate);
+    const entry = typeof raw === "string" ? { url: raw } : raw;
+    const url = String(entry?.url || "").trim();
+    if (!url) continue;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
+    if (deduped.has(url)) continue;
+    deduped.add(url);
+    const label = typeof entry.label === "string" && entry.label.trim() ? entry.label.trim() : undefined;
+    entries.push({ url, ...(label ? { label } : {}) });
   }
-  return Array.from(deduped);
+
+  return entries;
 }
 
 function buildLogoFromEntity(name: string) {
@@ -115,23 +127,56 @@ function buildLogoFromEntity(name: string) {
 }
 
 export function getQuestionLogos(question: FeedQuestion) {
+  const sideLabels = getQuestionSideLabels(question);
   const rawLogos = question.metadata?.logos;
   if (Array.isArray(rawLogos)) {
-    const direct = cleanLogoUrls(rawLogos.filter((item): item is string => typeof item === "string"));
+    const direct = cleanLogoEntries(
+      rawLogos.filter((item): item is string | QuestionLogo => {
+        if (typeof item === "string") return true;
+        if (typeof item === "object" && item !== null && "url" in item) return true;
+        return false;
+      }) as Array<string | QuestionLogo>,
+    );
     if (direct.length) return direct;
   }
 
   const rawEntities = question.metadata?.entity_names;
-  if (!Array.isArray(rawEntities)) {
-    return [];
+  if (Array.isArray(rawEntities)) {
+    const generated = rawEntities
+      .filter((item): item is string => typeof item === "string")
+      .map((name) => ({
+        url: buildLogoFromEntity(name),
+        label: name,
+      }))
+      .filter((logo): logo is { url: string; label: string } => typeof logo.url === "string");
+
+    const cleanGenerated = cleanLogoEntries(generated);
+    if (cleanGenerated.length) {
+      return cleanGenerated;
+    }
   }
 
-  const generated = rawEntities
-    .filter((item): item is string => typeof item === "string")
-    .map((name) => buildLogoFromEntity(name))
-    .filter((logo): logo is string => typeof logo === "string");
+  const inferredCandidates: string[] = [];
+  if (sideLabels.yesLabel !== "YES") inferredCandidates.push(sideLabels.yesLabel);
+  if (sideLabels.noLabel !== "NO") inferredCandidates.push(sideLabels.noLabel);
 
-  return cleanLogoUrls(generated);
+  if (inferredCandidates.length === 0) {
+    const title = String(question.title || "");
+    Object.keys(logoDomainMap).forEach((key) => {
+      if (title.toLowerCase().includes(key)) {
+        inferredCandidates.push(key);
+      }
+    });
+  }
+
+  const inferred = cleanLogoEntries(
+    inferredCandidates
+      .slice(0, 2)
+      .map((name) => ({ url: buildLogoFromEntity(name), label: name }))
+      .filter((logo): logo is { url: string; label: string } => typeof logo.url === "string"),
+  );
+
+  return inferred;
 }
 
 export function getQuestionSideLabels(question: FeedQuestion): QuestionSideLabels {

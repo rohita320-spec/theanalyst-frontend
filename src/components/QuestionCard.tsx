@@ -50,12 +50,12 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     if (!isOpen) return "Closed";
     if (!loggedIn) {
       const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
-      return `Analyze ${sideLabel}`;
+      return `Pick ${sideLabel}`;
     }
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
     const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
-    return `Analyze ${sideLabel}`;
+    return `Pick ${sideLabel}`;
   }
 
   return (
@@ -74,8 +74,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
                 {logos.map((logo, idx) => (
                   <img
                     key={`${question._id}-logo-${idx}`}
-                    src={logo}
-                    alt="Entity logo"
+                    src={logo.url}
+                    alt={`${logo.label || "Entity"} logo`}
                     className="h-6 w-6 rounded-full border border-white/10 bg-slate-800 object-cover"
                     loading="lazy"
                   />
@@ -145,7 +145,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         }}
         className="mb-3 w-full rounded-lg bg-[#3382f6] px-3 py-2 text-sm font-semibold text-white hover:brightness-110"
       >
-        Analyze & Stake
+        Open Market View
       </button>
 
       <div className="flex items-center justify-between">
