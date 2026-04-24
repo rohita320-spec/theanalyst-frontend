@@ -16,7 +16,7 @@ function formatNumber(value: number) {
 }
 
 function formatPct(value: number) {
-  return `${Number(value || 0).toFixed(2)}%`;
+  return `${Number(value || 0).toFixed(1)}%`;
 }
 
 export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
@@ -33,9 +33,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const safeNo = Math.max(0, Math.min(100, rawNo));
   const widthTotal = safeYes + safeNo;
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
-  const noWidth = 100 - yesWidth;
   const sideLabels = getQuestionSideLabels(question);
-  const logos = getQuestionLogos(question).slice(0, 4);
+  const logos = getQuestionLogos(question).slice(0, 2);
+  const totalPool = Number(question.yes_pool || 0) + Number(question.no_pool || 0);
 
   function statusBadge() {
     if (isResolved) return { label: "Resolved", cls: "status-resolved" };
@@ -48,10 +48,6 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   function getButtonLabel(side: "yes" | "no") {
     if (isResolved) return "Resolved";
     if (!isOpen) return "Closed";
-    if (!loggedIn) {
-      const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
-      return `Pick ${sideLabel}`;
-    }
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
     const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
@@ -60,58 +56,63 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
 
   return (
     <article
-      className="cursor-pointer rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-500 sm:p-3.5"
+      className="cursor-pointer rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-500/60"
       onClick={() => onOpenChart(question)}
     >
-      <div className="mb-3 flex items-start justify-between gap-2.5">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <p className="inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">
-              {question.category}
-            </p>
-            {logos.length > 0 && (
-              <div className="flex items-center gap-1">
-                {logos.map((logo, idx) => (
-                  <img
-                    key={`${question._id}-logo-${idx}`}
-                    src={logo.url}
-                    alt={`${logo.label || "Entity"} logo`}
-                    className="h-6 w-6 rounded-full border border-white/10 bg-slate-800 object-cover"
-                    loading="lazy"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          <h2 className="text-[15px] font-semibold leading-snug text-white sm:text-base">{question.title}</h2>
+      {/* Header: logo + title + status */}
+      <div className="mb-2.5 flex items-start gap-2.5">
+        {/* Logo zone — prominent */}
+        <div className="flex shrink-0 gap-1">
+          {logos.length > 0 ? (
+            logos.map((logo, idx) => (
+              <img
+                key={`${question._id}-logo-${idx}`}
+                src={logo.url}
+                alt={logo.label || question.category}
+                className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover"
+                loading="lazy"
+              />
+            ))
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--stroke)]/60 bg-[var(--surface)] text-[11px] font-semibold text-slate-500">
+              {question.category.slice(0, 2).toUpperCase()}
+            </div>
+          )}
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
-          {badge.label}
-        </span>
+
+        {/* Title + meta */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-sm font-semibold leading-snug text-white line-clamp-2">{question.title}</h2>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.cls}`}>
+              {badge.label}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <span>{question.category}</span>
+            <span className="opacity-40">·</span>
+            <span>{question.closes_label || "Closes soon"}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Pool bar */}
-      <div className="mb-3 rounded-lg border border-[var(--stroke)]/70 bg-[#0b1528] p-3">
-        <div className="mb-2 flex flex-col gap-1 text-xs text-slate-300 sm:flex-row sm:justify-between">
-          <span>Entry: {formatNumber(Number(question.entry_cost || 0))} pts</span>
-          <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
+      {/* Pool bar — flat, no inner box */}
+      <div className="mb-2.5">
+        <div className="flex h-1.5 overflow-hidden rounded-full">
+          <div className="h-full bg-[var(--yes)] transition-all" style={{ width: `${yesWidth}%` }} />
+          <div className="h-full bg-[var(--no)] transition-all" style={{ width: `${100 - yesWidth}%` }} />
         </div>
-
-        <div className="relative h-2 overflow-hidden rounded-full bg-slate-700">
-          <div className="absolute left-0 top-0 h-full bg-[var(--yes)] transition-all" style={{ width: `${yesWidth}%` }} />
-          <div className="absolute right-0 top-0 h-full bg-[var(--no)] transition-all" style={{ width: `${noWidth}%` }} />
-        </div>
-
-        <div className="mt-2 flex justify-between text-xs font-medium">
+        <div className="mt-1.5 flex items-center justify-between text-xs font-medium">
           <span className="text-[var(--yes)]">{sideLabels.yesLabel} {formatPct(safeYes)}</span>
-          <span className="text-[var(--no)]">{sideLabels.noLabel} {formatPct(safeNo)}</span>
+          <span className="text-[11px] text-slate-500">Pool: {formatNumber(totalPool)}</span>
+          <span className="text-[var(--no)]">{formatPct(safeNo)} {sideLabels.noLabel}</span>
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="mb-1 flex flex-col gap-1.5 sm:flex-row" onClick={(e) => e.stopPropagation()}>
+      <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--yes)] text-slate-950 hover:brightness-110"
@@ -122,7 +123,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           {getButtonLabel("yes")}
         </button>
         <button
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--no)] text-slate-950 hover:brightness-110"
@@ -135,13 +136,8 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       </div>
 
       {!loggedIn && isOpen && (
-        <p className="mb-2 text-center text-[11px] text-slate-400">Login to participate</p>
+        <p className="mt-1.5 text-center text-[11px] text-slate-500">Login to participate</p>
       )}
-
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] text-slate-400">{question.closes_label || "Closes soon"}</p>
-        <span className="text-xs text-[var(--brand)]">View details →</span>
-      </div>
     </article>
   );
 }

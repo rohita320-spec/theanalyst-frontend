@@ -222,33 +222,18 @@ export default function FeedPage() {
           </div>
         )}
 
-        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[radial-gradient(120%_90%_at_10%_10%,#13203a_0%,#0c1527_55%,#0a1120_100%)] p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <img
-                src="/AN.png"
-                alt="The Analyst symbol"
-                className="h-10 w-10 rounded-lg border border-white/10 object-cover"
-              />
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Curated Markets</p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">High-Signal Analysis Feed</h2>
-              </div>
-            </div>
-            {!loggedIn && (
-              <div className="flex items-center gap-2">
-                <Link href="/auth/login" className="rounded-md border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] sm:text-sm">
-                  Log in
-                </Link>
-                <Link href="/auth/signup" className="rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 sm:text-sm">
-                  Join Now
-                </Link>
-              </div>
-            )}
+        {!loggedIn && (
+          <div className="mb-4 flex items-center justify-end gap-2">
+            <Link href="/auth/login" className="rounded-md border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+              Log in
+            </Link>
+            <Link href="/auth/signup" className="rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110">
+              Join Now
+            </Link>
           </div>
-        </section>
+        )}
 
-        <section className="mb-6 grid gap-3 grid-cols-2 md:grid-cols-3">
+        <section className="mb-5 grid gap-3 grid-cols-2 md:grid-cols-3">
           <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
             <p className="text-sm text-slate-400">Open Questions</p>
             <p className="mt-1.5 text-2xl font-semibold text-white">{openQuestions}</p>
