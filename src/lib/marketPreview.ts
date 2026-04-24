@@ -219,21 +219,69 @@ function resolveLogo(name: string): string | null {
   return `https://logo.clearbit.com/${domain}?size=128`;
 }
 
+/**
+ * HOW TO ADD LOGOS (Backend/Admin Guide):
+ * 
+ * Option 1: Entity Names (RECOMMENDED - auto-generates logos)
+ * - Add entity_names to metadata: ["Bitcoin", "Ethereum", "Tesla", "Apple"]
+ * - Backend will auto-generate logos from CoinGecko or Clearbit
+ * - Simplest & most scalable approach
+ * 
+ * Option 2: Logo URLs (Direct image URLs)
+ * - Add logos to metadata: [{ url: "https://...", label: "Bitcoin" }, ...]
+ * - Or as strings: ["https://...", "https://..."]
+ * - Must be HTTPS URLs
+ * - Works with Clearbit URLs or any public image URL
+ * 
+ * Option 3: Mixed
+ * - Combine both entity_names and logos
+ * - Backend generates from entity_names first, then adds explicit logos
+ */
+
 export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
   // 1. Explicit metadata.logos (backend-set, highest priority)
+  // Handles: URLs, URL strings, or entity name strings
   const rawLogos = question.metadata?.logos;
   if (Array.isArray(rawLogos) && rawLogos.length) {
-    try {
-      const entries = cleanLogoEntries(
-        rawLogos.filter((item): item is string | QuestionLogo =>
-          typeof item === "string" || (typeof item === "object" && item?.url)
-        ) as (string | QuestionLogo)[],
-      );
-      if (entries.length) return entries;
-    } catch {}
+    const entries: QuestionLogo[] = [];
+    const seen = new Set<string>();
+
+    for (const item of rawLogos) {
+      let url: string | null = null;
+      let label: string | undefined;
+
+      if (typeof item === "string") {
+        // Case: plain string - could be URL or entity name
+        const trimmed = item.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+          url = trimmed; // It's a URL
+        } else {
+          url = resolveLogo(trimmed); // It's an entity name, resolve it
+          label = trimmed;
+        }
+      } else if (typeof item === "object" && item?.url) {
+        // Case: object with url property
+        url = String(item.url).trim();
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+          // It's not a URL, treat as entity name
+          url = resolveLogo(url);
+          label = url ? item.label : undefined;
+        } else {
+          label = item.label;
+        }
+      }
+
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        entries.push({ url, ...(label ? { label } : {}) });
+      }
+    }
+
+    if (entries.length) return entries;
   }
 
   // 2. Explicit entity_names (backend-set, generate logos)
+  // Handles: ["Bitcoin", "Ethereum", "Tesla"] → auto-generates logos
   const entities = question.metadata?.entity_names;
   if (Array.isArray(entities) && entities.length) {
     const entries = entities
@@ -245,21 +293,21 @@ export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
     if (entries.length) return entries;
   }
 
-  // 3. Infer from title + side labels
+  // 3. Infer from title + side labels (fallback)
   const sideLabels = getQuestionSideLabels(question);
   const candidates = new Set<string>();
   const searchText = `${question.title} ${sideLabels.yesLabel} ${sideLabels.noLabel}`.toLowerCase();
-  
+
   if (sideLabels.yesLabel !== "YES") candidates.add(sideLabels.yesLabel);
   if (sideLabels.noLabel !== "NO") candidates.add(sideLabels.noLabel);
-  
+
   Object.keys(logoDomainMap).forEach((key) => {
     if (searchText.includes(key)) candidates.add(key);
   });
   Object.keys(logoUrlMap).forEach((key) => {
     if (searchText.includes(key)) candidates.add(key);
   });
-  
+
   const inferred = Array.from(candidates)
     .slice(0, 2)
     .map((name) => {
@@ -267,7 +315,7 @@ export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
       return url ? { url, label: name } : null;
     })
     .filter((item): item is { url: string; label: string } => !!item);
-  
+
   return inferred;
 }
 
