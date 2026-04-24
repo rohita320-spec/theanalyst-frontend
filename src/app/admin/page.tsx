@@ -429,11 +429,16 @@ export default function AdminPage() {
     setPendingEditEntryCost(String(q.entry_cost ?? ""));
     setPendingEditClosingTime(formatDateTimeLocal(q.closing_time));
     setPendingEditRules(q.resolution_rules || "");
+    
+    // Extract entity_names
     const entityNames = Array.isArray(q.metadata?.entity_names)
-      ? q.metadata?.entity_names.filter((item): item is string => typeof item === "string")
+      ? q.metadata.entity_names.filter((item): item is string => typeof item === "string")
       : [];
+    setPendingEditEntityNames(entityNames.join(", "));
+    
+    // Extract logos - always show what's stored, regardless of source
     const logos = Array.isArray(q.metadata?.logos)
-      ? q.metadata?.logos
+      ? q.metadata.logos
           .map((item) => {
             if (typeof item === "string") return item;
             if (typeof item === "object" && item !== null && "url" in item) {
@@ -444,8 +449,8 @@ export default function AdminPage() {
           })
           .filter((item): item is string => Boolean(item))
       : [];
-    setPendingEditEntityNames(entityNames.join(", "));
     setPendingEditLogos(logos.join(", "));
+    
     setApproveMsg(null);
   };
 
@@ -474,6 +479,27 @@ export default function AdminPage() {
     setPendingEditSubmitting(true);
     setApproveMsg(null);
     try {
+      const parsedEntityNames = parseCommaList(pendingEditEntityNames);
+      const parsedLogos = parseLogoEntries(pendingEditLogos);
+      
+      const editPayload: any = {
+        question_id: q._id,
+        question_text: pendingEditQuestionText.trim(),
+        category: pendingEditCategory,
+        entry_cost: cost,
+        closing_time: new Date(pendingEditClosingTime).toISOString(),
+        resolution_rules: pendingEditRules.trim(),
+      };
+      
+      // Always include entity_names and logos to preserve them during edit
+      // Backend will merge them correctly (deduplicate, auto-generate from entity_names, etc.)
+      editPayload.entity_names = parsedEntityNames;
+      editPayload.logos = parsedLogos;
+      
+      if (parsedInitialYes !== null) {
+        editPayload.initial_yes_percent = parsedInitialYes;
+      }
+      
       const res = await fetch(`${API_BASE}/admin/edit_question`, {
         method: "POST",
         headers: {
@@ -481,17 +507,7 @@ export default function AdminPage() {
           ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify({
-          question_id: q._id,
-          question_text: pendingEditQuestionText.trim(),
-          category: pendingEditCategory,
-          entry_cost: cost,
-          closing_time: new Date(pendingEditClosingTime).toISOString(),
-          resolution_rules: pendingEditRules.trim(),
-          entity_names: parseCommaList(pendingEditEntityNames),
-          logos: parseLogoEntries(pendingEditLogos),
-          ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
-        }),
+        body: JSON.stringify(editPayload),
       });
       const body = await res.json();
       if (body.success) {
