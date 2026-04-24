@@ -250,13 +250,36 @@ function cleanLogoEntries(input: Array<string | QuestionLogo>) {
   return entries;
 }
 
-function resolveLogo(name: string): string | null {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeEntityText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function containsEntity(text: string, entity: string): boolean {
+  const normalizedText = normalizeEntityText(text);
+  const normalizedEntity = normalizeEntityText(entity);
+  if (!normalizedText || !normalizedEntity) return false;
+
+  const phrasePattern = new RegExp(`(?:^|\\s)${escapeRegExp(normalizedEntity).replace(/ /g, "\\\\s+")}(?:$|\\s)`);
+  return phrasePattern.test(normalizedText);
+}
+
+function resolveLogo(name: string, allowGenericFallback = true): string | null {
   if (!name) return null;
   const key = name.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
   if (!key) return null;
   const direct = logoUrlMap[key];
   if (direct) return direct;
-  const domain = logoDomainMap[key] || `${key.split(" ")[0]}.com`;
+  const mappedDomain = logoDomainMap[key];
+  if (mappedDomain) {
+    return `https://logo.clearbit.com/${mappedDomain}?size=128`;
+  }
+  if (!allowGenericFallback) return null;
+
+  const domain = `${key.split(" ")[0]}.com`;
   return `https://logo.clearbit.com/${domain}?size=128`;
 }
 
@@ -337,22 +360,32 @@ export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
   // 3. Infer from title + side labels (fallback)
   const sideLabels = getQuestionSideLabels(question);
   const candidates = new Set<string>();
-  const searchText = `${question.title} ${sideLabels.yesLabel} ${sideLabels.noLabel}`.toLowerCase();
+  const searchText = `${question.title} ${sideLabels.yesLabel} ${sideLabels.noLabel}`;
 
-  if (sideLabels.yesLabel !== "YES") candidates.add(sideLabels.yesLabel);
-  if (sideLabels.noLabel !== "NO") candidates.add(sideLabels.noLabel);
+  if (sideLabels.yesLabel !== "YES") {
+    const candidate = normalizeEntityText(sideLabels.yesLabel);
+    if (candidate && (logoDomainMap[candidate] || logoUrlMap[candidate])) {
+      candidates.add(candidate);
+    }
+  }
+  if (sideLabels.noLabel !== "NO") {
+    const candidate = normalizeEntityText(sideLabels.noLabel);
+    if (candidate && (logoDomainMap[candidate] || logoUrlMap[candidate])) {
+      candidates.add(candidate);
+    }
+  }
 
   Object.keys(logoDomainMap).forEach((key) => {
-    if (searchText.includes(key)) candidates.add(key);
+    if (containsEntity(searchText, key)) candidates.add(key);
   });
   Object.keys(logoUrlMap).forEach((key) => {
-    if (searchText.includes(key)) candidates.add(key);
+    if (containsEntity(searchText, key)) candidates.add(key);
   });
 
   const inferred = Array.from(candidates)
     .slice(0, 2)
     .map((name) => {
-      const url = resolveLogo(name);
+      const url = resolveLogo(name, false);
       return url ? { url, label: name } : null;
     })
     .filter((item): item is { url: string; label: string } => !!item);
