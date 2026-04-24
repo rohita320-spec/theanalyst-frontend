@@ -2,6 +2,16 @@
 
 import type { FeedQuestion, HistoryPoint } from "../lib/api";
 import { getQuestionSideLabels } from "../lib/marketPreview";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type Props = {
   question: FeedQuestion | null;
@@ -12,79 +22,6 @@ type Props = {
   onChangeTimeframe: (value: "hourly" | "daily" | "all") => void;
   onClose: () => void;
 };
-
-// SVG chart constants
-const W = 760;
-const H = 290;
-const ML = 52; // left margin (y-axis labels)
-const MR = 16; // right margin
-const MT = 20; // top margin
-const MB = 50; // bottom margin (x-axis labels)
-const CW = W - ML - MR; // chart width = 692
-const CH = H - MT - MB; // chart height = 220
-
-function pctToY(pct: number) {
-  return MT + (1 - pct / 100) * CH;
-}
-
-function indexToX(i: number, n: number) {
-  return ML + (i / Math.max(n - 1, 1)) * CW;
-}
-
-function toTimestampMs(ts: string) {
-  const value = Date.parse(ts);
-  return Number.isFinite(value) ? value : null;
-}
-
-function buildXPositions(points: HistoryPoint[]) {
-  if (points.length <= 1) {
-    return [ML + CW / 2];
-  }
-
-  const times = points.map((p) => toTimestampMs(p.timestamp));
-  const validTimes = times.filter((t): t is number => t !== null);
-  if (validTimes.length >= 2) {
-    const minT = Math.min(...validTimes);
-    const maxT = Math.max(...validTimes);
-    if (maxT > minT) {
-      return times.map((t, i) => {
-        if (t === null) {
-          return indexToX(i, points.length);
-        }
-        return ML + ((t - minT) / (maxT - minT)) * CW;
-      });
-    }
-  }
-
-  return points.map((_, i) => indexToX(i, points.length));
-}
-
-function buildSeriesPath(points: HistoryPoint[], xPositions: number[], field: "yes_percent" | "no_percent") {
-  if (points.length === 0) return "";
-  if (points.length === 1) {
-    const x = xPositions[0];
-    const y = pctToY(Number(points[0][field] || 0));
-    const leftX = Math.max(ML, x - 10);
-    const rightX = Math.min(ML + CW, x + 10);
-    return `M${leftX.toFixed(1)} ${y.toFixed(1)} L${rightX.toFixed(1)} ${y.toFixed(1)}`;
-  }
-  return points
-    .map((p, i) => {
-      const x = xPositions[i];
-      const y = pctToY(Number(p[field] || 0));
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
-}
-
-function buildAreaPath(points: HistoryPoint[], xPositions: number[], field: "yes_percent" | "no_percent") {
-  if (points.length < 2) return "";
-  const line = buildSeriesPath(points, xPositions, field);
-  const lastX = xPositions[points.length - 1];
-  const firstX = xPositions[0];
-  const baseY = (MT + CH).toFixed(1);
-  return `${line} L${lastX.toFixed(1)} ${baseY} L${firstX.toFixed(1)} ${baseY} Z`;
-}
 
 function formatDateLabel(ts: string, mode: "hourly" | "daily" | "all"): string {
   try {
@@ -102,7 +39,14 @@ function formatPct(value: number) {
   return `${Number(value || 0).toFixed(2)}%`;
 }
 
-const Y_TICKS = [0, 25, 50, 75, 100];
+function formatAxisTick(ts: string, mode: "hourly" | "daily" | "all") {
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return "";
+  if (mode === "hourly") {
+    return date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric" });
+  }
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export default function TrendModal({
   question,
@@ -117,19 +61,14 @@ export default function TrendModal({
 
   const sideLabels = getQuestionSideLabels(question);
 
-  const xPositions = buildXPositions(points);
-  const yesPath = buildSeriesPath(points, xPositions, "yes_percent");
-  const noPath = buildSeriesPath(points, xPositions, "no_percent");
-  const yesAreaPath = buildAreaPath(points, xPositions, "yes_percent");
-
-  // Pick up to 5 evenly-spaced x-axis label indices
-  const xLabelIndices: number[] = [];
-  if (points.length > 0) {
-    const maxLabels = Math.min(5, points.length);
-    for (let k = 0; k < maxLabels; k++) {
-      xLabelIndices.push(Math.round((k / (maxLabels - 1 || 1)) * (points.length - 1)));
-    }
-  }
+  const chartData = points.map((point, idx) => ({
+    idx,
+    timestamp: point.timestamp,
+    yes: Number(point.yes_percent || 0),
+    no: Number(point.no_percent || 0),
+    yesPool: Number(point.yes_pool || 0),
+    noPool: Number(point.no_pool || 0),
+  }));
 
   const lastPoint = points[points.length - 1];
   const firstPoint = points[0];
@@ -191,7 +130,8 @@ export default function TrendModal({
 
         {/* Chart */}
         {!loading && points.length > 0 && (
-          <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 sm:p-4">
+            <p className="mb-2 text-sm font-medium text-slate-200">Sentiment trend</p>
             {/* Legend */}
             <div className="mb-3 flex items-center gap-4 px-1">
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
@@ -204,102 +144,83 @@ export default function TrendModal({
               </span>
             </div>
 
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              className="h-56 w-full sm:h-72"
-              style={{ overflow: "visible" }}
-            >
-              {/* Y-axis grid lines + labels */}
-              {Y_TICKS.map((pct) => {
-                const y = pctToY(pct);
-                return (
-                  <g key={pct}>
-                    <line
-                      x1={ML}
-                      y1={y}
-                      x2={W - MR}
-                      y2={y}
-                      stroke={pct === 50 ? "#334155" : "#1e293b"}
-                      strokeWidth={pct === 50 ? 1.5 : 1}
-                      strokeDasharray={pct === 50 ? "4,3" : undefined}
-                    />
-                    <text
-                      x={ML - 8}
-                      y={y + 4}
-                      textAnchor="end"
-                      fill="#64748b"
-                      fontSize="11"
-                    >
-                      {pct}%
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Y-axis border line */}
-              <line x1={ML} y1={MT} x2={ML} y2={MT + CH} stroke="#334155" strokeWidth="1" />
-
-              {/* X-axis labels */}
-              {xLabelIndices.map((idx) => {
-                const x = xPositions[idx] ?? indexToX(idx, points.length);
-                const label = formatDateLabel(points[idx].timestamp, timeframe);
-                return (
-                  <text
-                    key={idx}
-                    x={x}
-                    y={H - MB + 18}
-                    textAnchor="middle"
-                    fill="#64748b"
-                    fontSize="10"
-                  >
-                    {label}
-                  </text>
-                );
-              })}
-
-              {/* X-axis border line */}
-              <line x1={ML} y1={MT + CH} x2={W - MR} y2={MT + CH} stroke="#334155" strokeWidth="1" />
-
-              {/* YES area fill */}
-              {yesAreaPath && (
-                <path d={yesAreaPath} fill="#34d399" fillOpacity="0.08" />
-              )}
-
-              {/* NO line */}
-              <path
-                d={noPath}
-                fill="none"
-                stroke="#fb923c"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="6,3"
-              />
-
-              {/* YES line (on top) */}
-              <path
-                d={yesPath}
-                fill="none"
-                stroke="#34d399"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Data point dots for YES */}
-              {points.map((p, i) => {
-                const x = xPositions[i] ?? indexToX(i, points.length);
-                const y = pctToY(Number(p.yes_percent || 0));
-                return <circle key={`y${i}`} cx={x} cy={y} r="3.5" fill="#34d399" />;
-              })}
-
-              {/* Data point dots for NO */}
-              {points.map((p, i) => {
-                const x = xPositions[i] ?? indexToX(i, points.length);
-                const y = pctToY(Number(p.no_percent || 0));
-                return <circle key={`n${i}`} cx={x} cy={y} r="3" fill="#fb923c" />;
-              })}
-            </svg>
+            <div className="h-64 w-full sm:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 6, right: 8, bottom: 8, left: -16 }}>
+                  <defs>
+                    <linearGradient id="yesFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.26} />
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#1f2a3d" strokeDasharray="3 5" vertical={false} />
+                  <XAxis
+                    dataKey="timestamp"
+                    tick={{ fill: "#64748b", fontSize: 11 }}
+                    minTickGap={24}
+                    tickFormatter={(value) => formatAxisTick(String(value), timeframe)}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fill: "#64748b", fontSize: 11 }}
+                    tickFormatter={(value) => `${value}%`}
+                    width={42}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: "#0b1528", border: "1px solid #2b3b55", borderRadius: 12 }}
+                    labelStyle={{ color: "#94a3b8", fontSize: 12 }}
+                    formatter={(value, key) => {
+                      const numericValue = Number(value ?? 0);
+                      if (key === "yes") return [formatPct(numericValue), sideLabels.yesLabel];
+                      if (key === "no") return [formatPct(numericValue), sideLabels.noLabel];
+                      return [formatPct(numericValue), String(key)];
+                    }}
+                    labelFormatter={(value) => formatDateLabel(String(value), timeframe)}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="yes"
+                    stroke="#34d399"
+                    fill="url(#yesFill)"
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="no"
+                    stroke="#fb923c"
+                    fillOpacity={0}
+                    fill="#fb923c"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  {chartData.length > 0 && (
+                    <>
+                      <ReferenceDot
+                        x={chartData[chartData.length - 1].timestamp}
+                        y={chartData[chartData.length - 1].yes}
+                        r={5}
+                        fill="#34d399"
+                        stroke="#072015"
+                        strokeWidth={2}
+                      />
+                      <ReferenceDot
+                        x={chartData[chartData.length - 1].timestamp}
+                        y={chartData[chartData.length - 1].no}
+                        r={4}
+                        fill="#fb923c"
+                        stroke="#2f1505"
+                        strokeWidth={2}
+                      />
+                    </>
+                  )}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 

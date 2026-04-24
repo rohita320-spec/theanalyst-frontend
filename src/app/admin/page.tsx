@@ -70,6 +70,7 @@ type PendingQuestion = {
   created_by_email?: string;
   created_at?: string;
   resolution_rules?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 type MyQuestion = {
@@ -81,6 +82,7 @@ type MyQuestion = {
   status: string;
   created_at?: string;
   resolution_rules?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -103,6 +105,13 @@ function formatDateTimeLocal(iso?: string) {
   if (Number.isNaN(date.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseCommaList(raw: string) {
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export default function AdminPage() {
@@ -136,6 +145,8 @@ export default function AdminPage() {
   const [createInitialProbability, setCreateInitialProbability] = useState("50");
   const [createClosingTime, setCreateClosingTime] = useState("");
   const [createResolutionRules, setCreateResolutionRules] = useState("");
+  const [createEntityNames, setCreateEntityNames] = useState("");
+  const [createLogoUrls, setCreateLogoUrls] = useState("");
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -148,6 +159,8 @@ export default function AdminPage() {
   const [editQuestionRules, setEditQuestionRules] = useState("");
   const [editQuestionInitialYes, setEditQuestionInitialYes] = useState("");
   const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
+  const [editQuestionEntityNames, setEditQuestionEntityNames] = useState("");
+  const [editQuestionLogos, setEditQuestionLogos] = useState("");
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
   const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -171,6 +184,8 @@ export default function AdminPage() {
   const [pendingEditEntryCost, setPendingEditEntryCost] = useState("");
   const [pendingEditClosingTime, setPendingEditClosingTime] = useState("");
   const [pendingEditRules, setPendingEditRules] = useState("");
+  const [pendingEditEntityNames, setPendingEditEntityNames] = useState("");
+  const [pendingEditLogos, setPendingEditLogos] = useState("");
   const [pendingEditSubmitting, setPendingEditSubmitting] = useState(false);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [approveMsg, setApproveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -410,6 +425,14 @@ export default function AdminPage() {
     setPendingEditEntryCost(String(q.entry_cost ?? ""));
     setPendingEditClosingTime(formatDateTimeLocal(q.closing_time));
     setPendingEditRules(q.resolution_rules || "");
+    const entityNames = Array.isArray(q.metadata?.entity_names)
+      ? q.metadata?.entity_names.filter((item): item is string => typeof item === "string")
+      : [];
+    const logos = Array.isArray(q.metadata?.logos)
+      ? q.metadata?.logos.filter((item): item is string => typeof item === "string")
+      : [];
+    setPendingEditEntityNames(entityNames.join(", "));
+    setPendingEditLogos(logos.join(", "));
     setApproveMsg(null);
   };
 
@@ -452,6 +475,8 @@ export default function AdminPage() {
           entry_cost: cost,
           closing_time: new Date(pendingEditClosingTime).toISOString(),
           resolution_rules: pendingEditRules.trim(),
+          entity_names: parseCommaList(pendingEditEntityNames),
+          logos: parseCommaList(pendingEditLogos),
           ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
         }),
       });
@@ -580,6 +605,8 @@ export default function AdminPage() {
           entry_cost: cost,
           closing_time: createClosingTime,
           initial_probability: probability,
+          entity_names: parseCommaList(createEntityNames),
+          logos: parseCommaList(createLogoUrls),
           ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
         }),
       });
@@ -591,7 +618,7 @@ export default function AdminPage() {
           ? "Question submitted for review! An admin will approve it shortly."
           : `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%`;
         setCreateMsg({ type: "success", text: successText });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateStep("form");
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateEntityNames(""); setCreateLogoUrls(""); setCreateStep("form");
         setTimeout(() => {
           setCreateModalOpen(false);
           setCreateMsg(null);
@@ -915,6 +942,15 @@ export default function AdminPage() {
                       <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
                     </div>
                     <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Entity Names <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
+                      <input value={createEntityNames} onChange={(e) => setCreateEntityNames(e.target.value)} placeholder="e.g. Microsoft, OpenAI" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                      <p className="mt-1 text-xs text-slate-500">Comma-separated. Used to auto-generate logos.</p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Logo URLs <span className="text-slate-500 font-normal text-xs">(optional override)</span></label>
+                      <input value={createLogoUrls} onChange={(e) => setCreateLogoUrls(e.target.value)} placeholder="https://logo.clearbit.com/company.com, https://..." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                    </div>
+                    <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                       <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                     </div>
@@ -938,6 +974,7 @@ export default function AdminPage() {
                       <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
                       <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
                     </div>
+                    {createEntityNames.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Entities</p><p className="mt-1 text-slate-200">{createEntityNames}</p></div>}
                     {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
                   </div>
                   {createMsg && (
@@ -1089,6 +1126,18 @@ export default function AdminPage() {
                           rows={2}
                           className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                           placeholder="Resolution rules"
+                        />
+                        <input
+                          value={pendingEditEntityNames}
+                          onChange={(e) => setPendingEditEntityNames(e.target.value)}
+                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                          placeholder="Entity names (comma separated)"
+                        />
+                        <input
+                          value={pendingEditLogos}
+                          onChange={(e) => setPendingEditLogos(e.target.value)}
+                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                          placeholder="Logo URLs (comma separated)"
                         />
                         <div className="flex gap-2">
                           <button
@@ -1471,6 +1520,14 @@ export default function AdminPage() {
                           setEditQuestionRules(selectedQuestion.resolution_rules || "");
                           setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
                           setEditQuestionMetadata(selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "");
+                          const entityNames = Array.isArray(selectedQuestion.metadata?.entity_names)
+                            ? selectedQuestion.metadata?.entity_names.filter((item): item is string => typeof item === "string")
+                            : [];
+                          const logos = Array.isArray(selectedQuestion.metadata?.logos)
+                            ? selectedQuestion.metadata?.logos.filter((item): item is string => typeof item === "string")
+                            : [];
+                          setEditQuestionEntityNames(entityNames.join(", "));
+                          setEditQuestionLogos(logos.join(", "));
                           setEditQuestionMsg(null);
                         }}
                         className="text-xs text-[var(--brand)] hover:underline"
@@ -1537,6 +1594,20 @@ export default function AdminPage() {
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
                         placeholder="Describe YES and NO conditions..."
                       />
+                      <label className="text-xs font-medium text-slate-300">Entity Names (comma separated)</label>
+                      <input
+                        value={editQuestionEntityNames}
+                        onChange={(e) => setEditQuestionEntityNames(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="e.g. Microsoft, OpenAI"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Logo URLs (comma separated)</label>
+                      <input
+                        value={editQuestionLogos}
+                        onChange={(e) => setEditQuestionLogos(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="https://logo.clearbit.com/company.com"
+                      />
                       {editQuestionMsg && (
                         <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
                       )}
@@ -1600,6 +1671,8 @@ export default function AdminPage() {
                                   closing_time: new Date(editQuestionClosingTime).toISOString(),
                                   resolution_rules: editQuestionRules.trim(),
                                   initial_yes_percent: initialYes,
+                                  entity_names: parseCommaList(editQuestionEntityNames),
+                                  logos: parseCommaList(editQuestionLogos),
                                   ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
                                 }),
                               });
@@ -1828,6 +1901,25 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Entity Names <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
+                    <input
+                      value={createEntityNames}
+                      onChange={(e) => setCreateEntityNames(e.target.value)}
+                      placeholder="e.g. Microsoft, OpenAI"
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Comma-separated. Used to auto-generate logos on cards.</p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Logo URLs <span className="text-slate-500 font-normal text-xs">(optional override)</span></label>
+                    <input
+                      value={createLogoUrls}
+                      onChange={(e) => setCreateLogoUrls(e.target.value)}
+                      placeholder="https://logo.clearbit.com/company.com, https://..."
+                      className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                    />
+                  </div>
+                  <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">
                       Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional — shown to users below the chart)</span>
                     </label>
@@ -1884,6 +1976,12 @@ export default function AdminPage() {
                       <p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
                     </div>
                   </div>
+                  {createEntityNames.trim() && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Entities</p>
+                      <p className="mt-1 text-slate-200">{createEntityNames}</p>
+                    </div>
+                  )}
                   {createResolutionRules.trim() && (
                     <div>
                       <p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p>

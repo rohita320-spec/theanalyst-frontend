@@ -12,6 +12,22 @@ export type QuestionSideLabels = {
   noLabel: string;
 };
 
+const logoDomainMap: Record<string, string> = {
+  microsoft: "microsoft.com",
+  google: "google.com",
+  alphabet: "abc.xyz",
+  apple: "apple.com",
+  amazon: "amazon.com",
+  meta: "meta.com",
+  netflix: "netflix.com",
+  tesla: "tesla.com",
+  nvidia: "nvidia.com",
+  openai: "openai.com",
+  bitcoin: "bitcoin.org",
+  ethereum: "ethereum.org",
+  solana: "solana.com",
+};
+
 export type PredictionPreview = {
   avgEntryPrice: number;
   sharesReceived: number;
@@ -76,6 +92,46 @@ function normalizeLabel(value: string) {
 function readMetadataString(question: FeedQuestion, key: string) {
   const raw = question.metadata?.[key];
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+function cleanLogoUrls(input: string[]) {
+  const deduped = new Set<string>();
+  for (const raw of input) {
+    const candidate = String(raw || "").trim();
+    if (!candidate) continue;
+    if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue;
+    deduped.add(candidate);
+  }
+  return Array.from(deduped);
+}
+
+function buildLogoFromEntity(name: string) {
+  const normalized = name.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
+  if (!normalized) return null;
+
+  const mapped = logoDomainMap[normalized];
+  const domain = mapped || `${normalized.split(" ")[0]}.com`;
+  return `https://logo.clearbit.com/${domain}?size=128`;
+}
+
+export function getQuestionLogos(question: FeedQuestion) {
+  const rawLogos = question.metadata?.logos;
+  if (Array.isArray(rawLogos)) {
+    const direct = cleanLogoUrls(rawLogos.filter((item): item is string => typeof item === "string"));
+    if (direct.length) return direct;
+  }
+
+  const rawEntities = question.metadata?.entity_names;
+  if (!Array.isArray(rawEntities)) {
+    return [];
+  }
+
+  const generated = rawEntities
+    .filter((item): item is string => typeof item === "string")
+    .map((name) => buildLogoFromEntity(name))
+    .filter((logo): logo is string => typeof logo === "string");
+
+  return cleanLogoUrls(generated);
 }
 
 export function getQuestionSideLabels(question: FeedQuestion): QuestionSideLabels {

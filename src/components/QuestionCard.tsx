@@ -1,7 +1,7 @@
 "use client";
 
 import type { FeedQuestion } from "../lib/api";
-import { getQuestionSideLabels } from "../lib/marketPreview";
+import { getQuestionLogos, getQuestionSideLabels } from "../lib/marketPreview";
 
 type Props = {
   question: FeedQuestion;
@@ -35,6 +35,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
   const noWidth = 100 - yesWidth;
   const sideLabels = getQuestionSideLabels(question);
+  const logos = getQuestionLogos(question).slice(0, 4);
 
   function statusBadge() {
     if (isResolved) return { label: "Resolved", cls: "status-resolved" };
@@ -47,7 +48,10 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   function getButtonLabel(side: "yes" | "no") {
     if (isResolved) return "Resolved";
     if (!isOpen) return "Closed";
-    if (!loggedIn) return "Login to Participate";
+    if (!loggedIn) {
+      const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
+      return `Analyze ${sideLabel}`;
+    }
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
     const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
@@ -56,15 +60,30 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
 
   return (
     <article
-      className="cursor-pointer rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-600 sm:p-4"
+      className="cursor-pointer rounded-2xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-4 transition-colors hover:border-slate-500 sm:p-5"
       onClick={() => onOpenChart(question)}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mb-1.5 inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">
-            {question.category}
-          </p>
-          <h2 className="text-sm font-semibold text-white sm:text-base">{question.title}</h2>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <p className="inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">
+              {question.category}
+            </p>
+            {logos.length > 0 && (
+              <div className="flex items-center gap-1">
+                {logos.map((logo, idx) => (
+                  <img
+                    key={`${question._id}-logo-${idx}`}
+                    src={logo}
+                    alt="Entity logo"
+                    className="h-6 w-6 rounded-full border border-white/10 bg-slate-800 object-cover"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <h2 className="text-base font-semibold leading-snug text-white sm:text-lg">{question.title}</h2>
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
           {badge.label}
@@ -72,7 +91,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       </div>
 
       {/* Pool bar */}
-      <div className="mb-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+      <div className="mb-4 rounded-xl border border-[var(--stroke)]/70 bg-[#0b1528] p-3.5">
         <div className="mb-2 flex flex-col gap-1 text-xs text-slate-300 sm:flex-row sm:justify-between">
           <span>Entry: {formatNumber(Number(question.entry_cost || 0))} pts</span>
           <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
@@ -90,7 +109,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       </div>
 
       {/* Action buttons */}
-      <div className="mb-2.5 flex flex-col gap-2 sm:flex-row" onClick={(e) => e.stopPropagation()}>
+      <div className="mb-1 flex flex-col gap-2 sm:flex-row" onClick={(e) => e.stopPropagation()}>
         <button
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
@@ -115,7 +134,24 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </button>
       </div>
 
-      <p className="text-[11px] text-slate-400">{question.closes_label || "Closes soon"}</p>
+      {!loggedIn && isOpen && (
+        <p className="mb-2 text-center text-[11px] text-slate-400">Login to participate</p>
+      )}
+
+      <button
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenChart(question);
+        }}
+        className="mb-3 w-full rounded-lg bg-[#3382f6] px-3 py-2 text-sm font-semibold text-white hover:brightness-110"
+      >
+        Analyze & Stake
+      </button>
+
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-slate-400">{question.closes_label || "Closes soon"}</p>
+        <span className="text-xs text-[var(--brand)]">View details →</span>
+      </div>
     </article>
   );
 }

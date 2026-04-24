@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import AppHeader from "../../components/AppHeader";
 import QuestionCard from "../../components/QuestionCard";
 import TrendModal from "../../components/TrendModal";
@@ -220,6 +221,28 @@ export default function FeedPage() {
             {notification.text}
           </div>
         )}
+
+        <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">The Analyst</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">High-Signal Analysis Feed</h2>
+          <p className="mt-1 text-sm text-slate-400">Same data. Better structure. Cleaner hierarchy.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
+            <div className="mr-auto">
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Points Balance</p>
+              <p className="text-3xl font-semibold text-[var(--brand)]">{formatNumber(profile?.points_balance || 0)} <span className="text-base text-slate-300">pts</span></p>
+            </div>
+            {!loggedIn && (
+              <>
+                <Link href="/auth/login" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                  Log in
+                </Link>
+                <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110">
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
+        </section>
 
         <section className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
