@@ -60,10 +60,10 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
 
   return (
     <article
-      className="cursor-pointer rounded-2xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-4 transition-colors hover:border-slate-500 sm:p-5"
+      className="cursor-pointer rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-500 sm:p-3.5"
       onClick={() => onOpenChart(question)}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <p className="inline-flex rounded-full bg-[var(--brand)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand)]">
@@ -83,7 +83,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
               </div>
             )}
           </div>
-          <h2 className="text-base font-semibold leading-snug text-white sm:text-lg">{question.title}</h2>
+          <h2 className="text-[15px] font-semibold leading-snug text-white sm:text-base">{question.title}</h2>
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
           {badge.label}
@@ -91,7 +91,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       </div>
 
       {/* Pool bar */}
-      <div className="mb-4 rounded-xl border border-[var(--stroke)]/70 bg-[#0b1528] p-3.5">
+      <div className="mb-3 rounded-lg border border-[var(--stroke)]/70 bg-[#0b1528] p-3">
         <div className="mb-2 flex flex-col gap-1 text-xs text-slate-300 sm:flex-row sm:justify-between">
           <span>Entry: {formatNumber(Number(question.entry_cost || 0))} pts</span>
           <span>Pool: {formatNumber(Number(question.yes_pool || 0) + Number(question.no_pool || 0))} pts</span>
@@ -109,9 +109,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       </div>
 
       {/* Action buttons */}
-      <div className="mb-1 flex flex-col gap-2 sm:flex-row" onClick={(e) => e.stopPropagation()}>
+      <div className="mb-1 flex flex-col gap-1.5 sm:flex-row" onClick={(e) => e.stopPropagation()}>
         <button
-          className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--yes)] text-slate-950 hover:brightness-110"
@@ -122,7 +122,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
           {getButtonLabel("yes")}
         </button>
         <button
-          className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             !canAnalyze || !loggedIn
               ? "border border-[var(--stroke)] bg-transparent text-slate-400"
               : "bg-[var(--no)] text-slate-950 hover:brightness-110"
@@ -137,16 +137,6 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       {!loggedIn && isOpen && (
         <p className="mb-2 text-center text-[11px] text-slate-400">Login to participate</p>
       )}
-
-      <button
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenChart(question);
-        }}
-        className="mb-3 w-full rounded-lg bg-[#3382f6] px-3 py-2 text-sm font-semibold text-white hover:brightness-110"
-      >
-        Open Market View
-      </button>
 
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-slate-400">{question.closes_label || "Closes soon"}</p>

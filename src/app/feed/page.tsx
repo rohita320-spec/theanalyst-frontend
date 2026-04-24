@@ -206,7 +206,7 @@ export default function FeedPage() {
     <div className="min-h-screen text-slate-100">
       <AppHeader active="feed" pointsBalance={profile?.points_balance || 0} />
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
         {/* Notification banner */}
         {notification && (
           <div
@@ -222,8 +222,8 @@ export default function FeedPage() {
           </div>
         )}
 
-        <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[radial-gradient(120%_90%_at_10%_10%,#13203a_0%,#0c1527_55%,#0a1120_100%)] p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
+        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[radial-gradient(120%_90%_at_10%_10%,#13203a_0%,#0c1527_55%,#0a1120_100%)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <img
                 src="/AN.png"
@@ -232,15 +232,15 @@ export default function FeedPage() {
               />
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Curated Markets</p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">High-Signal Analysis Feed</h2>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">High-Signal Analysis Feed</h2>
               </div>
             </div>
             {!loggedIn && (
               <div className="flex items-center gap-2">
-                <Link href="/auth/login" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                <Link href="/auth/login" className="rounded-md border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] sm:text-sm">
                   Log in
                 </Link>
-                <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110">
+                <Link href="/auth/signup" className="rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 sm:text-sm">
                   Join Now
                 </Link>
               </div>
@@ -248,18 +248,18 @@ export default function FeedPage() {
           </div>
         </section>
 
-        <section className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+        <section className="mb-6 grid gap-3 grid-cols-2 md:grid-cols-3">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
             <p className="text-sm text-slate-400">Open Questions</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{openQuestions}</p>
+            <p className="mt-1.5 text-2xl font-semibold text-white">{openQuestions}</p>
           </div>
-          <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
             <p className="text-sm text-slate-400">Active Pool</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{formatNumber(totalPool)}</p>
+            <p className="mt-1.5 text-2xl font-semibold text-white">{formatNumber(totalPool)}</p>
           </div>
-          <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="col-span-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 md:col-span-1">
             <p className="text-sm text-slate-400">Closed / Resolved</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{closedQuestions} / {resolvedQuestions}</p>
+            <p className="mt-1.5 text-2xl font-semibold text-white">{closedQuestions} / {resolvedQuestions}</p>
           </div>
         </section>
 
@@ -308,7 +308,7 @@ export default function FeedPage() {
           ) : filteredQuestions.length === 0 ? (
             <p className="text-sm text-slate-400">No {selectedStatus !== "all" ? selectedStatus : ""} questions{selectedCategory !== "All" ? ` in ${selectedCategory}` : ""} right now.</p>
           ) : (
-            <div className="max-h-[75vh] overflow-y-auto pr-1">
+            <div className="max-h-[76vh] overflow-y-auto pr-1">
               <div className="grid gap-5 lg:grid-cols-2">
                 {filteredQuestions.map((question) => {
                   const isPastClose = question.closing_time && new Date(question.closing_time) < new Date();
