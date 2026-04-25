@@ -184,106 +184,54 @@ function LogoLibraryPicker({
 
   return (
     <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{title}</p>
-      <div className="mt-3 space-y-3">
-        <div>
-          <input
-            type="text"
-            value={logoSearch}
-            onChange={(e) => setLogoSearch(e.target.value)}
-            placeholder="Search logos by name…"
-            className="mb-2 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <div className="flex flex-wrap gap-2">
-            {visibleActiveAssets.length === 0 ? (
-              <p className="text-xs text-slate-500">{searchLower ? "No logos match your search." : "No approved logos for this category yet."}</p>
-            ) : (
-              visibleActiveAssets.map((asset) => {
-                const active = selectedLogoKeys.includes(asset.logo_key);
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    onClick={() => toggleLogoKey(asset.logo_key)}
-                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${active ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
-                  >
-                    <img src={resolveLogoImageUrl(asset.image_url)} alt="" className="h-4 w-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                    {asset.display_name}
-                  </button>
-                );
-              })
-            )}
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">{title}</p>
+      <input
+        type="text"
+        value={logoSearch}
+        onChange={(e) => setLogoSearch(e.target.value)}
+        placeholder="Search logos by name…"
+        className="mb-2 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+      />
+      <div className="max-h-48 overflow-y-auto rounded-lg border border-[var(--stroke)]">
+        {visibleActiveAssets.length === 0 ? (
+          <p className="px-3 py-4 text-center text-xs text-slate-500">{searchLower ? "No logos match your search." : "No logos in library yet. Add them via Logo Library above."}</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-px bg-[var(--stroke)]">
+            {visibleActiveAssets.map((asset) => {
+              const active = selectedLogoKeys.includes(asset.logo_key);
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => toggleLogoKey(asset.logo_key)}
+                  className={`flex flex-col items-center gap-1 px-1 py-2 text-center transition-colors ${active ? "bg-[var(--brand)]/10 ring-1 ring-inset ring-[var(--brand)]" : "bg-[#0b1528] hover:bg-white/5"}`}
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white p-1">
+                    <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.2"; }} />
+                  </div>
+                  <span className={`line-clamp-1 w-full text-[9px] leading-tight ${active ? "text-[var(--brand)]" : "text-slate-400"}`}>{asset.display_name}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[11px] text-slate-500">Pending uploads</p>
-          <div className="flex flex-wrap gap-2">
-            {visiblePendingAssets.length === 0 ? (
-              <p className="text-xs text-slate-500">No pending logos attached yet.</p>
-            ) : (
-              visiblePendingAssets.map((asset) => {
-                const active = selectedPendingLogoIds.includes(asset.id);
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    onClick={() => togglePendingLogoId(asset.id)}
-                    className={`rounded-full border px-3 py-1 text-xs ${active ? "border-amber-400 bg-amber-500/15 text-amber-300" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
-                  >
-                    {asset.display_name}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            value={uploadDisplayName}
-            onChange={(e) => setUploadDisplayName(e.target.value)}
-            placeholder="Upload display name"
-            className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-          />
-          <input
-            value={uploadLogoKey}
-            onChange={(e) => setUploadLogoKey(e.target.value)}
-            placeholder="Optional logo key override"
-            className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-          />
-        </div>
-        <input
-          value={uploadLogoUrl}
-          onChange={(e) => setUploadLogoUrl(e.target.value)}
-          placeholder="Logo URL optional (http/https)"
-          className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-        />
-        <p className="text-[11px] text-slate-500">
-          URL must point directly to an image file (PNG, JPG, WebP, SVG). e.g.{" "}
-          <span className="text-slate-400">https://example.com/logo.png</span>
-        </p>
-        <p className="text-[11px] text-slate-500">
-          Use the same logo key to update an existing logo. Admin uploads replace that key immediately; creator uploads with the same key require admin approval.
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
-            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-            className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--brand)] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-950"
-          />
-          <button
-            type="button"
-            onClick={handleUpload}
-            disabled={uploading}
-            className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] disabled:opacity-50"
-          >
-            {uploading ? "Uploading..." : role === "admin" ? "Upload approved logo" : "Upload for approval"}
-          </button>
-        </div>
-        {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+        )}
       </div>
+      {visiblePendingAssets.length > 0 && (
+        <div className="mt-2">
+          <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Pending approval</p>
+          <div className="flex flex-wrap gap-1.5">
+            {visiblePendingAssets.map((asset) => {
+              const active = selectedPendingLogoIds.includes(asset.id);
+              return (
+                <button key={asset.id} type="button" onClick={() => togglePendingLogoId(asset.id)}
+                  className={`rounded-full border px-2.5 py-0.5 text-[10px] ${active ? "border-amber-400 bg-amber-500/15 text-amber-300" : "border-[var(--stroke)] text-slate-400 hover:border-slate-500"}`}>
+                  {asset.display_name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1929,7 +1877,7 @@ export default function AdminPage() {
                   <tr key={asset.id} className="text-slate-300">
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-2">
-                        <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                        <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded bg-white object-contain p-0.5" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
                         <span className="text-white">{asset.display_name}</span>
                       </div>
                     </td>
@@ -1980,7 +1928,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               {pendingLogoAssets.map((asset) => (
                 <div key={asset.id} className="flex items-center gap-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-2">
-                  <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                  <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded bg-white object-contain p-0.5" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white">{asset.display_name}</p>
                     <p className="text-[11px] text-slate-400">{asset.logo_key} · {asset.category}</p>
@@ -2113,26 +2061,30 @@ export default function AdminPage() {
               {/* Quick logo assignment */}
               <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Logos</p>
-                {activeLogoAssets.length === 0 ? (
-                  <p className="text-xs text-slate-500">No logos in library yet.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {activeLogoAssets.map((asset) => {
-                      const selected = quickLogoKeys.includes(asset.logo_key);
-                      return (
-                        <button
-                          key={asset.id}
-                          type="button"
-                          onClick={() => setQuickLogoKeys((prev) => selected ? prev.filter((k) => k !== asset.logo_key) : [...prev, asset.logo_key])}
-                          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${selected ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
-                        >
-                          <img src={resolveLogoImageUrl(asset.image_url)} alt="" className="h-4 w-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                          {asset.display_name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--stroke)]">
+                  {activeLogoAssets.length === 0 ? (
+                    <p className="px-3 py-3 text-center text-xs text-slate-500">No logos in library yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-px bg-[var(--stroke)]">
+                      {activeLogoAssets.map((asset) => {
+                        const selected = quickLogoKeys.includes(asset.logo_key);
+                        return (
+                          <button
+                            key={asset.id}
+                            type="button"
+                            onClick={() => setQuickLogoKeys((prev) => selected ? prev.filter((k) => k !== asset.logo_key) : [...prev, asset.logo_key])}
+                            className={`flex flex-col items-center gap-1 px-1 py-2 text-center transition-colors ${selected ? "bg-[var(--brand)]/10 ring-1 ring-inset ring-[var(--brand)]" : "bg-[#0b1528] hover:bg-white/5"}`}
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white p-1">
+                              <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.2"; }} />
+                            </div>
+                            <span className={`line-clamp-1 w-full text-[9px] leading-tight ${selected ? "text-[var(--brand)]" : "text-slate-400"}`}>{asset.display_name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 {quickLogoMsg && (
                   <p className={`mt-2 text-xs ${quickLogoMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{quickLogoMsg.text}</p>
                 )}
