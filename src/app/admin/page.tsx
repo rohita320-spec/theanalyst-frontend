@@ -415,6 +415,12 @@ export default function AdminPage() {
   const [copyMsg, setCopyMsg] = useState("");
   const [logoLibraryLoading, setLogoLibraryLoading] = useState(false);
   const [logoLibraryMsg, setLogoLibraryMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [addLogoOpen, setAddLogoOpen] = useState(false);
+  const [addLogoName, setAddLogoName] = useState("");
+  const [addLogoCategory, setAddLogoCategory] = useState("General");
+  const [addLogoUrl, setAddLogoUrl] = useState("");
+  const [addLogoKey, setAddLogoKey] = useState("");
+  const [addLogoSubmitting, setAddLogoSubmitting] = useState(false);
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
@@ -583,6 +589,52 @@ export default function AdminPage() {
       setLogoLibraryMsg({ type: "success", text: `Logo ${action === "deactivate" ? "deactivated" : action + "d"} successfully.` });
     } catch {
       setLogoLibraryMsg({ type: "error", text: `Network error — could not ${action} logo.` });
+    }
+  };
+
+  const handleAddLogoToLibrary = async () => {
+    if (!addLogoName.trim() || !addLogoUrl.trim()) {
+      setLogoLibraryMsg({ type: "error", text: "Display name and logo URL are required." });
+      return;
+    }
+    setAddLogoSubmitting(true);
+    setLogoLibraryMsg(null);
+    try {
+      const form = new FormData();
+      form.set("display_name", addLogoName.trim());
+      form.set("category", addLogoCategory);
+      form.set("logo_url", addLogoUrl.trim());
+      if (addLogoKey.trim()) form.set("logo_key", addLogoKey.trim());
+
+      const res = await timedFetch("admin/logo_assets/upload", `${API_BASE}/admin/logo_assets/upload`, {
+        method: "POST",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+        credentials: "include",
+        body: form,
+      });
+      const body = await res.json();
+      if (!body.success || !body.logo_asset) {
+        throw new Error(body.detail || "Logo upload failed.");
+      }
+      const asset = body.logo_asset as LogoAsset;
+      if (asset.status === "active") {
+        setActiveLogoAssets((prev) => {
+          const next = [...prev.filter((item) => item.id !== asset.id), asset];
+          return next.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        });
+      } else {
+        setPendingLogoAssets((prev) => {
+          const next = [...prev.filter((item) => item.id !== asset.id), asset];
+          return next.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        });
+      }
+      setLogoLibraryMsg({ type: "success", text: asset.status === "active" ? "Logo added to library." : "Logo added as pending approval." });
+      setAddLogoName(""); setAddLogoCategory("General"); setAddLogoUrl(""); setAddLogoKey("");
+      setAddLogoOpen(false);
+    } catch (err) {
+      setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to add logo." });
+    } finally {
+      setAddLogoSubmitting(false);
     }
   };
 
@@ -1698,8 +1750,72 @@ export default function AdminPage() {
             <h2 className="text-base font-semibold text-white">Logo Library</h2>
             <p className="text-sm text-slate-400">Manage active logos. Deactivate removes a logo from all question cards immediately.</p>
           </div>
-          <button onClick={() => refreshLogoAssets()} className="text-xs text-slate-500 hover:text-slate-300">↻ Refresh</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => refreshLogoAssets()} className="text-xs text-slate-500 hover:text-slate-300">↻ Refresh</button>
+            <button
+              onClick={() => { setAddLogoOpen((v) => !v); setLogoLibraryMsg(null); }}
+              className="rounded border border-indigo-500/40 px-3 py-1 text-xs text-indigo-400 hover:bg-indigo-500/10"
+            >
+              {addLogoOpen ? "Cancel" : "+ Add Logo"}
+            </button>
+          </div>
         </div>
+        {addLogoOpen && (
+          <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Add Logo to Library</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-slate-400">Display Name *</label>
+                <input
+                  type="text"
+                  value={addLogoName}
+                  onChange={(e) => setAddLogoName(e.target.value)}
+                  placeholder="e.g. Apple"
+                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-400">Category</label>
+                <select
+                  value={addLogoCategory}
+                  onChange={(e) => setAddLogoCategory(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs text-slate-400">Logo URL *</label>
+                <input
+                  type="url"
+                  value={addLogoUrl}
+                  onChange={(e) => setAddLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-400">Logo Key (optional)</label>
+                <input
+                  type="text"
+                  value={addLogoKey}
+                  onChange={(e) => setAddLogoKey(e.target.value)}
+                  placeholder="e.g. apple (auto-generated if blank)"
+                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={handleAddLogoToLibrary}
+                  disabled={addLogoSubmitting || !addLogoName.trim() || !addLogoUrl.trim()}
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+                >
+                  {addLogoSubmitting ? "Adding…" : "Add to Library"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {logoLibraryMsg && (
           <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${logoLibraryMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
             {logoLibraryMsg.text}
