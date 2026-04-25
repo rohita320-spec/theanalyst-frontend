@@ -645,7 +645,7 @@ export default function AdminPage() {
     setLogoLibraryMsg(null);
     try {
       const res = await timedFetch("admin/logo_assets/edit", `${API_BASE}/admin/logo_assets/edit`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
