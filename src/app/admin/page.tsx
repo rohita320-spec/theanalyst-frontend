@@ -419,6 +419,7 @@ export default function AdminPage() {
   const [addLogoName, setAddLogoName] = useState("");
   const [addLogoCategory, setAddLogoCategory] = useState("General");
   const [addLogoUrl, setAddLogoUrl] = useState("");
+  const [addLogoFile, setAddLogoFile] = useState<File | null>(null);
   const [addLogoKey, setAddLogoKey] = useState("");
   const [addLogoSubmitting, setAddLogoSubmitting] = useState(false);
   const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
@@ -595,8 +596,8 @@ export default function AdminPage() {
   };
 
   const handleAddLogoToLibrary = async () => {
-    if (!addLogoName.trim() || !addLogoUrl.trim()) {
-      setLogoLibraryMsg({ type: "error", text: "Display name and logo URL are required." });
+    if (!addLogoName.trim() || (!addLogoFile && !addLogoUrl.trim())) {
+      setLogoLibraryMsg({ type: "error", text: "Display name and a logo file or URL are required." });
       return;
     }
     setAddLogoSubmitting(true);
@@ -605,7 +606,11 @@ export default function AdminPage() {
       const form = new FormData();
       form.set("display_name", addLogoName.trim());
       form.set("category", addLogoCategory);
-      form.set("logo_url", addLogoUrl.trim());
+      if (addLogoFile) {
+        form.set("logo_file", addLogoFile);
+      } else {
+        form.set("logo_url", addLogoUrl.trim());
+      }
       if (addLogoKey.trim()) form.set("logo_key", addLogoKey.trim());
 
       const res = await timedFetch("admin/logo_assets/upload", `${API_BASE}/admin/logo_assets/upload`, {
@@ -631,7 +636,7 @@ export default function AdminPage() {
         });
       }
       setLogoLibraryMsg({ type: "success", text: asset.status === "active" ? "Logo added to library." : "Logo added as pending approval." });
-      setAddLogoName(""); setAddLogoCategory("General"); setAddLogoUrl(""); setAddLogoKey("");
+      setAddLogoName(""); setAddLogoCategory("General"); setAddLogoUrl(""); setAddLogoFile(null); setAddLogoKey("");
       setAddLogoOpen(false);
     } catch (err) {
       setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to add logo." });
@@ -1812,13 +1817,20 @@ export default function AdminPage() {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-slate-400">Logo URL *</label>
+                <label className="mb-1 block text-xs text-slate-400">Upload File</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => { setAddLogoFile(e.target.files?.[0] ?? null); setAddLogoUrl(""); }}
+                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-slate-300 file:mr-3 file:rounded file:border-0 file:bg-indigo-600 file:px-2 file:py-1 file:text-xs file:text-white"
+                />
+                <p className="mt-1 text-center text-[11px] text-slate-500">— or —</p>
                 <input
                   type="url"
                   value={addLogoUrl}
-                  onChange={(e) => setAddLogoUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  onChange={(e) => { setAddLogoUrl(e.target.value); setAddLogoFile(null); }}
+                  placeholder="Paste image URL (https://...)"
+                  className="mt-1 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
               <div>
@@ -1827,14 +1839,14 @@ export default function AdminPage() {
                   type="text"
                   value={addLogoKey}
                   onChange={(e) => setAddLogoKey(e.target.value)}
-                  placeholder="e.g. apple (auto-generated if blank)"
+                  placeholder="e.g. nasdaq (auto-generated if blank)"
                   className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
               <div className="flex items-end">
                 <button
                   onClick={handleAddLogoToLibrary}
-                  disabled={addLogoSubmitting || !addLogoName.trim() || !addLogoUrl.trim()}
+                  disabled={addLogoSubmitting || !addLogoName.trim() || (!addLogoFile && !addLogoUrl.trim())}
                   className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
                 >
                   {addLogoSubmitting ? "Adding…" : "Add to Library"}
