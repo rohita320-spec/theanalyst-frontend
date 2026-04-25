@@ -662,7 +662,10 @@ export default function AdminPage() {
   const refreshQuestions = async () => {
     setQuestionsLoading(true);
     try {
-      const res = await timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" });
+      const res = await timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=40&status=all`, {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
       if (res.ok) {
         const body = await res.json();
         setAllQuestions(body.results || []);
@@ -1410,8 +1413,7 @@ export default function AdminPage() {
       </section>
 
       {/* Pending Approvals */}
-      {(pendingQuestions.length > 0 || pendingLoading) && (
-        <section className="mb-8 rounded-2xl border border-amber-500/30 bg-[var(--surface)] p-5">
+      <section className="mb-8 rounded-2xl border border-amber-500/30 bg-[var(--surface)] p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-white">
@@ -1432,7 +1434,11 @@ export default function AdminPage() {
             </div>
           )}
           <div className="space-y-3">
-            {pendingQuestions.map((q) => (
+            {pendingLoading ? (
+              <p className="text-sm text-slate-500">Loading pending questions...</p>
+            ) : pendingQuestions.length === 0 ? (
+              <p className="text-sm text-slate-500">No pending questions from contributors right now.</p>
+            ) : pendingQuestions.map((q) => (
               <div key={q._id} className="rounded-xl border border-amber-500/20 bg-[#0b1528] p-4">
                 <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">
@@ -1589,7 +1595,6 @@ export default function AdminPage() {
             ))}
           </div>
         </section>
-      )}
 
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
