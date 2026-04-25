@@ -85,6 +85,14 @@ type MyQuestion = {
   metadata?: Record<string, unknown> | null;
 };
 
+type ApiTimingRow = {
+  endpoint: string;
+  ms: number;
+  source: "server" | "client";
+  status: number | null;
+  updatedAt: number;
+};
+
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-5">
@@ -215,6 +223,45 @@ export default function AdminPage() {
   const [myQuestionsLoading, setMyQuestionsLoading] = useState(false);
   const [authNotice, setAuthNotice] = useState<{ tone: "success" | "warning"; message: string } | null>(null);
   const [copyMsg, setCopyMsg] = useState("");
+  const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
+
+  const recordApiTiming = (
+    endpoint: string,
+    ms: number,
+    source: "server" | "client",
+    status: number | null,
+  ) => {
+    setApiTimings((prev) => ({
+      ...prev,
+      [endpoint]: {
+        endpoint,
+        ms: Math.max(0, Math.round(ms * 100) / 100),
+        source,
+        status,
+        updatedAt: Date.now(),
+      },
+    }));
+  };
+
+  const timedFetch = async (
+    endpoint: string,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) => {
+    const started = performance.now();
+    const res = await fetch(input, init);
+    const clientMs = performance.now() - started;
+    const serverHeader = res.headers.get("X-Response-Time-Ms");
+    const parsedServerMs = serverHeader == null ? Number.NaN : Number(serverHeader);
+
+    if (Number.isFinite(parsedServerMs)) {
+      recordApiTiming(endpoint, parsedServerMs, "server", res.status);
+    } else {
+      recordApiTiming(endpoint, clientMs, "client", res.status);
+    }
+
+    return res;
+  };
 
   useEffect(() => {
     try {
@@ -256,7 +303,7 @@ export default function AdminPage() {
 
         if (result.user.role === "question_creator") {
           // Creators only see their own submitted questions
-          const myQRes = await fetch(`${API_BASE}/creator/my_questions`, {
+          const myQRes = await timedFetch("creator/my_questions", `${API_BASE}/creator/my_questions`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           });
@@ -269,15 +316,15 @@ export default function AdminPage() {
 
         // Fetch critical admin data first; storage status can load in background.
         const [usersRes, summaryRes, pendingRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/admin/users`, {
+          timedFetch("admin/users", `${API_BASE}/admin/users`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
-          fetch(`${API_BASE}/admin/summary`, {
+          timedFetch("admin/summary", `${API_BASE}/admin/summary`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
-          fetch(`${API_BASE}/admin/pending_questions`, {
+          timedFetch("admin/pending_questions", `${API_BASE}/admin/pending_questions`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
@@ -306,7 +353,7 @@ export default function AdminPage() {
         }
 
         // Load full question list in background so dashboard shell paints quickly.
-        fetch(`${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" })
+        timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" })
           .then((res) => (res.ok ? res.json() : null))
           .then((body) => {
             if (body?.results) setAllQuestions(body.results || []);
@@ -316,7 +363,7 @@ export default function AdminPage() {
           });
 
         // Do not block admin screen on storage diagnostics.
-        fetch(`${API_BASE}/admin/storage_status`, {
+        timedFetch("admin/storage_status", `${API_BASE}/admin/storage_status`, {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -339,7 +386,7 @@ export default function AdminPage() {
   const refreshQuestions = async () => {
     setQuestionsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" });
+      const res = await timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" });
       if (res.ok) {
         const body = await res.json();
         setAllQuestions(body.results || []);
@@ -352,7 +399,7 @@ export default function AdminPage() {
   const refreshPendingQuestions = async () => {
     setPendingLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/pending_questions`, {
+      const res = await timedFetch("admin/pending_questions", `${API_BASE}/admin/pending_questions`, {
         credentials: "include",
         headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
       });
@@ -377,7 +424,7 @@ export default function AdminPage() {
   const refreshMyQuestions = async () => {
     setMyQuestionsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/creator/my_questions`, {
+      const res = await timedFetch("creator/my_questions", `${API_BASE}/creator/my_questions`, {
         credentials: "include",
         headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
       });
@@ -400,7 +447,7 @@ export default function AdminPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/admin/approve_question`, {
+      const res = await timedFetch("admin/approve_question", `${API_BASE}/admin/approve_question`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -428,7 +475,7 @@ export default function AdminPage() {
     setApproveMsg(null);
     setRejectConfirm(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/reject_question`, {
+      const res = await timedFetch("admin/reject_question", `${API_BASE}/admin/reject_question`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -527,7 +574,7 @@ export default function AdminPage() {
         editPayload.initial_yes_percent = parsedInitialYes;
       }
       
-      const res = await fetch(`${API_BASE}/admin/edit_question`, {
+      const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -563,7 +610,7 @@ export default function AdminPage() {
     setResolveMsg(null);
     try {
       if (answer === "close") {
-        const res = await fetch(`${API_BASE}/admin/close_question`, {
+        const res = await timedFetch("admin/close_question", `${API_BASE}/admin/close_question`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -581,7 +628,7 @@ export default function AdminPage() {
           setResolveMsg({ type: "error", text: body.detail || "Failed to close question." });
         }
       } else if (answer === "cancel") {
-        const res = await fetch(`${API_BASE}/admin/cancel_question`, {
+        const res = await timedFetch("admin/cancel_question", `${API_BASE}/admin/cancel_question`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -602,7 +649,7 @@ export default function AdminPage() {
           setResolveMsg({ type: "error", text: body.detail || "Failed to cancel question." });
         }
       } else {
-        const res = await fetch(`${API_BASE}/resolve_question`, {
+        const res = await timedFetch("resolve_question", `${API_BASE}/resolve_question`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -648,7 +695,7 @@ export default function AdminPage() {
     setCreateSubmitting(true);
     setCreateMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/create_question`, {
+      const res = await timedFetch("admin/create_question", `${API_BASE}/admin/create_question`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -701,7 +748,7 @@ export default function AdminPage() {
     setSmokeMsg(null);
     setSmokeResult(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/run_smoke_test?correct_answer=yes`, {
+      const res = await timedFetch("admin/run_smoke_test", `${API_BASE}/admin/run_smoke_test?correct_answer=yes`, {
         method: "POST",
         headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
         credentials: "include",
@@ -732,7 +779,7 @@ export default function AdminPage() {
   };
 
   const refreshUsers = async () => {
-    const usersRes = await fetch(`${API_BASE}/admin/users`, {
+    const usersRes = await timedFetch("admin/users", `${API_BASE}/admin/users`, {
       credentials: "include",
       headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
     });
@@ -747,7 +794,7 @@ export default function AdminPage() {
     setChangingRole(true);
     setRoleMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/promote_user`, {
+      const res = await timedFetch("admin/promote_user", `${API_BASE}/admin/promote_user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -775,7 +822,7 @@ export default function AdminPage() {
     setDeletingUserId(userId);
     setRoleMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/delete_user`, {
+      const res = await timedFetch("admin/delete_user", `${API_BASE}/admin/delete_user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -840,6 +887,9 @@ export default function AdminPage() {
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
   const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
   const publicLandingUrl = `${publicAppUrl.replace(/\/$/, "")}/?public=1`;
+  const apiTimingRows = Object.values(apiTimings)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 8);
 
   const copyLandingLink = async () => {
     try {
@@ -1077,6 +1127,43 @@ export default function AdminPage() {
           <StatCard label="Resolved Questions" value={finalizedQuestions.length} />
           <StatCard label="Pending Approvals" value={pendingQuestions.length} />
         </div>
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">API Timings</h2>
+          <span className="text-[11px] text-slate-500">Latest admin calls</span>
+        </div>
+        {apiTimingRows.length === 0 ? (
+          <p className="text-xs text-slate-500">No timing samples yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--stroke)] text-left text-slate-500">
+                  <th className="pb-2 pr-4 font-medium">Endpoint</th>
+                  <th className="pb-2 pr-4 font-medium">Latency</th>
+                  <th className="pb-2 pr-4 font-medium">Source</th>
+                  <th className="pb-2 pr-4 font-medium">Status</th>
+                  <th className="pb-2 font-medium">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apiTimingRows.map((row) => (
+                  <tr key={row.endpoint} className="border-b border-[var(--stroke)]/60 text-slate-300">
+                    <td className="py-2 pr-4 text-slate-200">{row.endpoint}</td>
+                    <td className="py-2 pr-4">
+                      <span className={row.ms >= 500 ? "text-amber-300" : "text-emerald-300"}>{row.ms.toFixed(2)} ms</span>
+                    </td>
+                    <td className="py-2 pr-4 text-slate-400">{row.source}</td>
+                    <td className="py-2 pr-4 text-slate-400">{row.status ?? "-"}</td>
+                    <td className="py-2 text-slate-500">{new Date(row.updatedAt).toLocaleTimeString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* Pending Approvals */}
@@ -1485,7 +1572,7 @@ export default function AdminPage() {
                       setResolving("delete");
                       setResolveMsg(null);
                       try {
-                        const res = await fetch(`${API_BASE}/admin/delete_question`, {
+                        const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
                           method: "POST",
                           headers: {
                             "Content-Type": "application/json",
@@ -1721,7 +1808,7 @@ export default function AdminPage() {
                             setEditQuestionSubmitting(true);
                             setEditQuestionMsg(null);
                             try {
-                              const res = await fetch(`${API_BASE}/admin/edit_question`, {
+                              const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
                                 method: "POST",
                                 headers: {
                                   "Content-Type": "application/json",
