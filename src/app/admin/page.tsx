@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { me, type FeedQuestion, type LogoAsset } from "../../lib/api";
+import { ApiError, clearStoredAuthSession, me, type FeedQuestion, type LogoAsset } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -123,8 +123,9 @@ function LogoLibraryPicker({
   const [uploadLogoUrl, setUploadLogoUrl] = useState("");
   const [uploadError, setUploadError] = useState("");
 
-  const visibleActiveAssets = activeAssets.filter((asset) => !category || asset.category === category || asset.category === "General");
-  const visiblePendingAssets = pendingAssets.filter((asset) => !category || asset.category === category || asset.category === "General");
+  // Always include selected assets even if they don't match the current category filter, so they're never silently hidden
+  const visibleActiveAssets = activeAssets.filter((asset) => !category || asset.category === category || asset.category === "General" || selectedLogoKeys.includes(asset.logo_key));
+  const visiblePendingAssets = pendingAssets.filter((asset) => !category || asset.category === category || asset.category === "General" || selectedPendingLogoIds.includes(asset.id));
 
   const toggleLogoKey = (logoKey: string) => {
     onSelectedLogoKeysChange(
@@ -239,6 +240,13 @@ function LogoLibraryPicker({
           placeholder="Logo URL optional (http/https)"
           className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
         />
+        <p className="text-[11px] text-slate-500">
+          URL must point directly to an image file (PNG, JPG, WebP, SVG). e.g.{" "}
+          <span className="text-slate-400">https://example.com/logo.png</span>
+        </p>
+        <p className="text-[11px] text-slate-500">
+          Use the same logo key to update an existing logo. Admin uploads replace that key immediately; creator uploads with the same key require admin approval.
+        </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="file"
@@ -497,6 +505,7 @@ export default function AdminPage() {
   ) => {
     const setUploading = scope === "create" ? setCreateLogoUploading : scope === "pending" ? setPendingLogoUploading : setEditLogoUploading;
     setUploading(true);
+    setLogoLibraryMsg(null);
     try {
       const form = new FormData();
       form.set("display_name", payload.displayName);
@@ -524,6 +533,7 @@ export default function AdminPage() {
       }
 
       const asset = body.logo_asset as LogoAsset;
+      const updatedExisting = Boolean(body.updated_existing);
       if (asset.status === "active") {
         setActiveLogoAssets((prev) => {
           const next = [...prev.filter((item) => item.id !== asset.id), asset];
@@ -541,7 +551,12 @@ export default function AdminPage() {
         if (scope === "pending") setPendingEditSelectedPendingLogoIds((prev) => Array.from(new Set([...prev, asset.id])));
         if (scope === "edit") setEditSelectedPendingLogoIds((prev) => Array.from(new Set([...prev, asset.id])));
       }
-      setLogoLibraryMsg({ type: "success", text: asset.status === "active" ? "Logo uploaded to the approved library." : "Logo uploaded and attached as pending approval." });
+      setLogoLibraryMsg({
+        type: "success",
+        text: asset.status === "active"
+          ? (updatedExisting ? "Logo key updated in the approved library." : "Logo uploaded to the approved library.")
+          : "Logo uploaded and attached as pending approval.",
+      });
     } finally {
       setUploading(false);
     }
@@ -549,21 +564,26 @@ export default function AdminPage() {
 
   const moderateLogoAsset = async (action: "approve" | "reject" | "deactivate", logoId: string) => {
     setLogoLibraryMsg(null);
-    const res = await timedFetch(`admin/logo_assets/${action}`, `${API_BASE}/admin/logo_assets/${action}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-      },
-      credentials: "include",
-      body: JSON.stringify({ logo_id: logoId }),
-    });
-    const body = await res.json();
-    if (!body.success) {
-      throw new Error(body.detail || `Failed to ${action} logo.`);
+    try {
+      const res = await timedFetch(`admin/logo_assets/${action}`, `${API_BASE}/admin/logo_assets/${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ logo_id: logoId }),
+      });
+      const body = await res.json();
+      if (!body.success) {
+        setLogoLibraryMsg({ type: "error", text: body.detail || `Failed to ${action} logo.` });
+        return;
+      }
+      await Promise.all([refreshLogoAssets(), refreshQuestions(), refreshPendingQuestions()]);
+      setLogoLibraryMsg({ type: "success", text: `Logo ${action === "deactivate" ? "deactivated" : action + "d"} successfully.` });
+    } catch {
+      setLogoLibraryMsg({ type: "error", text: `Network error — could not ${action} logo.` });
     }
-    await Promise.all([refreshLogoAssets(), refreshQuestions(), refreshPendingQuestions()]);
-    setLogoLibraryMsg({ type: "success", text: `Logo ${action}d successfully.` });
   };
 
   const runLegacyLogoBackfill = async () => {
@@ -667,7 +687,12 @@ export default function AdminPage() {
           });
         }
         await refreshLogoAssets("admin", token);
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          clearStoredAuthSession("Your session expired. Please login again.");
+          window.location.href = "/";
+          return;
+        }
         setState("forbidden");
         setError("Session check failed. Please login again.");
       }
@@ -1664,6 +1689,80 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+      </section>
+
+      {/* ─── Logo Library Management ─────────────────────── */}
+      <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-white">Logo Library</h2>
+            <p className="text-sm text-slate-400">Manage active logos. Deactivate removes a logo from all question cards immediately.</p>
+          </div>
+          <button onClick={() => refreshLogoAssets()} className="text-xs text-slate-500 hover:text-slate-300">↻ Refresh</button>
+        </div>
+        {logoLibraryMsg && (
+          <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${logoLibraryMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+            {logoLibraryMsg.text}
+          </div>
+        )}
+        {activeLogoAssets.length === 0 ? (
+          <p className="text-sm text-slate-400">No active logos in the library.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--stroke)] text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-4">Logo</th>
+                  <th className="pb-2 pr-4">Key</th>
+                  <th className="pb-2 pr-4">Category</th>
+                  <th className="pb-2">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--stroke)]">
+                {activeLogoAssets.map((asset) => (
+                  <tr key={asset.id} className="text-slate-300">
+                    <td className="py-2 pr-4">
+                      <div className="flex items-center gap-2">
+                        <img src={asset.image_url} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                        <span className="text-white">{asset.display_name}</span>
+                      </div>
+                    </td>
+                    <td className="py-2 pr-4 font-mono text-xs text-slate-400">{asset.logo_key}</td>
+                    <td className="py-2 pr-4 text-slate-400">{asset.category}</td>
+                    <td className="py-2">
+                      <button
+                        onClick={() => moderateLogoAsset("deactivate", asset.id)}
+                        className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                      >
+                        Deactivate
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {pendingLogoAssets.length > 0 && (
+          <div className="mt-5 border-t border-[var(--stroke)] pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approval ({pendingLogoAssets.length})</p>
+            <div className="space-y-2">
+              {pendingLogoAssets.map((asset) => (
+                <div key={asset.id} className="flex items-center gap-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-2">
+                  <img src={asset.image_url} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white">{asset.display_name}</p>
+                    <p className="text-[11px] text-slate-400">{asset.logo_key} · {asset.category}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => moderateLogoAsset("approve", asset.id)} className="rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10">Approve</button>
+                    <button onClick={() => moderateLogoAsset("reject", asset.id)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ─── Question Management ──────────────────────────── */}

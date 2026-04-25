@@ -169,6 +169,44 @@ export type PlacePredictionResult = {
   closure_reason?: string;
 };
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function clearStoredAuthSession(noticeMessage?: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+  } catch {
+    // Ignore storage failures.
+  }
+
+  if (noticeMessage) {
+    try {
+      sessionStorage.setItem(
+        "auth_notice",
+        JSON.stringify({ tone: "warning", message: noticeMessage }),
+      );
+    } catch {
+      // Ignore notice storage failures.
+    }
+  }
+
+  try {
+    window.dispatchEvent(new Event("auth-changed"));
+  } catch {
+    // Ignore dispatch failures.
+  }
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `API request failed with status ${res.status}`;
@@ -182,7 +220,7 @@ async function parseJson<T>(res: Response): Promise<T> {
     } catch {
       // ignore JSON parse failures and keep status-based message
     }
-    throw new Error(message);
+    throw new ApiError(res.status, message);
   }
   return (await res.json()) as T;
 }
@@ -261,7 +299,7 @@ export async function fetchActiveLogoAssets(): Promise<LogoAsset[]> {
 
   try {
     const res = await fetch(`${API_BASE_URL}/logos/active`, {
-      cache: "force-cache",
+      cache: "no-store",
       credentials: "include",
     });
     const body = await parseJson<{ results: LogoAsset[] }>(res);

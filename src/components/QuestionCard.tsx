@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchActiveLogoAssets, type FeedQuestion } from "../lib/api";
 import { buildLogoLibraryLookup, getQuestionLogos, getQuestionSideLabels, type LogoLibraryLookup } from "../lib/marketPreview";
 
@@ -27,31 +27,53 @@ function buildLogoFallbackUrl(url: string): string | null {
 
 let cachedLogoLibraryLookup: LogoLibraryLookup | null = null;
 let cachedLogoLibraryPromise: Promise<LogoLibraryLookup> | null = null;
+let cachedLogoLibraryAtMs = 0;
+const LOGO_LIBRARY_CACHE_TTL_MS = 60_000;
 
-function loadLogoLibraryLookup(): Promise<LogoLibraryLookup> {
-  if (cachedLogoLibraryLookup) {
+function loadLogoLibraryLookup(forceRefresh: boolean = false): Promise<LogoLibraryLookup> {
+  const isFresh = cachedLogoLibraryAtMs > 0 && Date.now() - cachedLogoLibraryAtMs < LOGO_LIBRARY_CACHE_TTL_MS;
+  if (!forceRefresh && cachedLogoLibraryLookup && isFresh) {
     return Promise.resolve(cachedLogoLibraryLookup);
   }
-  if (!cachedLogoLibraryPromise) {
+  if (!cachedLogoLibraryPromise || forceRefresh) {
     cachedLogoLibraryPromise = fetchActiveLogoAssets()
       .then((assets) => {
         cachedLogoLibraryLookup = buildLogoLibraryLookup(assets);
+        cachedLogoLibraryAtMs = Date.now();
         return cachedLogoLibraryLookup;
       })
       .catch(() => {
-        cachedLogoLibraryLookup = {};
+        cachedLogoLibraryLookup = cachedLogoLibraryLookup || {};
+        if (!cachedLogoLibraryAtMs) {
+          cachedLogoLibraryAtMs = Date.now();
+        }
         return cachedLogoLibraryLookup;
+      })
+      .finally(() => {
+        cachedLogoLibraryPromise = null;
       });
   }
   return cachedLogoLibraryPromise;
 }
 
 export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
-  const [logoLibraryLookup, setLogoLibraryLookup] = useState<LogoLibraryLookup | null>(cachedLogoLibraryLookup);
+  const [logoLibraryLookup, setLogoLibraryLookup] = useState<LogoLibraryLookup | null>(() => {
+    // Only reuse the module-level cache if it's genuinely fresh to avoid "logo flash then disappear" on stale cache.
+    const isFresh = cachedLogoLibraryAtMs > 0 && Date.now() - cachedLogoLibraryAtMs < LOGO_LIBRARY_CACHE_TTL_MS;
+    return isFresh ? cachedLogoLibraryLookup : null;
+  });
+  const questionLogoKeys = useMemo(
+    () => (Array.isArray(question.logo_keys) ? question.logo_keys.map((item) => String(item || "").trim()).filter(Boolean) : []),
+    [question.logo_keys],
+  );
+  const hasMissingLogoKey = useMemo(
+    () => Boolean(questionLogoKeys.length && logoLibraryLookup && questionLogoKeys.some((logoKey) => !logoLibraryLookup[logoKey])),
+    [questionLogoKeys, logoLibraryLookup],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    loadLogoLibraryLookup().then((lookup) => {
+    loadLogoLibraryLookup(hasMissingLogoKey).then((lookup) => {
       if (!cancelled) {
         setLogoLibraryLookup(lookup);
       }
@@ -59,7 +81,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasMissingLogoKey]);
 
   const isOpen = question.status === "open";
   const isResolved = question.status === "resolved";

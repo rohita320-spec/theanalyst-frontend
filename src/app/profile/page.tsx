@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader";
-import { fetchMeProfileSummary, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
+import { clearStoredAuthSession, fetchMeProfileSummary, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value || 0);
@@ -92,7 +92,7 @@ export default function ProfilePage() {
           setLoading(false);
           return;
         } catch {
-          sessionStorage.setItem("auth_notice", JSON.stringify({ tone: "warning", message: "Your session expired. Please login again." }));
+          clearStoredAuthSession("Your session expired. Please login again.");
           window.location.href = "/";
           return;
         }

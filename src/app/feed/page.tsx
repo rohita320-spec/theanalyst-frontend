@@ -8,6 +8,8 @@ import AppHeader from "../../components/AppHeader";
 import QuestionCard from "../../components/QuestionCard";
 import TrendModal from "../../components/TrendModal";
 import {
+  ApiError,
+  clearStoredAuthSession,
   fetchFeedQuestions,
   fetchMeProfileSummary,
   placePrediction,
@@ -55,8 +57,13 @@ export default function FeedPage() {
   const [timeframe, setTimeframe] = useState<"hourly" | "daily" | "all">("all");
   const [placing, setPlacing] = useState("");
 
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [authToken, setAuthToken] = useState("");
+  // Read auth state synchronously to avoid double loadData (once empty, once after useEffect sets it)
+  const [authToken, setAuthToken] = useState<string>(() => {
+    try { return localStorage.getItem("auth_token") || ""; } catch { return ""; }
+  });
+  const [loggedIn, setLoggedIn] = useState<boolean>(() => {
+    try { return Boolean(localStorage.getItem("auth_token")); } catch { return false; }
+  });
   const [notification, setNotification] = useState<Notification | null>(null);
   const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -66,16 +73,30 @@ export default function FeedPage() {
   const [modalError, setModalError] = useState("");
   const [modalSubmitting, setModalSubmitting] = useState(false);
 
-  // Read auth state from localStorage
   useEffect(() => {
-    try {
-      const token = localStorage.getItem("auth_token");
-      setAuthToken(token || "");
-      setLoggedIn(!!token);
-    } catch {
-      setAuthToken("");
-      setLoggedIn(false);
-    }
+    const syncAuthFromStorage = () => {
+      try {
+        const token = localStorage.getItem("auth_token") || "";
+        setAuthToken(token);
+        setLoggedIn(Boolean(token));
+      } catch {
+        setAuthToken("");
+        setLoggedIn(false);
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "auth_token" || event.key === "auth_user") {
+        syncAuthFromStorage();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth-changed", syncAuthFromStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth-changed", syncAuthFromStorage);
+    };
   }, []);
 
   function showNotification(type: Notification["type"], text: string) {
@@ -95,6 +116,15 @@ export default function FeedPage() {
       setProfile(profileData.value?.profile ?? null);
     } else {
       setProfile(null);
+      if (
+        token
+        && profileData.reason instanceof ApiError
+        && profileData.reason.status === 401
+      ) {
+        clearStoredAuthSession("Your session expired. Please login again.");
+        setAuthToken("");
+        setLoggedIn(false);
+      }
     }
     setLoading(false);
   };
@@ -188,6 +218,11 @@ export default function FeedPage() {
       await loadData(selectedCategory, authToken || undefined);
       if (selectedQuestion) await onOpenChart(question, timeframe);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        clearStoredAuthSession("Your session expired. Please login again.");
+        setAuthToken("");
+        setLoggedIn(false);
+      }
       setModalError(err instanceof Error ? err.message : "Submission failed. Check backend.");
     } finally {
       setModalSubmitting(false);
