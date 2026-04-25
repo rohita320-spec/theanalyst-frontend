@@ -1,4 +1,4 @@
-import type { FeedQuestion } from "./api";
+import type { FeedQuestion, LogoAsset } from "./api";
 
 const HYBRID_PRICE_UNIT = 1000;
 const HYBRID_DIRECTIONAL_SHIFT = 0.2;
@@ -17,154 +17,7 @@ export type QuestionLogo = {
   label?: string;
 };
 
-const logoUrlMap: Record<string, string> = {
-  bitcoin: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
-  btc: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
-  ethereum: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-  eth: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-  solana: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
-  sol: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
-  bnb: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
-  xrp: "https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png",
-  cardano: "https://assets.coingecko.com/coins/images/975/small/cardano.png",
-  ada: "https://assets.coingecko.com/coins/images/975/small/cardano.png",
-  doge: "https://assets.coingecko.com/coins/images/5/small/dogecoin.png",
-  avax: "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png",
-  dot: "https://assets.coingecko.com/coins/images/12171/small/polkadot.png",
-  link: "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png",
-  matic: "https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png",
-  ton: "https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png",
-  shib: "https://assets.coingecko.com/coins/images/11939/small/shiba.png",
-  ltc: "https://assets.coingecko.com/coins/images/2/small/litecoin.png",
-  usdt: "https://assets.coingecko.com/coins/images/325/small/Tether.png",
-  usdc: "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
-  sui: "https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg",
-  apt: "https://assets.coingecko.com/coins/images/26455/small/aptos_round.png",
-  near: "https://assets.coingecko.com/coins/images/10365/small/near_icon.png",
-  atom: "https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png",
-  xlm: "https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png",
-  uni: "https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png",
-  aave: "https://assets.coingecko.com/coins/images/12645/small/AAVE.png",
-  fil: "https://assets.coingecko.com/coins/images/12817/small/filecoin.png",
-  icp: "https://assets.coingecko.com/coins/images/14495/small/Internet_Computer_logo.png",
-  hbar: "https://assets.coingecko.com/coins/images/3688/small/hbar.png",
-  pepe: "https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg",
-  arb: "https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg",
-  op: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png",
-};
-
-// Clearbit domain map for companies (Clearbit works well for these).
-const logoDomainMap: Record<string, string> = {
-  microsoft: "microsoft.com",
-  google: "google.com",
-  alphabet: "abc.xyz",
-  apple: "apple.com",
-  appl: "apple.com",
-  aapl: "apple.com",
-  amazon: "amazon.com",
-  aws: "aws.amazon.com",
-  meta: "meta.com",
-  facebook: "facebook.com",
-  netflix: "netflix.com",
-  tesla: "tesla.com",
-  nvidia: "nvidia.com",
-  nvda: "nvidia.com",
-  amd: "amd.com",
-  intel: "intel.com",
-  qualcomm: "qualcomm.com",
-  broadcom: "broadcom.com",
-  samsung: "samsung.com",
-  openai: "openai.com",
-  anthropic: "anthropic.com",
-  deepmind: "deepmind.com",
-  mistral: "mistral.ai",
-  perplexity: "perplexity.ai",
-  cohere: "cohere.com",
-  groq: "groq.com",
-  xai: "x.ai",
-  jpmorgan: "jpmorganchase.com",
-  "jp morgan": "jpmorganchase.com",
-  "goldman sachs": "goldmansachs.com",
-  blackrock: "blackrock.com",
-  visa: "visa.com",
-  mastercard: "mastercard.com",
-  paypal: "paypal.com",
-  stripe: "stripe.com",
-  coinbase: "coinbase.com",
-  binance: "binance.com",
-  kraken: "kraken.com",
-  robinhood: "robinhood.com",
-  salesforce: "salesforce.com",
-  oracle: "oracle.com",
-  shopify: "shopify.com",
-  adobe: "adobe.com",
-  palantir: "palantir.com",
-  snowflake: "snowflake.com",
-  databricks: "databricks.com",
-  cloudflare: "cloudflare.com",
-  crowdstrike: "crowdstrike.com",
-  ubereats: "uber.com",
-  uber: "uber.com",
-  airbnb: "airbnb.com",
-  spotify: "spotify.com",
-  twitter: "twitter.com",
-  x: "x.com",
-  tiktok: "tiktok.com",
-  discord: "discord.com",
-  slack: "slack.com",
-  zoom: "zoom.us",
-  reddit: "reddit.com",
-  linkedin: "linkedin.com",
-  pfizer: "pfizer.com",
-  moderna: "modernatx.com",
-  spacex: "spacex.com",
-  boeing: "boeing.com",
-  ford: "ford.com",
-  walmart: "walmart.com",
-  disney: "thewaltdisneycompany.com",
-  nba: "nba.com",
-  nfl: "nfl.com",
-  fed: "federalreserve.gov",
-  "federal reserve": "federalreserve.gov",
-  nasdaq: "nasdaq.com",
-  bse: "bseindia.com",
-  "bombay stock exchange": "bseindia.com",
-  sensex: "bseindia.com",
-};
-
-function normalizeLogoUrl(url: string): string {
-  const trimmed = String(url || "").trim();
-  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-    return trimmed;
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.hostname !== "logo.clearbit.com") {
-      return trimmed;
-    }
-
-    const domain = parsed.pathname.replace(/^\/+/, "").toLowerCase();
-    const domainFixes: Record<string, string> = {
-      "appl.com": "apple.com",
-      "aapl.com": "apple.com",
-      "nvda.com": "nvidia.com",
-      "bse.com": "bseindia.com",
-    };
-    const fixedDomain = domainFixes[domain];
-    if (!fixedDomain) {
-      return trimmed;
-    }
-
-    parsed.pathname = `/${fixedDomain}`;
-    if (!parsed.searchParams.has("size")) {
-      parsed.searchParams.set("size", "128");
-    }
-    return parsed.toString();
-  } catch {
-    return trimmed;
-  }
-}
+export type LogoLibraryLookup = Record<string, QuestionLogo>;
 
 export type PredictionPreview = {
   avgEntryPrice: number;
@@ -232,165 +85,40 @@ function readMetadataString(question: FeedQuestion, key: string) {
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
-function cleanLogoEntries(input: Array<string | QuestionLogo>) {
-  const deduped = new Set<string>();
-  const entries: QuestionLogo[] = [];
 
-  for (const raw of input) {
-    const entry = typeof raw === "string" ? { url: raw } : raw;
-    const url = String(entry?.url || "").trim();
-    if (!url) continue;
-    if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
-    if (deduped.has(url)) continue;
-    deduped.add(url);
-    const label = typeof entry.label === "string" && entry.label.trim() ? entry.label.trim() : undefined;
-    entries.push({ url, ...(label ? { label } : {}) });
+export function buildLogoLibraryLookup(assets: LogoAsset[]): LogoLibraryLookup {
+  const lookup: LogoLibraryLookup = {};
+  for (const asset of assets) {
+    const key = String(asset.logo_key || "").trim();
+    const url = String(asset.image_url || "").trim();
+    if (!key || !url) continue;
+    lookup[key] = {
+      url,
+      label: asset.display_name || asset.logo_key,
+    };
   }
-
-  return entries;
+  return lookup;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+export function getQuestionLogos(question: FeedQuestion, logoLibrary?: LogoLibraryLookup): QuestionLogo[] {
+  const questionLogoKeys = Array.isArray(question.logo_keys)
+    ? question.logo_keys.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
 
-function normalizeEntityText(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function containsEntity(text: string, entity: string): boolean {
-  const normalizedText = normalizeEntityText(text);
-  const normalizedEntity = normalizeEntityText(entity);
-  if (!normalizedText || !normalizedEntity) return false;
-
-  const phrasePattern = new RegExp(`(?:^|\\s)${escapeRegExp(normalizedEntity).replace(/ /g, "\\\\s+")}(?:$|\\s)`);
-  return phrasePattern.test(normalizedText);
-}
-
-function resolveLogo(name: string, allowGenericFallback = true): string | null {
-  if (!name) return null;
-  const key = name.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
-  if (!key) return null;
-  const direct = logoUrlMap[key];
-  if (direct) return direct;
-  const mappedDomain = logoDomainMap[key];
-  if (mappedDomain) {
-    return `https://logo.clearbit.com/${mappedDomain}?size=128`;
-  }
-  if (!allowGenericFallback) return null;
-
-  const domain = `${key.split(" ")[0]}.com`;
-  return `https://logo.clearbit.com/${domain}?size=128`;
-}
-
-/**
- * HOW TO ADD LOGOS (Backend/Admin Guide):
- * 
- * Option 1: Entity Names (RECOMMENDED - auto-generates logos)
- * - Add entity_names to metadata: ["Bitcoin", "Ethereum", "Tesla", "Apple"]
- * - Backend will auto-generate logos from CoinGecko or Clearbit
- * - Simplest & most scalable approach
- * 
- * Option 2: Logo URLs (Direct image URLs)
- * - Add logos to metadata: [{ url: "https://...", label: "Bitcoin" }, ...]
- * - Or as strings: ["https://...", "https://..."]
- * - Must be HTTPS URLs
- * - Works with Clearbit URLs or any public image URL
- * 
- * Option 3: Mixed
- * - Combine both entity_names and logos
- * - Backend generates from entity_names first, then adds explicit logos
- */
-
-export function getQuestionLogos(question: FeedQuestion): QuestionLogo[] {
-  // 1. Explicit metadata.logos (backend-set, highest priority)
-  // Handles: URLs, URL strings, or entity name strings
-  const rawLogos = question.metadata?.logos;
-  if (Array.isArray(rawLogos) && rawLogos.length) {
-    const entries: QuestionLogo[] = [];
+  if (questionLogoKeys.length && logoLibrary) {
     const seen = new Set<string>();
+    const resolved = questionLogoKeys
+      .map((logoKey) => logoLibrary[logoKey])
+      .filter((item): item is QuestionLogo => Boolean(item?.url))
+      .filter((item) => {
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+      });
 
-    for (const item of rawLogos) {
-      let url: string | null = null;
-      let label: string | undefined;
-
-      if (typeof item === "string") {
-        // Case: plain string - could be URL or entity name
-        const trimmed = item.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          url = normalizeLogoUrl(trimmed); // It's a URL (normalize legacy aliases)
-        } else {
-          url = resolveLogo(trimmed); // It's an entity name, resolve it
-          label = trimmed;
-        }
-      } else if (typeof item === "object" && item?.url) {
-        // Case: object with url property
-        url = normalizeLogoUrl(String(item.url).trim());
-        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-          // It's not a URL, treat as entity name
-          url = resolveLogo(url);
-          label = url ? item.label : undefined;
-        } else {
-          label = item.label;
-        }
-      }
-
-      if (url && !seen.has(url)) {
-        seen.add(url);
-        entries.push({ url, ...(label ? { label } : {}) });
-      }
-    }
-
-    if (entries.length) return entries;
+    if (resolved.length) return resolved;
   }
-
-  // 2. Explicit entity_names (backend-set, generate logos)
-  // Handles: ["Bitcoin", "Ethereum", "Tesla"] → auto-generates logos
-  const entities = question.metadata?.entity_names;
-  if (Array.isArray(entities) && entities.length) {
-    const entries = entities
-      .map((e) => {
-        const url = resolveLogo(e);
-        return url ? { url, label: e } : null;
-      })
-      .filter((item): item is { url: string; label: string } => !!item);
-    if (entries.length) return entries;
-  }
-
-  // 3. Infer from title + side labels (fallback)
-  const sideLabels = getQuestionSideLabels(question);
-  const candidates = new Set<string>();
-  const searchText = `${question.title} ${sideLabels.yesLabel} ${sideLabels.noLabel}`;
-
-  if (sideLabels.yesLabel !== "YES") {
-    const candidate = normalizeEntityText(sideLabels.yesLabel);
-    if (candidate && (logoDomainMap[candidate] || logoUrlMap[candidate])) {
-      candidates.add(candidate);
-    }
-  }
-  if (sideLabels.noLabel !== "NO") {
-    const candidate = normalizeEntityText(sideLabels.noLabel);
-    if (candidate && (logoDomainMap[candidate] || logoUrlMap[candidate])) {
-      candidates.add(candidate);
-    }
-  }
-
-  Object.keys(logoDomainMap).forEach((key) => {
-    if (containsEntity(searchText, key)) candidates.add(key);
-  });
-  Object.keys(logoUrlMap).forEach((key) => {
-    if (containsEntity(searchText, key)) candidates.add(key);
-  });
-
-  const inferred = Array.from(candidates)
-    .slice(0, 2)
-    .map((name) => {
-      const url = resolveLogo(name, false);
-      return url ? { url, label: name } : null;
-    })
-    .filter((item): item is { url: string; label: string } => !!item);
-
-  return inferred;
+  return [];
 }
 
 export function getQuestionSideLabels(question: FeedQuestion): QuestionSideLabels {

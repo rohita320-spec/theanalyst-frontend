@@ -1,7 +1,8 @@
 "use client";
 
-import type { FeedQuestion } from "../lib/api";
-import { getQuestionLogos, getQuestionSideLabels } from "../lib/marketPreview";
+import { useEffect, useState } from "react";
+import { fetchActiveLogoAssets, type FeedQuestion } from "../lib/api";
+import { buildLogoLibraryLookup, getQuestionLogos, getQuestionSideLabels, type LogoLibraryLookup } from "../lib/marketPreview";
 
 type Props = {
   question: FeedQuestion;
@@ -20,25 +21,46 @@ function formatPct(value: number) {
 }
 
 function buildLogoFallbackUrl(url: string): string | null {
-  const raw = String(url || "").trim();
-  if (!raw) return null;
-
-  try {
-    const parsed = new URL(raw);
-    // If Clearbit fails, fallback to Google's favicon service for same domain.
-    if (parsed.hostname === "logo.clearbit.com") {
-      const domain = parsed.pathname.replace(/^\/+/, "").trim();
-      if (!domain) return null;
-      return `https://www.google.com/s2/favicons?sz=128&domain_url=${encodeURIComponent(`https://${domain}`)}`;
-    }
-  } catch {
-    return null;
-  }
-
+  void url;
   return null;
 }
 
+let cachedLogoLibraryLookup: LogoLibraryLookup | null = null;
+let cachedLogoLibraryPromise: Promise<LogoLibraryLookup> | null = null;
+
+function loadLogoLibraryLookup(): Promise<LogoLibraryLookup> {
+  if (cachedLogoLibraryLookup) {
+    return Promise.resolve(cachedLogoLibraryLookup);
+  }
+  if (!cachedLogoLibraryPromise) {
+    cachedLogoLibraryPromise = fetchActiveLogoAssets()
+      .then((assets) => {
+        cachedLogoLibraryLookup = buildLogoLibraryLookup(assets);
+        return cachedLogoLibraryLookup;
+      })
+      .catch(() => {
+        cachedLogoLibraryLookup = {};
+        return cachedLogoLibraryLookup;
+      });
+  }
+  return cachedLogoLibraryPromise;
+}
+
 export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
+  const [logoLibraryLookup, setLogoLibraryLookup] = useState<LogoLibraryLookup | null>(cachedLogoLibraryLookup);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadLogoLibraryLookup().then((lookup) => {
+      if (!cancelled) {
+        setLogoLibraryLookup(lookup);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const isOpen = question.status === "open";
   const isResolved = question.status === "resolved";
   const canAnalyze = isOpen;
@@ -53,7 +75,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const widthTotal = safeYes + safeNo;
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
   const sideLabels = getQuestionSideLabels(question);
-  const logos = getQuestionLogos(question).slice(0, 2);
+  const logos = getQuestionLogos(question, logoLibraryLookup || undefined).slice(0, 2);
   const totalPool = Number(question.yes_pool || 0) + Number(question.no_pool || 0);
 
   function statusBadge() {

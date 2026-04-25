@@ -22,7 +22,24 @@ export type FeedQuestion = {
   closes_label?: string;
   resolution_rules?: string | null;
   created_by_email?: string;
+  logo_keys?: string[];
+  pending_logo_ids?: string[];
   metadata?: Record<string, unknown> | null;
+};
+
+export type LogoAsset = {
+  _id: string;
+  id: string;
+  logo_key: string;
+  display_name: string;
+  category: string;
+  image_url: string;
+  uploaded_by_user_id?: string | null;
+  approved_by_admin_id?: string | null;
+  linked_question_id?: string | null;
+  status: "pending_approval" | "active" | "rejected" | "inactive";
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type LeaderboardRow = {
@@ -230,6 +247,23 @@ export async function fetchFeedQuestions(category?: string, status: string = "op
       return MOCK_QUESTIONS;
     }
     return MOCK_QUESTIONS.filter((q) => q.category === category);
+  }
+}
+
+export async function fetchActiveLogoAssets(): Promise<LogoAsset[]> {
+  if (USE_MOCK_DATA) {
+    return [];
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/logos/active`, {
+      cache: "force-cache",
+      credentials: "include",
+    });
+    const body = await parseJson<{ results: LogoAsset[] }>(res);
+    return body.results || [];
+  } catch {
+    return [];
   }
 }
 

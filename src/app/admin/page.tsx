@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { me, type FeedQuestion } from "../../lib/api";
+import { me, type FeedQuestion, type LogoAsset } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -20,6 +20,7 @@ type AuthUserRow = {
 type Summary = {
   bubble_users_count: number;
   bubble_questions_count: number;
+  logo_assets_count?: number;
   auth_users_count: number;
   bubble_env: string;
   bubble_app_name: string;
@@ -70,6 +71,8 @@ type PendingQuestion = {
   created_by_email?: string;
   created_at?: string;
   resolution_rules?: string | null;
+  logo_keys?: string[];
+  pending_logo_ids?: string[];
   metadata?: Record<string, unknown> | null;
 };
 
@@ -82,8 +85,172 @@ type MyQuestion = {
   status: string;
   created_at?: string;
   resolution_rules?: string | null;
+  logo_keys?: string[];
+  pending_logo_ids?: string[];
   metadata?: Record<string, unknown> | null;
 };
+
+type LogoLibraryPickerProps = {
+  title: string;
+  category: string;
+  activeAssets: LogoAsset[];
+  pendingAssets: LogoAsset[];
+  selectedLogoKeys: string[];
+  selectedPendingLogoIds: string[];
+  onSelectedLogoKeysChange: (next: string[]) => void;
+  onSelectedPendingLogoIdsChange: (next: string[]) => void;
+  onUploadLogo: (payload: { displayName: string; category: string; file: File; logoKey?: string }) => Promise<void>;
+  uploading: boolean;
+  role: "admin" | "question_creator";
+};
+
+function LogoLibraryPicker({
+  title,
+  category,
+  activeAssets,
+  pendingAssets,
+  selectedLogoKeys,
+  selectedPendingLogoIds,
+  onSelectedLogoKeysChange,
+  onSelectedPendingLogoIdsChange,
+  onUploadLogo,
+  uploading,
+  role,
+}: LogoLibraryPickerProps) {
+  const [uploadDisplayName, setUploadDisplayName] = useState("");
+  const [uploadLogoKey, setUploadLogoKey] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState("");
+
+  const visibleActiveAssets = activeAssets.filter((asset) => !category || asset.category === category || asset.category === "General");
+  const visiblePendingAssets = pendingAssets.filter((asset) => !category || asset.category === category || asset.category === "General");
+
+  const toggleLogoKey = (logoKey: string) => {
+    onSelectedLogoKeysChange(
+      selectedLogoKeys.includes(logoKey)
+        ? selectedLogoKeys.filter((item) => item !== logoKey)
+        : [...selectedLogoKeys, logoKey],
+    );
+  };
+
+  const togglePendingLogoId = (logoId: string) => {
+    onSelectedPendingLogoIdsChange(
+      selectedPendingLogoIds.includes(logoId)
+        ? selectedPendingLogoIds.filter((item) => item !== logoId)
+        : [...selectedPendingLogoIds, logoId],
+    );
+  };
+
+  const handleUpload = async () => {
+    if (!uploadDisplayName.trim()) {
+      setUploadError("Display name is required.");
+      return;
+    }
+    if (!uploadFile) {
+      setUploadError("Choose a logo file.");
+      return;
+    }
+    setUploadError("");
+    try {
+      await onUploadLogo({
+        displayName: uploadDisplayName.trim(),
+        category,
+        file: uploadFile,
+        ...(uploadLogoKey.trim() ? { logoKey: uploadLogoKey.trim() } : {}),
+      });
+      setUploadDisplayName("");
+      setUploadLogoKey("");
+      setUploadFile(null);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{title}</p>
+      <div className="mt-3 space-y-3">
+        <div>
+          <p className="mb-2 text-[11px] text-slate-500">Approved logos</p>
+          <div className="flex flex-wrap gap-2">
+            {visibleActiveAssets.length === 0 ? (
+              <p className="text-xs text-slate-500">No approved logos for this category yet.</p>
+            ) : (
+              visibleActiveAssets.map((asset) => {
+                const active = selectedLogoKeys.includes(asset.logo_key);
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => toggleLogoKey(asset.logo_key)}
+                    className={`rounded-full border px-3 py-1 text-xs ${active ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
+                  >
+                    {asset.display_name}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] text-slate-500">Pending uploads</p>
+          <div className="flex flex-wrap gap-2">
+            {visiblePendingAssets.length === 0 ? (
+              <p className="text-xs text-slate-500">No pending logos attached yet.</p>
+            ) : (
+              visiblePendingAssets.map((asset) => {
+                const active = selectedPendingLogoIds.includes(asset.id);
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => togglePendingLogoId(asset.id)}
+                    className={`rounded-full border px-3 py-1 text-xs ${active ? "border-amber-400 bg-amber-500/15 text-amber-300" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
+                  >
+                    {asset.display_name}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            value={uploadDisplayName}
+            onChange={(e) => setUploadDisplayName(e.target.value)}
+            placeholder="Upload display name"
+            className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+          />
+          <input
+            value={uploadLogoKey}
+            onChange={(e) => setUploadLogoKey(e.target.value)}
+            placeholder="Optional logo key override"
+            className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+          />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+            className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--brand)] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-950"
+          />
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={uploading}
+            className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : role === "admin" ? "Upload approved logo" : "Upload for approval"}
+          </button>
+        </div>
+        {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+      </div>
+    </div>
+  );
+}
 
 type ApiTimingRow = {
   endpoint: string;
@@ -150,6 +317,8 @@ export default function AdminPage() {
   const [authUsers, setAuthUsers] = useState<AuthUserRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
+  const [activeLogoAssets, setActiveLogoAssets] = useState<LogoAsset[]>([]);
+  const [pendingLogoAssets, setPendingLogoAssets] = useState<LogoAsset[]>([]);
   const [error, setError] = useState("");
   const [smokeLoading, setSmokeLoading] = useState(false);
   const [smokeResult, setSmokeResult] = useState<SmokeTestResult | null>(null);
@@ -174,9 +343,10 @@ export default function AdminPage() {
   const [createInitialProbability, setCreateInitialProbability] = useState("50");
   const [createClosingTime, setCreateClosingTime] = useState("");
   const [createResolutionRules, setCreateResolutionRules] = useState("");
-  const [createEntityNames, setCreateEntityNames] = useState("");
-  const [createLogoUrls, setCreateLogoUrls] = useState("");
+  const [createSelectedLogoKeys, setCreateSelectedLogoKeys] = useState<string[]>([]);
+  const [createSelectedPendingLogoIds, setCreateSelectedPendingLogoIds] = useState<string[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createLogoUploading, setCreateLogoUploading] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Full edit for open questions
@@ -189,9 +359,10 @@ export default function AdminPage() {
   const [editQuestionInitialYes, setEditQuestionInitialYes] = useState("");
   const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
   const [editQuestionMetadataSeed, setEditQuestionMetadataSeed] = useState("");
-  const [editQuestionEntityNames, setEditQuestionEntityNames] = useState("");
-  const [editQuestionLogos, setEditQuestionLogos] = useState("");
+  const [editSelectedLogoKeys, setEditSelectedLogoKeys] = useState<string[]>([]);
+  const [editSelectedPendingLogoIds, setEditSelectedPendingLogoIds] = useState<string[]>([]);
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
+  const [editLogoUploading, setEditLogoUploading] = useState(false);
   const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Role change state
@@ -214,9 +385,10 @@ export default function AdminPage() {
   const [pendingEditEntryCost, setPendingEditEntryCost] = useState("");
   const [pendingEditClosingTime, setPendingEditClosingTime] = useState("");
   const [pendingEditRules, setPendingEditRules] = useState("");
-  const [pendingEditEntityNames, setPendingEditEntityNames] = useState("");
-  const [pendingEditLogos, setPendingEditLogos] = useState("");
+  const [pendingEditSelectedLogoKeys, setPendingEditSelectedLogoKeys] = useState<string[]>([]);
+  const [pendingEditSelectedPendingLogoIds, setPendingEditSelectedPendingLogoIds] = useState<string[]>([]);
   const [pendingEditSubmitting, setPendingEditSubmitting] = useState(false);
+  const [pendingLogoUploading, setPendingLogoUploading] = useState(false);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [approveMsg, setApproveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -224,6 +396,8 @@ export default function AdminPage() {
   const [myQuestionsLoading, setMyQuestionsLoading] = useState(false);
   const [authNotice, setAuthNotice] = useState<{ tone: "success" | "warning"; message: string } | null>(null);
   const [copyMsg, setCopyMsg] = useState("");
+  const [logoLibraryLoading, setLogoLibraryLoading] = useState(false);
+  const [logoLibraryMsg, setLogoLibraryMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
   const recordApiTiming = (
@@ -262,6 +436,116 @@ export default function AdminPage() {
     }
 
     return res;
+  };
+
+  const applyLogoAssetState = (assets: LogoAsset[]) => {
+    setActiveLogoAssets(assets.filter((asset) => asset.status === "active"));
+    setPendingLogoAssets(assets.filter((asset) => asset.status === "pending_approval"));
+  };
+
+  const refreshLogoAssets = async (
+    roleOverride: "admin" | "question_creator" = userRole,
+    tokenOverride: string = adminToken,
+  ) => {
+    setLogoLibraryLoading(true);
+    try {
+      if (roleOverride === "admin") {
+        const res = await timedFetch("admin/logo_assets", `${API_BASE}/admin/logo_assets?status=all`, {
+          credentials: "include",
+          headers: tokenOverride ? { Authorization: `Bearer ${tokenOverride}` } : undefined,
+        });
+        if (res.ok) {
+          const body = await res.json();
+          applyLogoAssetState(body.results || []);
+        }
+        return;
+      }
+
+      const [activeRes, creatorRes] = await Promise.all([
+        timedFetch("logos/active", `${API_BASE}/logos/active`, {
+          credentials: "include",
+          headers: tokenOverride ? { Authorization: `Bearer ${tokenOverride}` } : undefined,
+        }),
+        timedFetch("creator/logo_assets", `${API_BASE}/creator/logo_assets?status=all`, {
+          credentials: "include",
+          headers: tokenOverride ? { Authorization: `Bearer ${tokenOverride}` } : undefined,
+        }),
+      ]);
+
+      const activeBody = activeRes.ok ? await activeRes.json() : { results: [] };
+      const creatorBody = creatorRes.ok ? await creatorRes.json() : { results: [] };
+      const creatorAssets: LogoAsset[] = creatorBody.results || [];
+      applyLogoAssetState([...(activeBody.results || []), ...creatorAssets.filter((asset: LogoAsset) => asset.status !== "active")]);
+    } finally {
+      setLogoLibraryLoading(false);
+    }
+  };
+
+  const uploadLogoAsset = async (
+    payload: { displayName: string; category: string; file: File; logoKey?: string },
+    scope: "create" | "pending" | "edit",
+  ) => {
+    const setUploading = scope === "create" ? setCreateLogoUploading : scope === "pending" ? setPendingLogoUploading : setEditLogoUploading;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.set("display_name", payload.displayName);
+      form.set("category", payload.category);
+      form.set("logo_file", payload.file);
+      if (payload.logoKey) form.set("logo_key", payload.logoKey);
+
+      const res = await timedFetch("admin/logo_assets/upload", `${API_BASE}/admin/logo_assets/upload`, {
+        method: "POST",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+        credentials: "include",
+        body: form,
+      });
+      const body = await res.json();
+      if (!body.success || !body.logo_asset) {
+        throw new Error(body.detail || "Logo upload failed.");
+      }
+
+      const asset = body.logo_asset as LogoAsset;
+      if (asset.status === "active") {
+        setActiveLogoAssets((prev) => {
+          const next = [...prev.filter((item) => item.id !== asset.id), asset];
+          return next.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        });
+        if (scope === "create") setCreateSelectedLogoKeys((prev) => Array.from(new Set([...prev, asset.logo_key])));
+        if (scope === "pending") setPendingEditSelectedLogoKeys((prev) => Array.from(new Set([...prev, asset.logo_key])));
+        if (scope === "edit") setEditSelectedLogoKeys((prev) => Array.from(new Set([...prev, asset.logo_key])));
+      } else {
+        setPendingLogoAssets((prev) => {
+          const next = [...prev.filter((item) => item.id !== asset.id), asset];
+          return next.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        });
+        if (scope === "create") setCreateSelectedPendingLogoIds((prev) => Array.from(new Set([...prev, asset.id])));
+        if (scope === "pending") setPendingEditSelectedPendingLogoIds((prev) => Array.from(new Set([...prev, asset.id])));
+        if (scope === "edit") setEditSelectedPendingLogoIds((prev) => Array.from(new Set([...prev, asset.id])));
+      }
+      setLogoLibraryMsg({ type: "success", text: asset.status === "active" ? "Logo uploaded to the approved library." : "Logo uploaded and attached as pending approval." });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const moderateLogoAsset = async (action: "approve" | "reject" | "deactivate", logoId: string) => {
+    setLogoLibraryMsg(null);
+    const res = await timedFetch(`admin/logo_assets/${action}`, `${API_BASE}/admin/logo_assets/${action}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+      credentials: "include",
+      body: JSON.stringify({ logo_id: logoId }),
+    });
+    const body = await res.json();
+    if (!body.success) {
+      throw new Error(body.detail || `Failed to ${action} logo.`);
+    }
+    await Promise.all([refreshLogoAssets(), refreshQuestions(), refreshPendingQuestions()]);
+    setLogoLibraryMsg({ type: "success", text: `Logo ${action}d successfully.` });
   };
 
   useEffect(() => {
@@ -312,6 +596,7 @@ export default function AdminPage() {
             const body = await myQRes.json();
             setMyQuestions(body.results || []);
           }
+          await refreshLogoAssets("question_creator", token);
           return;
         }
 
@@ -323,6 +608,10 @@ export default function AdminPage() {
           const body = await bootstrapRes.json();
           setAuthUsers(body.users || []);
           setSummary(body.summary || null);
+          if (body.logo_assets) {
+            setActiveLogoAssets(body.logo_assets.active || []);
+            setPendingLogoAssets(body.logo_assets.pending || []);
+          }
           const pendingRows = body.pending?.results || [];
           setPendingQuestions(pendingRows);
           setAllQuestions(body.questions?.results || []);
@@ -335,6 +624,7 @@ export default function AdminPage() {
             return next;
           });
         }
+        await refreshLogoAssets("admin", token);
       } catch {
         setState("forbidden");
         setError("Session check failed. Please login again.");
@@ -464,27 +754,8 @@ export default function AdminPage() {
     setPendingEditEntryCost(String(q.entry_cost ?? ""));
     setPendingEditClosingTime(formatDateTimeLocal(q.closing_time));
     setPendingEditRules(q.resolution_rules || "");
-    
-    // Extract entity_names
-    const entityNames = Array.isArray(q.metadata?.entity_names)
-      ? q.metadata.entity_names.filter((item): item is string => typeof item === "string")
-      : [];
-    setPendingEditEntityNames(entityNames.join(", "));
-    
-    // Extract logos - always show what's stored, regardless of source
-    const logos = Array.isArray(q.metadata?.logos)
-      ? q.metadata.logos
-          .map((item) => {
-            if (typeof item === "string") return item;
-            if (typeof item === "object" && item !== null && "url" in item) {
-              const rawUrl = (item as { url?: unknown }).url;
-              return typeof rawUrl === "string" ? rawUrl : "";
-            }
-            return "";
-          })
-          .filter((item): item is string => Boolean(item))
-      : [];
-    setPendingEditLogos(logos.join(", "));
+    setPendingEditSelectedLogoKeys(Array.isArray(q.logo_keys) ? q.logo_keys : []);
+    setPendingEditSelectedPendingLogoIds(Array.isArray(q.pending_logo_ids) ? q.pending_logo_ids : []);
     
     setApproveMsg(null);
   };
@@ -514,9 +785,6 @@ export default function AdminPage() {
     setPendingEditSubmitting(true);
     setApproveMsg(null);
     try {
-      const parsedEntityNames = parseCommaList(pendingEditEntityNames);
-      const parsedLogos = parseLogoEntries(pendingEditLogos);
-      
       const editPayload: any = {
         question_id: q._id,
         question_text: pendingEditQuestionText.trim(),
@@ -524,13 +792,10 @@ export default function AdminPage() {
         entry_cost: cost,
         closing_time: new Date(pendingEditClosingTime).toISOString(),
         resolution_rules: pendingEditRules.trim(),
+        logo_keys: pendingEditSelectedLogoKeys,
+        pending_logo_ids: pendingEditSelectedPendingLogoIds,
       };
-      
-      // Always include entity_names and logos to preserve them during edit
-      // Backend will merge them correctly (deduplicate, auto-generate from entity_names, etc.)
-      editPayload.entity_names = parsedEntityNames;
-      editPayload.logos = parsedLogos;
-      
+
       if (parsedInitialYes !== null) {
         editPayload.initial_yes_percent = parsedInitialYes;
       }
@@ -669,8 +934,8 @@ export default function AdminPage() {
           entry_cost: cost,
           closing_time: new Date(createClosingTime).toISOString(),
           initial_probability: probability,
-          entity_names: parseCommaList(createEntityNames),
-          logos: parseLogoEntries(createLogoUrls),
+          logo_keys: createSelectedLogoKeys,
+          pending_logo_ids: createSelectedPendingLogoIds,
           ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
         }),
       });
@@ -682,7 +947,7 @@ export default function AdminPage() {
           ? "Question submitted for review! An admin will approve it shortly."
           : `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%`;
         setCreateMsg({ type: "success", text: successText });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateEntityNames(""); setCreateLogoUrls(""); setCreateStep("form");
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateSelectedLogoKeys([]); setCreateSelectedPendingLogoIds([]); setCreateStep("form");
         setTimeout(() => {
           setCreateModalOpen(false);
           setCreateMsg(null);
@@ -1023,15 +1288,19 @@ export default function AdminPage() {
                       <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
                       <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
                     </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Entity Names <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
-                      <input value={createEntityNames} onChange={(e) => setCreateEntityNames(e.target.value)} placeholder="e.g. Microsoft, OpenAI" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                      <p className="mt-1 text-xs text-slate-500">Comma-separated. Used to auto-generate logos.</p>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Logo URLs <span className="text-slate-500 font-normal text-xs">(optional override)</span></label>
-                      <input value={createLogoUrls} onChange={(e) => setCreateLogoUrls(e.target.value)} placeholder="https://logo.clearbit.com/company.com, https://..." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                    </div>
+                    <LogoLibraryPicker
+                      title="Question logos"
+                      category={createCategory}
+                      activeAssets={activeLogoAssets}
+                      pendingAssets={pendingLogoAssets}
+                      selectedLogoKeys={createSelectedLogoKeys}
+                      selectedPendingLogoIds={createSelectedPendingLogoIds}
+                      onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
+                      onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
+                      onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
+                      uploading={createLogoUploading}
+                      role={userRole}
+                    />
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                       <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
@@ -1056,7 +1325,16 @@ export default function AdminPage() {
                       <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
                       <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
                     </div>
-                    {createEntityNames.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Entities</p><p className="mt-1 text-slate-200">{createEntityNames}</p></div>}
+                    {(createSelectedLogoKeys.length > 0 || createSelectedPendingLogoIds.length > 0) && (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-500">Logos</p>
+                        <p className="mt-1 text-slate-200">
+                          {createSelectedLogoKeys.length > 0 ? `Approved: ${createSelectedLogoKeys.join(", ")}` : ""}
+                          {createSelectedLogoKeys.length > 0 && createSelectedPendingLogoIds.length > 0 ? " · " : ""}
+                          {createSelectedPendingLogoIds.length > 0 ? `Pending uploads: ${createSelectedPendingLogoIds.length}` : ""}
+                        </p>
+                      </div>
+                    )}
                     {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
                   </div>
                   {createMsg && (
@@ -1093,6 +1371,72 @@ export default function AdminPage() {
         <h1 className="text-3xl font-semibold text-white">Admin Dashboard</h1>
         <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
       </div>
+
+        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-white">Logo Library</h2>
+              <p className="text-sm text-slate-400">Approved logos are reusable across questions. Pending uploads can be reviewed, approved, rejected, or deactivated here.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => refreshLogoAssets()} className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                {logoLibraryLoading ? "Refreshing..." : "Refresh Logos"}
+              </button>
+            </div>
+          </div>
+          {logoLibraryMsg && (
+            <div className={`mt-4 rounded-lg border px-4 py-2 text-sm ${logoLibraryMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+              {logoLibraryMsg.text}
+            </div>
+          )}
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Pending Approval</h3>
+                <span className="text-xs text-slate-500">{pendingLogoAssets.length}</span>
+              </div>
+              <div className="space-y-3">
+                {pendingLogoAssets.length === 0 ? (
+                  <p className="text-sm text-slate-500">No pending logo uploads.</p>
+                ) : pendingLogoAssets.map((asset) => (
+                  <div key={asset.id} className="rounded-lg border border-[var(--stroke)] p-3">
+                    <div className="flex items-start gap-3">
+                      <img src={asset.image_url} alt={asset.display_name} className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-white">{asset.display_name}</p>
+                        <p className="text-xs text-slate-500">{asset.logo_key} · {asset.category}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => moderateLogoAsset("approve", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Approval failed." }))} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110">Approve</button>
+                      <button onClick={() => moderateLogoAsset("reject", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Reject failed." }))} className="rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10">Reject</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Approved Library</h3>
+                <span className="text-xs text-slate-500">{activeLogoAssets.length}</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {activeLogoAssets.slice(0, 24).map((asset) => (
+                  <div key={asset.id} className="rounded-lg border border-[var(--stroke)] p-3">
+                    <div className="flex items-start gap-3">
+                      <img src={asset.image_url} alt={asset.display_name} className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">{asset.display_name}</p>
+                        <p className="text-xs text-slate-500">{asset.logo_key}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => moderateLogoAsset("deactivate", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Deactivate failed." }))} className="mt-3 rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Deactivate</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
       {/* Summary cards */}
       <section className="mb-8">
@@ -1246,17 +1590,18 @@ export default function AdminPage() {
                           className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                           placeholder="Resolution rules"
                         />
-                        <input
-                          value={pendingEditEntityNames}
-                          onChange={(e) => setPendingEditEntityNames(e.target.value)}
-                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                          placeholder="Entity names (comma separated)"
-                        />
-                        <input
-                          value={pendingEditLogos}
-                          onChange={(e) => setPendingEditLogos(e.target.value)}
-                          className="w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                          placeholder="Logo URLs (comma separated)"
+                        <LogoLibraryPicker
+                          title="Question logos"
+                          category={pendingEditCategory}
+                          activeAssets={activeLogoAssets}
+                          pendingAssets={pendingLogoAssets}
+                          selectedLogoKeys={pendingEditSelectedLogoKeys}
+                          selectedPendingLogoIds={pendingEditSelectedPendingLogoIds}
+                          onSelectedLogoKeysChange={setPendingEditSelectedLogoKeys}
+                          onSelectedPendingLogoIdsChange={setPendingEditSelectedPendingLogoIds}
+                          onUploadLogo={(payload) => uploadLogoAsset(payload, "pending")}
+                          uploading={pendingLogoUploading}
+                          role={userRole}
                         />
                         <div className="flex gap-2">
                           <button
@@ -1657,23 +2002,8 @@ export default function AdminPage() {
                           const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
                           setEditQuestionMetadata(metadataText);
                           setEditQuestionMetadataSeed(metadataText);
-                          const entityNames = Array.isArray(selectedQuestion.metadata?.entity_names)
-                            ? selectedQuestion.metadata?.entity_names.filter((item): item is string => typeof item === "string")
-                            : [];
-                          const logos = Array.isArray(selectedQuestion.metadata?.logos)
-                            ? selectedQuestion.metadata?.logos
-                                .map((item) => {
-                                  if (typeof item === "string") return item;
-                                  if (typeof item === "object" && item !== null && "url" in item) {
-                                    const rawUrl = (item as { url?: unknown }).url;
-                                    return typeof rawUrl === "string" ? rawUrl : "";
-                                  }
-                                  return "";
-                                })
-                                .filter((item): item is string => Boolean(item))
-                            : [];
-                          setEditQuestionEntityNames(entityNames.join(", "));
-                          setEditQuestionLogos(logos.join(", "));
+                          setEditSelectedLogoKeys(Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : []);
+                          setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
                           setEditQuestionMsg(null);
                         }}
                         className="text-xs text-[var(--brand)] hover:underline"
@@ -1740,19 +2070,18 @@ export default function AdminPage() {
                         className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
                         placeholder="Describe YES and NO conditions..."
                       />
-                      <label className="text-xs font-medium text-slate-300">Entity Names (comma separated)</label>
-                      <input
-                        value={editQuestionEntityNames}
-                        onChange={(e) => setEditQuestionEntityNames(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="e.g. Microsoft, OpenAI"
-                      />
-                      <label className="text-xs font-medium text-slate-300">Logo URLs (comma separated)</label>
-                      <input
-                        value={editQuestionLogos}
-                        onChange={(e) => setEditQuestionLogos(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="https://logo.clearbit.com/company.com"
+                      <LogoLibraryPicker
+                        title="Question logos"
+                        category={editQuestionCategory}
+                        activeAssets={activeLogoAssets}
+                        pendingAssets={pendingLogoAssets}
+                        selectedLogoKeys={editSelectedLogoKeys}
+                        selectedPendingLogoIds={editSelectedPendingLogoIds}
+                        onSelectedLogoKeysChange={setEditSelectedLogoKeys}
+                        onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
+                        onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
+                        uploading={editLogoUploading}
+                        role={userRole}
                       />
                       {editQuestionMsg && (
                         <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
@@ -1818,8 +2147,8 @@ export default function AdminPage() {
                                   closing_time: new Date(editQuestionClosingTime).toISOString(),
                                   resolution_rules: editQuestionRules.trim(),
                                   initial_yes_percent: initialYes,
-                                  entity_names: parseCommaList(editQuestionEntityNames),
-                                  logos: parseLogoEntries(editQuestionLogos),
+                                  logo_keys: editSelectedLogoKeys,
+                                  pending_logo_ids: editSelectedPendingLogoIds,
                                   ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
                                 }),
                               });
