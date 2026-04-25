@@ -424,6 +424,9 @@ export default function AdminPage() {
   const [addLogoSubmitting, setAddLogoSubmitting] = useState(false);
   const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
   const [editingLogoUrl, setEditingLogoUrl] = useState("");
+  const [quickLogoKeys, setQuickLogoKeys] = useState<string[]>([]);
+  const [quickLogoSubmitting, setQuickLogoSubmitting] = useState(false);
+  const [quickLogoMsg, setQuickLogoMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
@@ -592,6 +595,32 @@ export default function AdminPage() {
       setLogoLibraryMsg({ type: "success", text: `Logo ${action === "deactivate" ? "deactivated" : action + "d"} successfully.` });
     } catch {
       setLogoLibraryMsg({ type: "error", text: `Network error — could not ${action} logo.` });
+    }
+  };
+
+  const handleQuickLogoSave = async () => {
+    if (!selectedQuestion) return;
+    setQuickLogoSubmitting(true);
+    setQuickLogoMsg(null);
+    try {
+      const res = await timedFetch("admin/edit_question/logos", `${API_BASE}/admin/edit_question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ question_id: selectedQuestion._id, logo_keys: quickLogoKeys }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.detail || "Failed to save logos.");
+      setSelectedQuestion((prev) => prev ? { ...prev, logo_keys: quickLogoKeys } : prev);
+      await refreshQuestions();
+      setQuickLogoMsg({ type: "success", text: "Logos saved." });
+    } catch (err) {
+      setQuickLogoMsg({ type: "error", text: err instanceof Error ? err.message : "Network error." });
+    } finally {
+      setQuickLogoSubmitting(false);
     }
   };
 
@@ -994,6 +1023,8 @@ export default function AdminPage() {
   useEffect(() => {
     setEditQuestionMode(false);
     setEditQuestionMsg(null);
+    setQuickLogoKeys(Array.isArray(selectedQuestion?.logo_keys) ? selectedQuestion.logo_keys : []);
+    setQuickLogoMsg(null);
   }, [selectedQuestion?._id]);
 
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
@@ -2057,6 +2088,41 @@ export default function AdminPage() {
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
                   <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
                 )}
+              </div>
+
+              {/* Quick logo assignment */}
+              <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Logos</p>
+                {activeLogoAssets.length === 0 ? (
+                  <p className="text-xs text-slate-500">No logos in library yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {activeLogoAssets.map((asset) => {
+                      const selected = quickLogoKeys.includes(asset.logo_key);
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onClick={() => setQuickLogoKeys((prev) => selected ? prev.filter((k) => k !== asset.logo_key) : [...prev, asset.logo_key])}
+                          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${selected ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
+                        >
+                          <img src={resolveLogoImageUrl(asset.image_url)} alt="" className="h-4 w-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                          {asset.display_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {quickLogoMsg && (
+                  <p className={`mt-2 text-xs ${quickLogoMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{quickLogoMsg.text}</p>
+                )}
+                <button
+                  onClick={handleQuickLogoSave}
+                  disabled={quickLogoSubmitting}
+                  className="mt-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+                >
+                  {quickLogoSubmitting ? "Saving…" : "Save Logos"}
+                </button>
               </div>
 
               {/* Actions — delete is always available, lifecycle changes only for active questions */}
