@@ -315,66 +315,26 @@ export default function AdminPage() {
           return;
         }
 
-        // Fetch critical admin data first; storage status can load in background.
-        const [usersRes, summaryRes, pendingRes] = await Promise.allSettled([
-          timedFetch("admin/users", `${API_BASE}/admin/users`, {
-            credentials: "include",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          }),
-          timedFetch("admin/summary", `${API_BASE}/admin/summary`, {
-            credentials: "include",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          }),
-          timedFetch("admin/pending_questions", `${API_BASE}/admin/pending_questions`, {
-            credentials: "include",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          }),
-        ]);
-
-        if (usersRes.status === "fulfilled" && usersRes.value.ok) {
-          const body = await usersRes.value.json();
+        const bootstrapRes = await timedFetch("admin/bootstrap", `${API_BASE}/admin/bootstrap?limit=40`, {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (bootstrapRes.ok) {
+          const body = await bootstrapRes.json();
           setAuthUsers(body.users || []);
-        }
-        if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
-          const body = await summaryRes.value.json();
-          setSummary(body);
-        }
-        if (pendingRes.status === "fulfilled" && pendingRes.value.ok) {
-          const body = await pendingRes.value.json();
-          const rows = body.results || [];
-          setPendingQuestions(rows);
+          setSummary(body.summary || null);
+          const pendingRows = body.pending?.results || [];
+          setPendingQuestions(pendingRows);
+          setAllQuestions(body.questions?.results || []);
           setPendingInitialYes((prev) => {
             const next = { ...prev };
-            for (const row of rows) {
+            for (const row of pendingRows) {
               const seed = Number(row.initial_yes_percent ?? row.yes_percent ?? 50);
               if (next[row._id] == null) next[row._id] = String(seed);
             }
             return next;
           });
         }
-
-        // Load full question list in background so dashboard shell paints quickly.
-        timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=40&status=all`, { credentials: "include" })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((body) => {
-            if (body?.results) setAllQuestions(body.results || []);
-          })
-          .catch(() => {
-            // Best-effort background fetch.
-          });
-
-        // Do not block admin screen on storage diagnostics.
-        timedFetch("admin/storage_status", `${API_BASE}/admin/storage_status`, {
-          credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((body) => {
-            if (body) setStorageStatus(body);
-          })
-          .catch(() => {
-            // Best-effort diagnostics fetch.
-          });
       } catch {
         setState("forbidden");
         setError("Session check failed. Please login again.");
@@ -707,7 +667,7 @@ export default function AdminPage() {
           question_text: createQuestion.trim(),
           category: createCategory,
           entry_cost: cost,
-          closing_time: createClosingTime,
+          closing_time: new Date(createClosingTime).toISOString(),
           initial_probability: probability,
           entity_names: parseCommaList(createEntityNames),
           logos: parseLogoEntries(createLogoUrls),
@@ -787,6 +747,21 @@ export default function AdminPage() {
     if (usersRes.ok) {
       const body = await usersRes.json();
       setAuthUsers(body.users || []);
+    }
+  };
+
+  const refreshStorageStatus = async (includeCounts = false) => {
+    const res = await timedFetch(
+      "admin/storage_status",
+      `${API_BASE}/admin/storage_status${includeCounts ? "?include_counts=true" : ""}`,
+      {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      },
+    );
+    if (res.ok) {
+      const body = await res.json();
+      setStorageStatus(body);
     }
   };
 
@@ -1370,7 +1345,23 @@ export default function AdminPage() {
 
         <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-            <p className="admin-section-muted mb-2 text-xs font-semibold uppercase tracking-wide">Storage Status</p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="admin-section-muted text-xs font-semibold uppercase tracking-wide">Storage Status</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => refreshStorageStatus(false)}
+                  className="rounded border border-[var(--stroke)] px-2 py-1 text-[11px] text-slate-300 hover:border-slate-500"
+                >
+                  Load
+                </button>
+                <button
+                  onClick={() => refreshStorageStatus(true)}
+                  className="rounded border border-[var(--stroke)] px-2 py-1 text-[11px] text-slate-300 hover:border-slate-500"
+                >
+                  Load + Counts
+                </button>
+              </div>
+            </div>
             {storageStatus ? (
               <div className="space-y-1 text-sm text-slate-300">
                 <p>Mode: <span className="text-white">{storageStatus.storage_mode}</span></p>
