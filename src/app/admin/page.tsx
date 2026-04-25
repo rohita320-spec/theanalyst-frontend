@@ -99,7 +99,7 @@ type LogoLibraryPickerProps = {
   selectedPendingLogoIds: string[];
   onSelectedLogoKeysChange: (next: string[]) => void;
   onSelectedPendingLogoIdsChange: (next: string[]) => void;
-  onUploadLogo: (payload: { displayName: string; category: string; file: File; logoKey?: string }) => Promise<void>;
+  onUploadLogo: (payload: { displayName: string; category: string; file?: File; logoUrl?: string; logoKey?: string }) => Promise<void>;
   uploading: boolean;
   role: "admin" | "question_creator";
 };
@@ -120,6 +120,7 @@ function LogoLibraryPicker({
   const [uploadDisplayName, setUploadDisplayName] = useState("");
   const [uploadLogoKey, setUploadLogoKey] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLogoUrl, setUploadLogoUrl] = useState("");
   const [uploadError, setUploadError] = useState("");
 
   const visibleActiveAssets = activeAssets.filter((asset) => !category || asset.category === category || asset.category === "General");
@@ -146,8 +147,8 @@ function LogoLibraryPicker({
       setUploadError("Display name is required.");
       return;
     }
-    if (!uploadFile) {
-      setUploadError("Choose a logo file.");
+    if (!uploadFile && !uploadLogoUrl.trim()) {
+      setUploadError("Choose a logo file or provide a logo URL.");
       return;
     }
     setUploadError("");
@@ -155,12 +156,14 @@ function LogoLibraryPicker({
       await onUploadLogo({
         displayName: uploadDisplayName.trim(),
         category,
-        file: uploadFile,
+        ...(uploadFile ? { file: uploadFile } : {}),
+        ...(uploadLogoUrl.trim() ? { logoUrl: uploadLogoUrl.trim() } : {}),
         ...(uploadLogoKey.trim() ? { logoKey: uploadLogoKey.trim() } : {}),
       });
       setUploadDisplayName("");
       setUploadLogoKey("");
       setUploadFile(null);
+      setUploadLogoUrl("");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Upload failed.");
     }
@@ -230,6 +233,12 @@ function LogoLibraryPicker({
             className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
           />
         </div>
+        <input
+          value={uploadLogoUrl}
+          onChange={(e) => setUploadLogoUrl(e.target.value)}
+          placeholder="Logo URL optional (http/https)"
+          className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+        />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="file"
@@ -483,7 +492,7 @@ export default function AdminPage() {
   };
 
   const uploadLogoAsset = async (
-    payload: { displayName: string; category: string; file: File; logoKey?: string },
+    payload: { displayName: string; category: string; file?: File; logoUrl?: string; logoKey?: string },
     scope: "create" | "pending" | "edit",
   ) => {
     const setUploading = scope === "create" ? setCreateLogoUploading : scope === "pending" ? setPendingLogoUploading : setEditLogoUploading;
@@ -492,7 +501,15 @@ export default function AdminPage() {
       const form = new FormData();
       form.set("display_name", payload.displayName);
       form.set("category", payload.category);
-      form.set("logo_file", payload.file);
+      if (payload.file) {
+        form.set("logo_file", payload.file);
+      }
+      if (payload.logoUrl?.trim()) {
+        form.set("logo_url", payload.logoUrl.trim());
+      }
+      if (!payload.file && !payload.logoUrl?.trim()) {
+        throw new Error("Choose a logo file or provide a logo URL.");
+      }
       if (payload.logoKey) form.set("logo_key", payload.logoKey);
 
       const res = await timedFetch("admin/logo_assets/upload", `${API_BASE}/admin/logo_assets/upload`, {
@@ -716,7 +733,18 @@ export default function AdminPage() {
     }
   };
 
-  const handleApproveQuestion = async (questionId: string) => {
+  const handleApproveQuestion = async (
+    questionId: string,
+    edits?: {
+      question_text?: string;
+      category?: string;
+      entry_cost?: number;
+      closing_time?: string;
+      resolution_rules?: string;
+      logo_keys?: string[];
+      pending_logo_ids?: string[];
+    },
+  ) => {
     setApproveMsg(null);
     const rawInitialYes = (pendingInitialYes[questionId] ?? "").trim();
     const parsedInitialYes = rawInitialYes === "" ? null : Number(rawInitialYes);
@@ -735,6 +763,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({
           question_id: questionId,
+          ...(edits || {}),
           ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
         }),
       });
@@ -1295,74 +1324,7 @@ export default function AdminPage() {
         <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
       </div>
 
-        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">Logo Library</h2>
-              <p className="text-sm text-slate-400">Approved logos are reusable across questions. Pending uploads can be approved, rejected, or backfilled from legacy question metadata.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => refreshLogoAssets()} className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
-                {logoLibraryLoading ? "Refreshing..." : "Refresh Logos"}
-              </button>
-              <button onClick={runLegacyLogoBackfill} disabled={backfillRunning} className="rounded-lg bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">
-                {backfillRunning ? "Backfilling..." : "Backfill Legacy Logos"}
-              </button>
-            </div>
-          </div>
-          {logoLibraryMsg && (
-            <div className={`mt-4 rounded-lg border px-4 py-2 text-sm ${logoLibraryMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-              {logoLibraryMsg.text}
-            </div>
-          )}
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Pending Approval</h3>
-                <span className="text-xs text-slate-500">{pendingLogoAssets.length}</span>
-              </div>
-              <div className="space-y-3">
-                {pendingLogoAssets.length === 0 ? (
-                  <p className="text-sm text-slate-500">No pending logo uploads.</p>
-                ) : pendingLogoAssets.map((asset) => (
-                  <div key={asset.id} className="rounded-lg border border-[var(--stroke)] p-3">
-                    <div className="flex items-start gap-3">
-                      <img src={asset.image_url} alt={asset.display_name} className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-white">{asset.display_name}</p>
-                        <p className="text-xs text-slate-500">{asset.logo_key} · {asset.category}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => moderateLogoAsset("approve", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Approval failed." }))} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110">Approve</button>
-                      <button onClick={() => moderateLogoAsset("reject", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Reject failed." }))} className="rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10">Reject</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Approved Library</h3>
-                <span className="text-xs text-slate-500">{activeLogoAssets.length}</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {activeLogoAssets.slice(0, 24).map((asset) => (
-                  <div key={asset.id} className="rounded-lg border border-[var(--stroke)] p-3">
-                    <div className="flex items-start gap-3">
-                      <img src={asset.image_url} alt={asset.display_name} className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white">{asset.display_name}</p>
-                        <p className="text-xs text-slate-500">{asset.logo_key}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => moderateLogoAsset("deactivate", asset.id).catch((error) => setLogoLibraryMsg({ type: "error", text: error instanceof Error ? error.message : "Deactivate failed." }))} className="mt-3 rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">Deactivate</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+
 
       {/* Summary cards */}
       <section className="mb-8">
@@ -1576,7 +1538,20 @@ export default function AdminPage() {
                           ✎ Edit
                         </button>
                         <button
-                          onClick={() => handleApproveQuestion(q._id)}
+                          onClick={() => handleApproveQuestion(
+                            q._id,
+                            pendingEditId === q._id
+                              ? {
+                                  question_text: pendingEditQuestionText.trim() || undefined,
+                                  category: pendingEditCategory || undefined,
+                                  entry_cost: Number.isFinite(Number(pendingEditEntryCost)) ? Number(pendingEditEntryCost) : undefined,
+                                  closing_time: pendingEditClosingTime ? new Date(pendingEditClosingTime).toISOString() : undefined,
+                                  resolution_rules: pendingEditRules.trim() || undefined,
+                                  logo_keys: pendingEditSelectedLogoKeys,
+                                  pending_logo_ids: pendingEditSelectedPendingLogoIds,
+                                }
+                              : undefined,
+                          )}
                           className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
                         >
                           ✓ Approve

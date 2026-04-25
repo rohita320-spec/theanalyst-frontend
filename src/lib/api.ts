@@ -34,6 +34,10 @@ export type LogoAsset = {
   display_name: string;
   category: string;
   image_url: string;
+  source_type?: "upload" | "url" | "manual";
+  source_url?: string | null;
+  mime_type?: string | null;
+  byte_size?: number | null;
   uploaded_by_user_id?: string | null;
   approved_by_admin_id?: string | null;
   linked_question_id?: string | null;
