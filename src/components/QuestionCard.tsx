@@ -70,7 +70,15 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     if (side === "yes" && isPlacingYes) return "Submitting…";
     if (side === "no" && isPlacingNo) return "Submitting…";
     const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
-    return `Pick ${sideLabel}`;
+    const normalizedSide = side === "yes" ? "YES" : "NO";
+    const normalizedLabel = String(sideLabel || "").trim().toUpperCase();
+
+    // For regular markets show YES / NO.
+    // For VS/sports labels show YES: TEAM_A and NO: TEAM_B.
+    if (!normalizedLabel || normalizedLabel === normalizedSide) {
+      return normalizedSide;
+    }
+    return `${normalizedSide}: ${sideLabel}`;
   }
 
   return (
