@@ -421,6 +421,8 @@ export default function AdminPage() {
   const [addLogoUrl, setAddLogoUrl] = useState("");
   const [addLogoKey, setAddLogoKey] = useState("");
   const [addLogoSubmitting, setAddLogoSubmitting] = useState(false);
+  const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
+  const [editingLogoUrl, setEditingLogoUrl] = useState("");
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
@@ -635,6 +637,31 @@ export default function AdminPage() {
       setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to add logo." });
     } finally {
       setAddLogoSubmitting(false);
+    }
+  };
+
+  const handleEditLogoUrl = async (logoId: string) => {
+    if (!editingLogoUrl.trim()) return;
+    setLogoLibraryMsg(null);
+    try {
+      const res = await timedFetch("admin/logo_assets/edit", `${API_BASE}/admin/logo_assets/edit`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ logo_id: logoId, logo_url: editingLogoUrl.trim() }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.detail || "Edit failed.");
+      const updated = body.logo_asset as LogoAsset;
+      setActiveLogoAssets((prev) => prev.map((a) => (a.id === logoId ? updated : a)));
+      setLogoLibraryMsg({ type: "success", text: "Logo URL updated." });
+      setEditingLogoId(null);
+      setEditingLogoUrl("");
+    } catch (err) {
+      setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to update URL." });
     }
   };
 
@@ -1846,12 +1873,37 @@ export default function AdminPage() {
                     <td className="py-2 pr-4 font-mono text-xs text-slate-400">{asset.logo_key}</td>
                     <td className="py-2 pr-4 text-slate-400">{asset.category}</td>
                     <td className="py-2">
-                      <button
-                        onClick={() => moderateLogoAsset("deactivate", asset.id)}
-                        className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                      >
-                        Deactivate
-                      </button>
+                      {editingLogoId === asset.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="url"
+                            value={editingLogoUrl}
+                            onChange={(e) => setEditingLogoUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="w-44 rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <button
+                            onClick={() => handleEditLogoUrl(asset.id)}
+                            disabled={!editingLogoUrl.trim()}
+                            className="rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+                          >Save</button>
+                          <button
+                            onClick={() => { setEditingLogoId(null); setEditingLogoUrl(""); }}
+                            className="rounded border border-[var(--stroke)] px-2 py-1 text-xs text-slate-400 hover:text-white"
+                          >✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setEditingLogoId(asset.id); setEditingLogoUrl(asset.image_url || ""); }}
+                            className="rounded border border-indigo-500/30 px-2 py-1 text-xs text-indigo-400 hover:bg-indigo-500/10"
+                          >Edit URL</button>
+                          <button
+                            onClick={() => moderateLogoAsset("deactivate", asset.id)}
+                            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                          >Deactivate</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
