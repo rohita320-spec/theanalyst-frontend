@@ -188,6 +188,7 @@ export default function AdminPage() {
   const [editQuestionRules, setEditQuestionRules] = useState("");
   const [editQuestionInitialYes, setEditQuestionInitialYes] = useState("");
   const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
+  const [editQuestionMetadataSeed, setEditQuestionMetadataSeed] = useState("");
   const [editQuestionEntityNames, setEditQuestionEntityNames] = useState("");
   const [editQuestionLogos, setEditQuestionLogos] = useState("");
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
@@ -1662,7 +1663,9 @@ export default function AdminPage() {
                           setEditQuestionClosingTime(formatDateTimeLocal(selectedQuestion.closing_time));
                           setEditQuestionRules(selectedQuestion.resolution_rules || "");
                           setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
-                          setEditQuestionMetadata(selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "");
+                          const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
+                          setEditQuestionMetadata(metadataText);
+                          setEditQuestionMetadataSeed(metadataText);
                           const entityNames = Array.isArray(selectedQuestion.metadata?.entity_names)
                             ? selectedQuestion.metadata?.entity_names.filter((item): item is string => typeof item === "string")
                             : [];
@@ -1791,7 +1794,8 @@ export default function AdminPage() {
                             }
 
                             let parsedMetadata: Record<string, unknown> | undefined;
-                            if (editQuestionMetadata.trim()) {
+                            const metadataChanged = editQuestionMetadata.trim() !== editQuestionMetadataSeed.trim();
+                            if (metadataChanged && editQuestionMetadata.trim()) {
                               try {
                                 const parsed = JSON.parse(editQuestionMetadata);
                                 if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
@@ -1825,7 +1829,7 @@ export default function AdminPage() {
                                   initial_yes_percent: initialYes,
                                   entity_names: parseCommaList(editQuestionEntityNames),
                                   logos: parseLogoEntries(editQuestionLogos),
-                                  ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
+                                  ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
                                 }),
                               });
                               const body = await res.json();
