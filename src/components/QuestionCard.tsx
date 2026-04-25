@@ -140,7 +140,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
                 key={`${question._id}-logo-${idx}`}
                 src={logo.url}
                 alt={logo.label || question.category}
-                className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover"
+                className="h-10 w-10 rounded-lg bg-white object-contain p-0.5"
                 loading="lazy"
                 decoding="async"
                 referrerPolicy="no-referrer"

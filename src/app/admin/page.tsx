@@ -566,7 +566,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleQuickLogoSave = async () => {
+  const handleQuickLogoSave = async (newKeys: string[]) => {
     if (!selectedQuestion) return;
     setQuickLogoSubmitting(true);
     setQuickLogoMsg(null);
@@ -578,13 +578,13 @@ export default function AdminPage() {
           ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify({ question_id: selectedQuestion._id, logo_keys: quickLogoKeys }),
+        body: JSON.stringify({ question_id: selectedQuestion._id, logo_keys: newKeys }),
       });
       const body = await res.json();
       if (!body.success) throw new Error(body.detail || "Failed to save logos.");
-      setSelectedQuestion((prev) => prev ? { ...prev, logo_keys: quickLogoKeys } : prev);
+      setSelectedQuestion((prev) => prev ? { ...prev, logo_keys: newKeys } : prev);
       await refreshQuestions();
-      setQuickLogoMsg({ type: "success", text: "Logos saved." });
+      setQuickLogoMsg({ type: "success", text: "Saved." });
     } catch (err) {
       setQuickLogoMsg({ type: "error", text: err instanceof Error ? err.message : "Network error." });
     } finally {
@@ -2072,7 +2072,11 @@ export default function AdminPage() {
                           <button
                             key={asset.id}
                             type="button"
-                            onClick={() => setQuickLogoKeys((prev) => selected ? prev.filter((k) => k !== asset.logo_key) : [...prev, asset.logo_key])}
+                            onClick={() => {
+                              const newKeys = selected ? quickLogoKeys.filter((k) => k !== asset.logo_key) : [...quickLogoKeys, asset.logo_key];
+                              setQuickLogoKeys(newKeys);
+                              handleQuickLogoSave(newKeys);
+                            }}
                             className={`flex flex-col items-center gap-1 px-1 py-2 text-center transition-colors ${selected ? "bg-[var(--brand)]/10 ring-1 ring-inset ring-[var(--brand)]" : "bg-[#0b1528] hover:bg-white/5"}`}
                           >
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white p-1">
@@ -2086,15 +2090,11 @@ export default function AdminPage() {
                   )}
                 </div>
                 {quickLogoMsg && (
-                  <p className={`mt-2 text-xs ${quickLogoMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{quickLogoMsg.text}</p>
+                  <p className={`mt-1 text-xs ${quickLogoMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{quickLogoMsg.text}</p>
                 )}
-                <button
-                  onClick={handleQuickLogoSave}
-                  disabled={quickLogoSubmitting}
-                  className="mt-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
-                >
-                  {quickLogoSubmitting ? "Saving…" : "Save Logos"}
-                </button>
+                {quickLogoSubmitting && (
+                  <p className="mt-1 text-xs text-slate-500">Saving…</p>
+                )}
               </div>
 
               {/* Actions — delete is always available, lifecycle changes only for active questions */}
@@ -2600,13 +2600,14 @@ export default function AdminPage() {
       {/* Create Question Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
-          <div className="w-full max-w-lg rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="flex w-full max-w-lg flex-col rounded-2xl border border-[var(--stroke)] bg-[var(--surface)]" style={{maxHeight: "90vh"}} onClick={(e) => e.stopPropagation()}>
             {createStep === "form" ? (
               <>
-                <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Submit New Question</h3>
+                <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4">
+                  <h3 className="text-base font-semibold text-white">Submit New Question</h3>
                   <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
                 </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
                 {createMsg && (
                   <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
                     {createMsg.text}
@@ -2661,6 +2662,7 @@ export default function AdminPage() {
                     <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
                     <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
                   </div>
+                </div>
                 </div>
               </>
             ) : (
