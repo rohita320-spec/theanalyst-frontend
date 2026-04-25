@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ApiError, clearStoredAuthSession, me, type FeedQuestion, type LogoAsset } from "../../lib/api";
+import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -1878,7 +1878,7 @@ export default function AdminPage() {
                   <tr key={asset.id} className="text-slate-300">
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-2">
-                        <img src={asset.image_url} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                        <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
                         <span className="text-white">{asset.display_name}</span>
                       </div>
                     </td>
@@ -1929,7 +1929,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               {pendingLogoAssets.map((asset) => (
                 <div key={asset.id} className="flex items-center gap-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] px-3 py-2">
-                  <img src={asset.image_url} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
+                  <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded border border-white/10 bg-slate-800 object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white">{asset.display_name}</p>
                     <p className="text-[11px] text-slate-400">{asset.logo_key} · {asset.category}</p>

@@ -3,6 +3,14 @@ import { DEMO_USER_ID, MOCK_HISTORY, MOCK_LEADERBOARD, MOCK_PROFILE, MOCK_QUESTI
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
+export function resolveLogoImageUrl(imageUrl: string | null | undefined): string {
+  const raw = String(imageUrl || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${API_BASE_URL}${raw}`;
+  return raw;
+}
+
 export type FeedQuestion = {
   _id: string;
   title: string;

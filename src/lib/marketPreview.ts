@@ -1,4 +1,5 @@
 import type { FeedQuestion, LogoAsset } from "./api";
+import { resolveLogoImageUrl } from "./api";
 
 const HYBRID_PRICE_UNIT = 1000;
 const HYBRID_DIRECTIONAL_SHIFT = 0.2;
@@ -90,7 +91,7 @@ export function buildLogoLibraryLookup(assets: LogoAsset[]): LogoLibraryLookup {
   const lookup: LogoLibraryLookup = {};
   for (const asset of assets) {
     const key = String(asset.logo_key || "").trim();
-    const url = String(asset.image_url || "").trim();
+    const url = resolveLogoImageUrl(asset.image_url);
     if (!key || !url) continue;
     lookup[key] = {
       url,
