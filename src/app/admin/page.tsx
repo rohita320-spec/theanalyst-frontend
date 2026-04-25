@@ -108,10 +108,27 @@ function formatDateTimeLocal(iso?: string) {
 }
 
 function parseCommaList(raw: string) {
-  return raw
-    .split(",")
+  const source = String(raw || "").trim();
+  if (!source) return [];
+
+  const base = source
+    .split(/[\n,;]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+
+  // Support space-separated ticker input like: "NVDA NASDAQ BSE AAPL"
+  // when user forgets commas.
+  if (base.length === 1) {
+    const only = base[0];
+    if (!only.startsWith("http://") && !only.startsWith("https://") && /\s/.test(only)) {
+      const tokens = only.split(/\s+/).map((item) => item.trim()).filter(Boolean);
+      if (tokens.length > 1 && tokens.every((token) => /^[a-z0-9.-]+$/i.test(token))) {
+        return tokens;
+      }
+    }
+  }
+
+  return base;
 }
 
 function parseLogoEntries(raw: string) {
@@ -250,8 +267,8 @@ export default function AdminPage() {
           return;
         }
 
-        // Fetch admin data + questions in parallel
-        const [usersRes, summaryRes, questionsRes, storageRes, pendingRes] = await Promise.allSettled([
+        // Fetch critical admin data first; storage status can load in background.
+        const [usersRes, summaryRes, questionsRes, pendingRes] = await Promise.allSettled([
           fetch(`${API_BASE}/admin/users`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -260,11 +277,7 @@ export default function AdminPage() {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           }),
-          fetch(`${API_BASE}/feed_questions?limit=100&status=all`, { credentials: "include" }),
-          fetch(`${API_BASE}/admin/storage_status`, {
-            credentials: "include",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          }),
+          fetch(`${API_BASE}/feed_questions?limit=60&status=all`, { credentials: "include" }),
           fetch(`${API_BASE}/admin/pending_questions`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -283,10 +296,6 @@ export default function AdminPage() {
           const body = await questionsRes.value.json();
           setAllQuestions(body.results || []);
         }
-        if (storageRes.status === "fulfilled" && storageRes.value.ok) {
-          const body = await storageRes.value.json();
-          setStorageStatus(body);
-        }
         if (pendingRes.status === "fulfilled" && pendingRes.value.ok) {
           const body = await pendingRes.value.json();
           const rows = body.results || [];
@@ -300,6 +309,19 @@ export default function AdminPage() {
             return next;
           });
         }
+
+        // Do not block admin screen on storage diagnostics.
+        fetch(`${API_BASE}/admin/storage_status`, {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((body) => {
+            if (body) setStorageStatus(body);
+          })
+          .catch(() => {
+            // Best-effort diagnostics fetch.
+          });
       } catch {
         setState("forbidden");
         setError("Session check failed. Please login again.");
@@ -312,7 +334,7 @@ export default function AdminPage() {
   const refreshQuestions = async () => {
     setQuestionsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/feed_questions?limit=100&status=all`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/feed_questions?limit=60&status=all`, { credentials: "include" });
       if (res.ok) {
         const body = await res.json();
         setAllQuestions(body.results || []);

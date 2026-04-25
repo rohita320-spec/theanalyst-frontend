@@ -19,6 +19,25 @@ function formatPct(value: number) {
   return `${Number(value || 0).toFixed(1)}%`;
 }
 
+function buildLogoFallbackUrl(url: string): string | null {
+  const raw = String(url || "").trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    // If Clearbit fails, fallback to Google's favicon service for same domain.
+    if (parsed.hostname === "logo.clearbit.com") {
+      const domain = parsed.pathname.replace(/^\/+/, "").trim();
+      if (!domain) return null;
+      return `https://www.google.com/s2/favicons?sz=128&domain_url=${encodeURIComponent(`https://${domain}`)}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export default function QuestionCard({ question, onOpenChart, onAnalyze, placing = "", loggedIn = false }: Props) {
   const isOpen = question.status === "open";
   const isResolved = question.status === "resolved";
@@ -71,6 +90,23 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
                 alt={logo.label || question.category}
                 className="h-10 w-10 rounded-lg border border-white/10 bg-slate-800 object-cover"
                 loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(event) => {
+                  const img = event.currentTarget;
+                  const attempts = Number(img.dataset.fallbackAttempt || "0");
+                  if (attempts < 1) {
+                    const fallbackUrl = buildLogoFallbackUrl(logo.url);
+                    if (fallbackUrl) {
+                      img.dataset.fallbackAttempt = "1";
+                      img.src = fallbackUrl;
+                      return;
+                    }
+                  }
+
+                  // Last resort: hide broken image so card UI remains clean.
+                  img.style.display = "none";
+                }}
               />
             ))
           ) : (
