@@ -122,10 +122,22 @@ function LogoLibraryPicker({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLogoUrl, setUploadLogoUrl] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [logoSearch, setLogoSearch] = useState("");
 
-  // Always include selected assets even if they don't match the current category filter, so they're never silently hidden
-  const visibleActiveAssets = activeAssets.filter((asset) => !category || asset.category === category || asset.category === "General" || selectedLogoKeys.includes(asset.logo_key));
-  const visiblePendingAssets = pendingAssets.filter((asset) => !category || asset.category === category || asset.category === "General" || selectedPendingLogoIds.includes(asset.id));
+  const searchLower = logoSearch.trim().toLowerCase();
+  // Always include selected assets so they're never silently hidden; also filter by search or category
+  const visibleActiveAssets = activeAssets.filter((asset) => {
+    const selected = selectedLogoKeys.includes(asset.logo_key);
+    if (selected) return true;
+    if (searchLower) return asset.display_name.toLowerCase().includes(searchLower) || asset.logo_key.toLowerCase().includes(searchLower);
+    return !category || asset.category === category || asset.category === "General";
+  });
+  const visiblePendingAssets = pendingAssets.filter((asset) => {
+    const selected = selectedPendingLogoIds.includes(asset.id);
+    if (selected) return true;
+    if (searchLower) return asset.display_name.toLowerCase().includes(searchLower) || asset.logo_key.toLowerCase().includes(searchLower);
+    return !category || asset.category === category || asset.category === "General";
+  });
 
   const toggleLogoKey = (logoKey: string) => {
     onSelectedLogoKeysChange(
@@ -175,10 +187,16 @@ function LogoLibraryPicker({
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{title}</p>
       <div className="mt-3 space-y-3">
         <div>
-          <p className="mb-2 text-[11px] text-slate-500">Approved logos</p>
+          <input
+            type="text"
+            value={logoSearch}
+            onChange={(e) => setLogoSearch(e.target.value)}
+            placeholder="Search logos by name…"
+            className="mb-2 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
           <div className="flex flex-wrap gap-2">
             {visibleActiveAssets.length === 0 ? (
-              <p className="text-xs text-slate-500">No approved logos for this category yet.</p>
+              <p className="text-xs text-slate-500">{searchLower ? "No logos match your search." : "No approved logos for this category yet."}</p>
             ) : (
               visibleActiveAssets.map((asset) => {
                 const active = selectedLogoKeys.includes(asset.logo_key);
@@ -187,8 +205,9 @@ function LogoLibraryPicker({
                     key={asset.id}
                     type="button"
                     onClick={() => toggleLogoKey(asset.logo_key)}
-                    className={`rounded-full border px-3 py-1 text-xs ${active ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
+                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${active ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-300 hover:border-slate-500"}`}
                   >
+                    <img src={resolveLogoImageUrl(asset.image_url)} alt="" className="h-4 w-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                     {asset.display_name}
                   </button>
                 );
@@ -372,6 +391,7 @@ export default function AdminPage() {
   const [editQuestionCategory, setEditQuestionCategory] = useState("");
   const [editQuestionEntryCost, setEditQuestionEntryCost] = useState("");
   const [editQuestionClosingTime, setEditQuestionClosingTime] = useState("");
+  const [editQuestionClosingTimeSeed, setEditQuestionClosingTimeSeed] = useState("");
   const [editQuestionRules, setEditQuestionRules] = useState("");
   const [editQuestionInitialYes, setEditQuestionInitialYes] = useState("");
   const [editQuestionMetadata, setEditQuestionMetadata] = useState("");
@@ -2244,7 +2264,9 @@ export default function AdminPage() {
                           setEditQuestionText(selectedQuestion.title);
                           setEditQuestionCategory(selectedQuestion.category);
                           setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
-                          setEditQuestionClosingTime(formatDateTimeLocal(selectedQuestion.closing_time));
+                          const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
+                          setEditQuestionClosingTime(closingTimeFormatted);
+                          setEditQuestionClosingTimeSeed(closingTimeFormatted);
                           setEditQuestionRules(selectedQuestion.resolution_rules || "");
                           setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
                           const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
@@ -2351,7 +2373,8 @@ export default function AdminPage() {
                               setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
                               return;
                             }
-                            if (!editQuestionClosingTime) {
+                            const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
+                            if (closingTimeChanged && !editQuestionClosingTime) {
                               setEditQuestionMsg({ type: "error", text: "Closing time is required" });
                               return;
                             }
@@ -2392,7 +2415,7 @@ export default function AdminPage() {
                                   question_text: editQuestionText.trim(),
                                   category: editQuestionCategory.trim(),
                                   entry_cost: entryCost,
-                                  closing_time: new Date(editQuestionClosingTime).toISOString(),
+                                  ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
                                   resolution_rules: editQuestionRules.trim(),
                                   initial_yes_percent: initialYes,
                                   logo_keys: editSelectedLogoKeys,
