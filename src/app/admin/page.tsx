@@ -398,6 +398,7 @@ export default function AdminPage() {
   const [copyMsg, setCopyMsg] = useState("");
   const [logoLibraryLoading, setLogoLibraryLoading] = useState(false);
   const [logoLibraryMsg, setLogoLibraryMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
   const recordApiTiming = (
@@ -546,6 +547,30 @@ export default function AdminPage() {
     }
     await Promise.all([refreshLogoAssets(), refreshQuestions(), refreshPendingQuestions()]);
     setLogoLibraryMsg({ type: "success", text: `Logo ${action}d successfully.` });
+  };
+
+  const runLegacyLogoBackfill = async () => {
+    setBackfillRunning(true);
+    setLogoLibraryMsg(null);
+    try {
+      const res = await timedFetch("admin/logo_assets/backfill_questions", `${API_BASE}/admin/logo_assets/backfill_questions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      const body = await res.json();
+      if (!body.success) {
+        throw new Error(body.detail || "Legacy logo backfill failed.");
+      }
+      await Promise.all([refreshLogoAssets(), refreshQuestions()]);
+      setLogoLibraryMsg({ type: "success", text: `Backfill complete: ${body.migrated || 0} question(s) migrated, ${body.failed || 0} failed.` });
+    } finally {
+      setBackfillRunning(false);
+    }
   };
 
   useEffect(() => {
@@ -1245,112 +1270,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* Create Question Modal */}
-        {createModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
-            <div className="w-full max-w-lg rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6" onClick={(e) => e.stopPropagation()}>
-              {createStep === "form" ? (
-                <>
-                  <div className="mb-5 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">Submit New Question</h3>
-                    <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
-                  </div>
-                  {createMsg && (
-                    <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                      {createMsg.text}
-                    </div>
-                  )}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                      <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder="e.g., Will Bitcoin reach $50k by end of Q2?" className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
-                      <select value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
-                        <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
-                      <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
-                        <optgroup label="Tier 1"><option value="50">50 pts</option><option value="100">100 pts</option><option value="200">200 pts</option></optgroup>
-                        <optgroup label="Tier 2"><option value="300">300 pts</option><option value="400">400 pts</option><option value="500">500 pts</option></optgroup>
-                        <optgroup label="Tier 3"><option value="600">600 pts</option><option value="700">700 pts</option><option value="800">800 pts</option></optgroup>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES %</label>
-                      <input type="number" min={1} max={99} step={0.1} value={createInitialProbability} onChange={(e) => setCreateInitialProbability(e.target.value)} placeholder="e.g. 65" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
-                      <p className="mt-1 text-xs text-slate-500">NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
-                      <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
-                    </div>
-                    <LogoLibraryPicker
-                      title="Question logos"
-                      category={createCategory}
-                      activeAssets={activeLogoAssets}
-                      pendingAssets={pendingLogoAssets}
-                      selectedLogoKeys={createSelectedLogoKeys}
-                      selectedPendingLogoIds={createSelectedPendingLogoIds}
-                      onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
-                      onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
-                      onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
-                      uploading={createLogoUploading}
-                      role={userRole}
-                    />
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
-                      <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
-                      <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="mb-5 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">Confirm Submission</h3>
-                    <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
-                  </div>
-                  <div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
-                    <div className="flex flex-wrap gap-6">
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p><p className="mt-1 text-white">{createEntryCost} pts</p></div>
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
-                    </div>
-                    {(createSelectedLogoKeys.length > 0 || createSelectedPendingLogoIds.length > 0) && (
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">Logos</p>
-                        <p className="mt-1 text-slate-200">
-                          {createSelectedLogoKeys.length > 0 ? `Approved: ${createSelectedLogoKeys.join(", ")}` : ""}
-                          {createSelectedLogoKeys.length > 0 && createSelectedPendingLogoIds.length > 0 ? " · " : ""}
-                          {createSelectedPendingLogoIds.length > 0 ? `Pending uploads: ${createSelectedPendingLogoIds.length}` : ""}
-                        </p>
-                      </div>
-                    )}
-                    {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
-                  </div>
-                  {createMsg && (
-                    <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                      {createMsg.text}
-                    </div>
-                  )}
-                  <div className="flex gap-3">
-                    <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
-                    <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? "Submitting..." : "✓ Submit for Review"}</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+
       </main>
     );
   }
@@ -1376,11 +1296,14 @@ export default function AdminPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-white">Logo Library</h2>
-              <p className="text-sm text-slate-400">Approved logos are reusable across questions. Pending uploads can be reviewed, approved, rejected, or deactivated here.</p>
+              <p className="text-sm text-slate-400">Approved logos are reusable across questions. Pending uploads can be approved, rejected, or backfilled from legacy question metadata.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => refreshLogoAssets()} className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
                 {logoLibraryLoading ? "Refreshing..." : "Refresh Logos"}
+              </button>
+              <button onClick={runLegacyLogoBackfill} disabled={backfillRunning} className="rounded-lg bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">
+                {backfillRunning ? "Backfilling..." : "Backfill Legacy Logos"}
               </button>
             </div>
           </div>
@@ -2373,6 +2296,113 @@ export default function AdminPage() {
           </a>
         </div>
       </section>
+
+      {/* Create Question Modal */}
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6" onClick={(e) => e.stopPropagation()}>
+            {createStep === "form" ? (
+              <>
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Submit New Question</h3>
+                  <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
+                </div>
+                {createMsg && (
+                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                    {createMsg.text}
+                  </div>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
+                    <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder="e.g., Will Bitcoin reach $50k by end of Q2?" className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
+                    <select value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                      <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
+                    <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                      <optgroup label="Tier 1"><option value="50">50 pts</option><option value="100">100 pts</option><option value="200">200 pts</option></optgroup>
+                      <optgroup label="Tier 2"><option value="300">300 pts</option><option value="400">400 pts</option><option value="500">500 pts</option></optgroup>
+                      <optgroup label="Tier 3"><option value="600">600 pts</option><option value="700">700 pts</option><option value="800">800 pts</option></optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES %</label>
+                    <input type="number" min={1} max={99} step={0.1} value={createInitialProbability} onChange={(e) => setCreateInitialProbability(e.target.value)} placeholder="e.g. 65" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                    <p className="mt-1 text-xs text-slate-500">NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
+                    <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
+                  <LogoLibraryPicker
+                    title="Question logos"
+                    category={createCategory}
+                    activeAssets={activeLogoAssets}
+                    pendingAssets={pendingLogoAssets}
+                    selectedLogoKeys={createSelectedLogoKeys}
+                    selectedPendingLogoIds={createSelectedPendingLogoIds}
+                    onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
+                    onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
+                    onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
+                    uploading={createLogoUploading}
+                    role={userRole}
+                  />
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
+                    <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
+                    <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Confirm Submission</h3>
+                  <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
+                </div>
+                <div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
+                  <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
+                  <div className="flex flex-wrap gap-6">
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p><p className="mt-1 text-white">{createEntryCost} pts</p></div>
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
+                  </div>
+                  {(createSelectedLogoKeys.length > 0 || createSelectedPendingLogoIds.length > 0) && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Logos</p>
+                      <p className="mt-1 text-slate-200">
+                        {createSelectedLogoKeys.length > 0 ? `Approved: ${createSelectedLogoKeys.join(", ")}` : ""}
+                        {createSelectedLogoKeys.length > 0 && createSelectedPendingLogoIds.length > 0 ? " · " : ""}
+                        {createSelectedPendingLogoIds.length > 0 ? `Pending uploads: ${createSelectedPendingLogoIds.length}` : ""}
+                      </p>
+                    </div>
+                  )}
+                  {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
+                </div>
+                {createMsg && (
+                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                    {createMsg.text}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
+                  <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? "Submitting..." : "✓ Submit for Review"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
