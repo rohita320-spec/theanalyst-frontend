@@ -1496,7 +1496,7 @@ export default function AdminPage() {
         </div>
 
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          <div className="flex-1">
+          <div className="flex min-h-0 flex-1 flex-col">
             <div className="mb-2 flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
               <p className="admin-section-label text-sm font-medium">
@@ -1512,29 +1512,27 @@ export default function AdminPage() {
                 {questionsLoading ? "..." : "↻ Refresh"}
               </button>
             </div>
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
               {filteredQuestions.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
               {filteredQuestions.map((q) => {
                 const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
-                const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
-                const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
-                const initialNoPct = Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
                 return (
                   <button
                     key={q._id}
                     onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
-                    className={`admin-question-item w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
+                    className={`admin-question-item w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
                   >
-                    <p className="line-clamp-2 font-medium">{q.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Entry: {q.entry_cost} pts · Closes: {formatDate(q.closing_time ?? "")} · {q.category}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="line-clamp-1 font-medium">{q.title}</p>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : "bg-blue-500/15 text-blue-400"}`}>
+                        {q.status}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {q.category} · {formatDate(q.closing_time ?? "")} · {q.entry_cost} pts · YES {yesPct}%
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
-                    <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
                     {q.status === "closed" && q.closed_reason !== "cancelled" && (
-                      <p className="mt-1 text-xs font-medium text-amber-400">
-                        {q.closed_reason === "time_closed" ? "Closed by time — pending resolution" : "Closed — pending resolution"}
-                      </p>
+                      <p className="mt-0.5 text-[11px] font-medium text-amber-400">Pending resolution</p>
                     )}
                   </button>
                 );
