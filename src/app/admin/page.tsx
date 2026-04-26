@@ -728,10 +728,13 @@ export default function AdminPage() {
           return;
         }
 
-        const bootstrapRes = await timedFetch("admin/bootstrap", `${API_BASE}/admin/bootstrap?limit=40`, {
+        const bootstrapRes = await timedFetch("admin/bootstrap", `${API_BASE}/admin/bootstrap?limit=200`, {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
+        if (!bootstrapRes.ok) {
+          setError(`Failed to load admin data (HTTP ${bootstrapRes.status}). Check FRONTEND_ORIGINS on the backend.`);
+        }
         if (bootstrapRes.ok) {
           const body = await bootstrapRes.json();
           setAuthUsers(body.users || []);
@@ -1415,7 +1418,11 @@ export default function AdminPage() {
         <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
       </div>
 
-
+      {error && (
+        <div className="mb-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       {/* Summary cards */}
       <section className="mb-8">
@@ -1428,6 +1435,440 @@ export default function AdminPage() {
           <StatCard label="Pending Approvals" value={pendingQuestions.length} />
         </div>
       </section>
+
+      {/* ─── Question Management ──────────────────────────── */}
+      <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-white">Question Management</h2>
+          <button
+            onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
+            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+          >
+            + New Question
+          </button>
+        </div>
+
+        {resolveMsg && (
+          <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${resolveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+            {resolveMsg.text}
+          </div>
+        )}
+
+        <div className="mb-4 grid gap-2 sm:grid-cols-4">
+          <button onClick={() => setQuestionViewTab("open")} className={`${questionViewTab === "open" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
+            <span className="status-open-text">Open</span>
+            <span className="admin-status-count">{openQuestions.length}</span>
+          </button>
+          <button onClick={() => setQuestionViewTab("closed")} className={`${questionViewTab === "closed" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
+            <span className="text-amber-500">Closed</span>
+            <span className="admin-status-count">{closedQuestions.length}</span>
+          </button>
+          <button onClick={() => setQuestionViewTab("resolved")} className={`${questionViewTab === "resolved" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
+            <span className="text-blue-500">Resolved</span>
+            <span className="admin-status-count">{finalizedQuestions.length}</span>
+          </button>
+          <button onClick={() => setQuestionViewTab("all")} className={`${questionViewTab === "all" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
+            <span className="admin-section-label">All</span>
+            <span className="admin-status-count">{allQuestions.length}</span>
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+          <div className="flex-1">
+            <div className="mb-2 flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
+              <p className="admin-section-label text-sm font-medium">
+                {questionViewTab === "open"
+                  ? `Open (${openQuestions.length})`
+                  : questionViewTab === "closed"
+                  ? `Closed (${closedQuestions.length})`
+                  : questionViewTab === "resolved"
+                  ? `Resolved (${finalizedQuestions.length})`
+                  : `All (${allQuestions.length})`}
+              </p>
+              <button onClick={refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
+                {questionsLoading ? "..." : "↻ Refresh"}
+              </button>
+            </div>
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              {filteredQuestions.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
+              {filteredQuestions.map((q) => {
+                const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
+                const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
+                const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
+                const initialNoPct = Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
+                return (
+                  <button
+                    key={q._id}
+                    onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
+                    className={`admin-question-item w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
+                  >
+                    <p className="line-clamp-2 font-medium">{q.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Entry: {q.entry_cost} pts · Closes: {formatDate(q.closing_time ?? "")} · {q.category}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
+                    <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
+                    {q.status === "closed" && q.closed_reason !== "cancelled" && (
+                      <p className="mt-1 text-xs font-medium text-amber-400">
+                        {q.closed_reason === "time_closed" ? "Closed by time — pending resolution" : "Closed — pending resolution"}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detail / action panel */}
+          {selectedQuestion && (
+            <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+              <div className="mb-1 flex items-start justify-between gap-2">
+                <h3 className="text-sm font-semibold text-white">Question Detail</h3>
+                <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
+              </div>
+              <p className="admin-detail-strong mb-3 text-sm">{selectedQuestion.title}</p>
+              {selectedQuestion.status === "closed" && (
+                <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
+                  {selectedQuestion.closed_reason === "time_closed"
+                    ? "Closed by time — pending resolution"
+                    : selectedQuestion.closed_reason === "cancelled"
+                    ? "Cancelled — points refunded"
+                    : "Closed by admin — pending resolution"}
+                </p>
+              )}
+              <div className="mb-4 space-y-1 text-xs text-slate-400">
+                <p>Entry cost: <span className="admin-detail-strong">{selectedQuestion.entry_cost} pts</span></p>
+                <p>Closing: <span className="admin-detail-strong">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
+                <p>Category: <span className="admin-detail-strong">{selectedQuestion.category || "—"}</span></p>
+                <p>YES pool: <span className="admin-detail-strong">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="admin-detail-strong">{selectedQuestion.no_pool} pts</span></p>
+                <p>Initial Percentage (YES %): <span className="admin-detail-strong">{Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="admin-detail-strong">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
+                <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
+                <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
+                {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
+                  <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
+                )}
+              </div>
+
+              {/* Actions — delete is always available, lifecycle changes only for active questions */}
+              {!confirmResolve && (
+                <div className="space-y-2">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
+                  {canTransitionSelectedQuestion && (
+                    <>
+                      <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
+                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+                        ✓ Resolve YES
+                      </button>
+                      <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving}
+                        className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
+                        ✗ Resolve NO
+                      </button>
+                      {selectedQuestion.status === "open" && (
+                        <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
+                          className="w-full rounded-lg border border-yellow-600/50 px-3 py-2 text-sm font-medium text-yellow-300 hover:border-yellow-400 hover:text-yellow-200 disabled:opacity-50">
+                          ⊘ Close Question (stop predictions)
+                        </button>
+                      )}
+                      <button onClick={() => setConfirmResolve({ answer: "cancel" })} disabled={!!resolving}
+                        className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
+                        ↩ Cancel (Refund All Points)
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm("Delete this question and related records? This cannot be undone.")) return;
+                      setResolving("delete");
+                      setResolveMsg(null);
+                      try {
+                        const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+                          },
+                          credentials: "include",
+                          body: JSON.stringify({ question_id: selectedQuestion._id }),
+                        });
+                        const body = await res.json();
+                        if (body.success) {
+                          const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
+                          const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
+                          setResolveMsg({ type: "success", text: `Question deleted. Removed ${deletedPredictions} prediction(s) and ${deletedPositions} position(s).` });
+                          await refreshQuestions();
+                          setSelectedQuestion(null);
+                        } else {
+                          setResolveMsg({ type: "error", text: body.detail || "Failed to delete question." });
+                        }
+                      } catch {
+                        setResolveMsg({ type: "error", text: "Network error." });
+                      } finally {
+                        setResolving("");
+                      }
+                    }}
+                    disabled={!!resolving}
+                    className="w-full rounded-lg border border-red-500/50 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                  >
+                    🗑 Delete Question
+                  </button>
+                </div>
+              )}
+
+              {/* Confirm resolve/close inline */}
+              {confirmResolve && canTransitionSelectedQuestion && (
+                <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
+                  <p className="mb-3 text-sm text-slate-200">
+                    {confirmResolve.answer === "close"
+                      ? "Close this question for new predictions? It will remain pending until you resolve it."
+                      : confirmResolve.answer === "cancel"
+                      ? "Cancel this question? All participants will receive point refunds. No winner or loser declared."
+                      : `Resolve as ${confirmResolve.answer.toUpperCase()}? This finalizes outcomes for participants.`}
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmResolve(null)}
+                      className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-500">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleResolve(selectedQuestion._id, confirmResolve.answer)}
+                      disabled={!!resolving}
+                      className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${
+                        confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" :
+                        confirmResolve.answer === "no" ? "bg-orange-600 hover:bg-orange-500" :
+                        confirmResolve.answer === "close" ? "bg-yellow-700 hover:bg-yellow-600" :
+                        "bg-slate-600 hover:bg-slate-500"
+                      }`}>
+                      {resolving ? "Working..." : "✓ Confirm"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedQuestion.status === "resolved" && (
+                <p className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-center text-xs text-slate-500">
+                  This question has been resolved.
+                </p>
+              )}
+
+              {(selectedQuestion.closed_reason === "cancelled") && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
+                  Final state: cancelled with full point refunds for participants.
+                </p>
+              )}
+
+              {/* Full question edit — available for open and pending-closed questions */}
+              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
+                <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                  {!editQuestionMode ? (
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
+                      <button
+                        onClick={() => {
+                          setEditQuestionMode(true);
+                          setEditQuestionText(selectedQuestion.title);
+                          setEditQuestionCategory(selectedQuestion.category);
+                          setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
+                          const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
+                          setEditQuestionClosingTime(closingTimeFormatted);
+                          setEditQuestionClosingTimeSeed(closingTimeFormatted);
+                          setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                          setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
+                          const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
+                          setEditQuestionMetadata(metadataText);
+                          setEditQuestionMetadataSeed(metadataText);
+                          setEditSelectedLogoKeys(Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : []);
+                          setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
+                          setEditQuestionMsg(null);
+                        }}
+                        className="text-xs text-[var(--brand)] hover:underline"
+                      >
+                        ✏ Full Edit Question
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-300">Question Text</label>
+                      <textarea
+                        value={editQuestionText}
+                        onChange={(e) => setEditQuestionText(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Enter question text..."
+                      />
+                      <label className="text-xs font-medium text-slate-300">Category</label>
+                      <select
+                        value={editQuestionCategory}
+                        onChange={(e) => setEditQuestionCategory(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      >
+                        <option>Crypto</option>
+                        <option>Economy</option>
+                        <option>Entertainment</option>
+                        <option>General</option>
+                        <option>Global events</option>
+                        <option>Markets</option>
+                        <option>Sports</option>
+                      </select>
+                      <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
+                      <input
+                        type="number"
+                        min={50}
+                        step={1}
+                        value={editQuestionEntryCost}
+                        onChange={(e) => setEditQuestionEntryCost(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Initial Percentage (YES %) <span className="text-slate-500 font-normal">(baseline split)</span></label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={0.1}
+                        value={editQuestionInitialYes}
+                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline</p>
+                      <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={editQuestionClosingTime}
+                        onChange={(e) => setEditQuestionClosingTime(e.target.value)}
+                        className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                      <textarea
+                        value={editQuestionRules}
+                        onChange={(e) => setEditQuestionRules(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Describe YES and NO conditions..."
+                      />
+                      <LogoLibraryPicker
+                        title="Question logos"
+                        category={editQuestionCategory}
+                        activeAssets={activeLogoAssets}
+                        pendingAssets={pendingLogoAssets}
+                        selectedLogoKeys={editSelectedLogoKeys}
+                        selectedPendingLogoIds={editSelectedPendingLogoIds}
+                        onSelectedLogoKeysChange={setEditSelectedLogoKeys}
+                        onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
+                        onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
+                        uploading={editLogoUploading}
+                        role={userRole}
+                      />
+                      {editQuestionMsg && (
+                        <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }}
+                          className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
+                        >Cancel</button>
+                        <button
+                          disabled={editQuestionSubmitting}
+                          onClick={async () => {
+                            if (!editQuestionText.trim()) {
+                              setEditQuestionMsg({ type: "error", text: "Question text required" });
+                              return;
+                            }
+                            const entryCost = Number(editQuestionEntryCost);
+                            if (!Number.isFinite(entryCost) || entryCost < 50) {
+                              setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
+                              return;
+                            }
+                            const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
+                            if (closingTimeChanged && !editQuestionClosingTime) {
+                              setEditQuestionMsg({ type: "error", text: "Closing time is required" });
+                              return;
+                            }
+                            const initialYes = Number(editQuestionInitialYes);
+                            if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) {
+                              setEditQuestionMsg({ type: "error", text: "Initial YES % must be between 1 and 99" });
+                              return;
+                            }
+
+                            let parsedMetadata: Record<string, unknown> | undefined;
+                            const metadataChanged = editQuestionMetadata.trim() !== editQuestionMetadataSeed.trim();
+                            if (metadataChanged && editQuestionMetadata.trim()) {
+                              try {
+                                const parsed = JSON.parse(editQuestionMetadata);
+                                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+                                  setEditQuestionMsg({ type: "error", text: "Metadata must be a JSON object" });
+                                  return;
+                                }
+                                parsedMetadata = parsed as Record<string, unknown>;
+                              } catch {
+                                setEditQuestionMsg({ type: "error", text: "Metadata must be valid JSON" });
+                                return;
+                              }
+                            }
+
+                            setEditQuestionSubmitting(true);
+                            setEditQuestionMsg(null);
+                            try {
+                              const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+                                },
+                                credentials: "include",
+                                body: JSON.stringify({
+                                  question_id: selectedQuestion._id,
+                                  question_text: editQuestionText.trim(),
+                                  category: editQuestionCategory.trim(),
+                                  entry_cost: entryCost,
+                                  ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
+                                  resolution_rules: editQuestionRules.trim(),
+                                  initial_yes_percent: initialYes,
+                                  logo_keys: editSelectedLogoKeys,
+                                  pending_logo_ids: editSelectedPendingLogoIds,
+                                  ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
+                                }),
+                              });
+                              const body = await res.json();
+                              if (body.success) {
+                                setEditQuestionMsg({ type: "success", text: "Question updated." });
+                                await refreshQuestions();
+                                if (body.question) {
+                                  setSelectedQuestion(body.question);
+                                } else {
+                                  setSelectedQuestion((prev) => prev ? {
+                                    ...prev,
+                                    title: editQuestionText.trim(),
+                                    category: editQuestionCategory.trim(),
+                                    entry_cost: entryCost,
+                                    closing_time: new Date(editQuestionClosingTime).toISOString(),
+                                    resolution_rules: editQuestionRules.trim() || null,
+                                    initial_yes_percent: initialYes,
+                                    initial_no_percent: Math.round((100 - initialYes) * 100) / 100,
+                                    ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
+                                  } : prev);
+                                }
+                                setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
+                              } else {
+                                setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
+                              }
+                            } catch {
+                              setEditQuestionMsg({ type: "error", text: "Network error." });
+                            } finally {
+                              setEditQuestionSubmitting(false);
+                            }
+                          }}
+                          className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                        >{editQuestionSubmitting ? "Saving..." : "Save"}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
 
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -1947,439 +2388,6 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </section>
-
-      {/* ─── Question Management ──────────────────────────── */}
-      <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-white">Question Management</h2>
-          <button
-            onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
-            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
-          >
-            + New Question
-          </button>
-        </div>
-
-        {resolveMsg && (
-          <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${resolveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-            {resolveMsg.text}
-          </div>
-        )}
-
-        <div className="mb-4 grid gap-2 sm:grid-cols-4">
-          <button onClick={() => setQuestionViewTab("open")} className={`${questionViewTab === "open" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
-            <span className="status-open-text">Open</span>
-            <span className="admin-status-count">{openQuestions.length}</span>
-          </button>
-          <button onClick={() => setQuestionViewTab("closed")} className={`${questionViewTab === "closed" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
-            <span className="text-amber-500">Closed</span>
-            <span className="admin-status-count">{closedQuestions.length}</span>
-          </button>
-          <button onClick={() => setQuestionViewTab("resolved")} className={`${questionViewTab === "resolved" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
-            <span className="text-blue-500">Resolved</span>
-            <span className="admin-status-count">{finalizedQuestions.length}</span>
-          </button>
-          <button onClick={() => setQuestionViewTab("all")} className={`${questionViewTab === "all" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
-            <span className="admin-section-label">All</span>
-            <span className="admin-status-count">{allQuestions.length}</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          <div className="flex-1">
-            <div className="mb-2 flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
-              <p className="admin-section-label text-sm font-medium">
-                {questionViewTab === "open"
-                  ? `Open (${openQuestions.length})`
-                  : questionViewTab === "closed"
-                  ? `Closed (${closedQuestions.length})`
-                  : questionViewTab === "resolved"
-                  ? `Resolved (${finalizedQuestions.length})`
-                  : `All (${allQuestions.length})`}
-              </p>
-              <button onClick={refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
-                {questionsLoading ? "..." : "↻ Refresh"}
-              </button>
-            </div>
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {filteredQuestions.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
-              {filteredQuestions.map((q) => {
-                const yesPct = Number(q.yes_percent ?? 50).toFixed(2);
-                const noPct = Number(q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
-                const initialYesPct = Number(q.initial_yes_percent ?? q.yes_percent ?? 50).toFixed(2);
-                const initialNoPct = Number(q.initial_no_percent ?? q.no_percent ?? (100 - Number(q.yes_percent ?? 50))).toFixed(2);
-                return (
-                  <button
-                    key={q._id}
-                    onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
-                    className={`admin-question-item w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
-                  >
-                    <p className="line-clamp-2 font-medium">{q.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Entry: {q.entry_cost} pts · Closes: {formatDate(q.closing_time ?? "")} · {q.category}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">Initial: YES {initialYesPct}% · NO {initialNoPct}%</p>
-                    <p className="mt-1 text-xs text-slate-400">YES {yesPct}% · NO {noPct}%</p>
-                    {q.status === "closed" && q.closed_reason !== "cancelled" && (
-                      <p className="mt-1 text-xs font-medium text-amber-400">
-                        {q.closed_reason === "time_closed" ? "Closed by time — pending resolution" : "Closed — pending resolution"}
-                      </p>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Detail / action panel */}
-          {selectedQuestion && (
-            <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-              <div className="mb-1 flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-white">Question Detail</h3>
-                <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
-              </div>
-              <p className="admin-detail-strong mb-3 text-sm">{selectedQuestion.title}</p>
-              {selectedQuestion.status === "closed" && (
-                <p className="mb-3 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
-                  {selectedQuestion.closed_reason === "time_closed"
-                    ? "Closed by time — pending resolution"
-                    : selectedQuestion.closed_reason === "cancelled"
-                    ? "Cancelled — points refunded"
-                    : "Closed by admin — pending resolution"}
-                </p>
-              )}
-              <div className="mb-4 space-y-1 text-xs text-slate-400">
-                <p>Entry cost: <span className="admin-detail-strong">{selectedQuestion.entry_cost} pts</span></p>
-                <p>Closing: <span className="admin-detail-strong">{formatDate(selectedQuestion.closing_time ?? "")}</span></p>
-                <p>Category: <span className="admin-detail-strong">{selectedQuestion.category || "—"}</span></p>
-                <p>YES pool: <span className="admin-detail-strong">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="admin-detail-strong">{selectedQuestion.no_pool} pts</span></p>
-                <p>Initial Percentage (YES %): <span className="admin-detail-strong">{Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="admin-detail-strong">NO {Number(selectedQuestion.initial_no_percent ?? selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
-                <p>Market split: <span className="text-emerald-300">YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}%</span> · <span className="text-orange-300">NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</span></p>
-                <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
-                {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
-                  <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
-                )}
-              </div>
-
-              {/* Actions — delete is always available, lifecycle changes only for active questions */}
-              {!confirmResolve && (
-                <div className="space-y-2">
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
-                  {canTransitionSelectedQuestion && (
-                    <>
-                      <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving}
-                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
-                        ✓ Resolve YES
-                      </button>
-                      <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving}
-                        className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
-                        ✗ Resolve NO
-                      </button>
-                      {selectedQuestion.status === "open" && (
-                        <button onClick={() => setConfirmResolve({ answer: "close" })} disabled={!!resolving}
-                          className="w-full rounded-lg border border-yellow-600/50 px-3 py-2 text-sm font-medium text-yellow-300 hover:border-yellow-400 hover:text-yellow-200 disabled:opacity-50">
-                          ⊘ Close Question (stop predictions)
-                        </button>
-                      )}
-                      <button onClick={() => setConfirmResolve({ answer: "cancel" })} disabled={!!resolving}
-                        className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white disabled:opacity-50">
-                        ↩ Cancel (Refund All Points)
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={async () => {
-                      if (!window.confirm("Delete this question and related records? This cannot be undone.")) return;
-                      setResolving("delete");
-                      setResolveMsg(null);
-                      try {
-                        const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-                          },
-                          credentials: "include",
-                          body: JSON.stringify({ question_id: selectedQuestion._id }),
-                        });
-                        const body = await res.json();
-                        if (body.success) {
-                          const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
-                          const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
-                          setResolveMsg({ type: "success", text: `Question deleted. Removed ${deletedPredictions} prediction(s) and ${deletedPositions} position(s).` });
-                          await refreshQuestions();
-                          setSelectedQuestion(null);
-                        } else {
-                          setResolveMsg({ type: "error", text: body.detail || "Failed to delete question." });
-                        }
-                      } catch {
-                        setResolveMsg({ type: "error", text: "Network error." });
-                      } finally {
-                        setResolving("");
-                      }
-                    }}
-                    disabled={!!resolving}
-                    className="w-full rounded-lg border border-red-500/50 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50"
-                  >
-                    🗑 Delete Question
-                  </button>
-                </div>
-              )}
-
-              {/* Confirm resolve/close inline */}
-              {confirmResolve && canTransitionSelectedQuestion && (
-                <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
-                  <p className="mb-3 text-sm text-slate-200">
-                    {confirmResolve.answer === "close"
-                      ? "Close this question for new predictions? It will remain pending until you resolve it."
-                      : confirmResolve.answer === "cancel"
-                      ? "Cancel this question? All participants will receive point refunds. No winner or loser declared."
-                      : `Resolve as ${confirmResolve.answer.toUpperCase()}? This finalizes outcomes for participants.`}
-                  </p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmResolve(null)}
-                      className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-500">
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleResolve(selectedQuestion._id, confirmResolve.answer)}
-                      disabled={!!resolving}
-                      className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${
-                        confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" :
-                        confirmResolve.answer === "no" ? "bg-orange-600 hover:bg-orange-500" :
-                        confirmResolve.answer === "close" ? "bg-yellow-700 hover:bg-yellow-600" :
-                        "bg-slate-600 hover:bg-slate-500"
-                      }`}>
-                      {resolving ? "Working..." : "✓ Confirm"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedQuestion.status === "resolved" && (
-                <p className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-center text-xs text-slate-500">
-                  This question has been resolved.
-                </p>
-              )}
-
-              {(selectedQuestion.closed_reason === "cancelled") && (
-                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
-                  Final state: cancelled with full point refunds for participants.
-                </p>
-              )}
-
-              {/* Full question edit — available for open and pending-closed questions */}
-              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
-                <div className="mt-4 border-t border-[var(--stroke)] pt-4">
-                  {!editQuestionMode ? (
-                    <div>
-                      <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
-                      <button
-                        onClick={() => {
-                          setEditQuestionMode(true);
-                          setEditQuestionText(selectedQuestion.title);
-                          setEditQuestionCategory(selectedQuestion.category);
-                          setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
-                          const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
-                          setEditQuestionClosingTime(closingTimeFormatted);
-                          setEditQuestionClosingTimeSeed(closingTimeFormatted);
-                          setEditQuestionRules(selectedQuestion.resolution_rules || "");
-                          setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
-                          const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
-                          setEditQuestionMetadata(metadataText);
-                          setEditQuestionMetadataSeed(metadataText);
-                          setEditSelectedLogoKeys(Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : []);
-                          setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
-                          setEditQuestionMsg(null);
-                        }}
-                        className="text-xs text-[var(--brand)] hover:underline"
-                      >
-                        ✏ Full Edit Question
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-300">Question Text</label>
-                      <textarea
-                        value={editQuestionText}
-                        onChange={(e) => setEditQuestionText(e.target.value)}
-                        rows={2}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="Enter question text..."
-                      />
-                      <label className="text-xs font-medium text-slate-300">Category</label>
-                      <select
-                        value={editQuestionCategory}
-                        onChange={(e) => setEditQuestionCategory(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      >
-                        <option>Crypto</option>
-                        <option>Economy</option>
-                        <option>Entertainment</option>
-                        <option>General</option>
-                        <option>Global events</option>
-                        <option>Markets</option>
-                        <option>Sports</option>
-                      </select>
-                      <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
-                      <input
-                        type="number"
-                        min={50}
-                        step={1}
-                        value={editQuestionEntryCost}
-                        onChange={(e) => setEditQuestionEntryCost(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <label className="text-xs font-medium text-slate-300">Initial Percentage (YES %) <span className="text-slate-500 font-normal">(baseline split)</span></label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        step={0.1}
-                        value={editQuestionInitialYes}
-                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline</p>
-                      <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        value={editQuestionClosingTime}
-                        onChange={(e) => setEditQuestionClosingTime(e.target.value)}
-                        className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
-                      <textarea
-                        value={editQuestionRules}
-                        onChange={(e) => setEditQuestionRules(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="Describe YES and NO conditions..."
-                      />
-                      <LogoLibraryPicker
-                        title="Question logos"
-                        category={editQuestionCategory}
-                        activeAssets={activeLogoAssets}
-                        pendingAssets={pendingLogoAssets}
-                        selectedLogoKeys={editSelectedLogoKeys}
-                        selectedPendingLogoIds={editSelectedPendingLogoIds}
-                        onSelectedLogoKeysChange={setEditSelectedLogoKeys}
-                        onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
-                        onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
-                        uploading={editLogoUploading}
-                        role={userRole}
-                      />
-                      {editQuestionMsg && (
-                        <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }}
-                          className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
-                        >Cancel</button>
-                        <button
-                          disabled={editQuestionSubmitting}
-                          onClick={async () => {
-                            if (!editQuestionText.trim()) {
-                              setEditQuestionMsg({ type: "error", text: "Question text required" });
-                              return;
-                            }
-                            const entryCost = Number(editQuestionEntryCost);
-                            if (!Number.isFinite(entryCost) || entryCost < 50) {
-                              setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
-                              return;
-                            }
-                            const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
-                            if (closingTimeChanged && !editQuestionClosingTime) {
-                              setEditQuestionMsg({ type: "error", text: "Closing time is required" });
-                              return;
-                            }
-                            const initialYes = Number(editQuestionInitialYes);
-                            if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) {
-                              setEditQuestionMsg({ type: "error", text: "Initial YES % must be between 1 and 99" });
-                              return;
-                            }
-
-                            let parsedMetadata: Record<string, unknown> | undefined;
-                            const metadataChanged = editQuestionMetadata.trim() !== editQuestionMetadataSeed.trim();
-                            if (metadataChanged && editQuestionMetadata.trim()) {
-                              try {
-                                const parsed = JSON.parse(editQuestionMetadata);
-                                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-                                  setEditQuestionMsg({ type: "error", text: "Metadata must be a JSON object" });
-                                  return;
-                                }
-                                parsedMetadata = parsed as Record<string, unknown>;
-                              } catch {
-                                setEditQuestionMsg({ type: "error", text: "Metadata must be valid JSON" });
-                                return;
-                              }
-                            }
-
-                            setEditQuestionSubmitting(true);
-                            setEditQuestionMsg(null);
-                            try {
-                              const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-                                },
-                                credentials: "include",
-                                body: JSON.stringify({
-                                  question_id: selectedQuestion._id,
-                                  question_text: editQuestionText.trim(),
-                                  category: editQuestionCategory.trim(),
-                                  entry_cost: entryCost,
-                                  ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
-                                  resolution_rules: editQuestionRules.trim(),
-                                  initial_yes_percent: initialYes,
-                                  logo_keys: editSelectedLogoKeys,
-                                  pending_logo_ids: editSelectedPendingLogoIds,
-                                  ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
-                                }),
-                              });
-                              const body = await res.json();
-                              if (body.success) {
-                                setEditQuestionMsg({ type: "success", text: "Question updated." });
-                                await refreshQuestions();
-                                if (body.question) {
-                                  setSelectedQuestion(body.question);
-                                } else {
-                                  setSelectedQuestion((prev) => prev ? {
-                                    ...prev,
-                                    title: editQuestionText.trim(),
-                                    category: editQuestionCategory.trim(),
-                                    entry_cost: entryCost,
-                                    closing_time: new Date(editQuestionClosingTime).toISOString(),
-                                    resolution_rules: editQuestionRules.trim() || null,
-                                    initial_yes_percent: initialYes,
-                                    initial_no_percent: Math.round((100 - initialYes) * 100) / 100,
-                                    ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
-                                  } : prev);
-                                }
-                                setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
-                              } else {
-                                setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
-                              }
-                            } catch {
-                              setEditQuestionMsg({ type: "error", text: "Network error." });
-                            } finally {
-                              setEditQuestionSubmitting(false);
-                            }
-                          }}
-                          className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
-                        >{editQuestionSubmitting ? "Saving..." : "Save"}</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </section>
 
       {/* ─── Auth users table ──────────────────────────────── */}
