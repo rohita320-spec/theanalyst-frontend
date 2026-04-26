@@ -288,7 +288,6 @@ export async function fetchFeedQuestions(category?: string, status: string = "op
   try {
     const res = await fetch(`${API_BASE_URL}/feed_questions?${params.toString()}`, {
       cache: "no-store",
-      credentials: "include",
     });
     const body = await parseJson<{ results: FeedQuestion[] }>(res);
     return body.results || [];
@@ -308,7 +307,6 @@ export async function fetchActiveLogoAssets(): Promise<LogoAsset[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/logos/active`, {
       cache: "no-store",
-      credentials: "include",
     });
     const body = await parseJson<{ results: LogoAsset[] }>(res);
     return body.results || [];
@@ -325,7 +323,6 @@ export async function fetchLeaderboard(timeframe: "weekly" | "monthly" | "quarte
   try {
     const res = await fetch(`${API_BASE_URL}/leaderboard?limit=25&timeframe=${timeframe}`, {
       cache: "no-store",
-      credentials: "include",
     });
     const body = await parseJson<{ results: LeaderboardRow[] }>(res);
     return body.results || [];
