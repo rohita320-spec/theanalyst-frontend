@@ -162,7 +162,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
               />
             ))
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--stroke)]/60 bg-[var(--surface)] text-[11px] font-semibold text-slate-500">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[11px] font-semibold text-slate-700">
               {question.category.slice(0, 2).toUpperCase()}
             </div>
           )}

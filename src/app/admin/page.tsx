@@ -1862,7 +1862,7 @@ export default function AdminPage() {
         {activeLogoAssets.length === 0 ? (
           <p className="text-sm text-slate-400">No active logos in the library.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-96 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--stroke)] text-left text-xs uppercase tracking-wide text-slate-500">
@@ -2030,7 +2030,7 @@ export default function AdminPage() {
 
           {/* Detail / action panel */}
           {selectedQuestion && (
-            <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none">
+            <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-white">Question Detail</h3>
                 <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
