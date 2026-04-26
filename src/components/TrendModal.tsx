@@ -4,8 +4,9 @@ import type { FeedQuestion, HistoryPoint } from "../lib/api";
 import { getQuestionSideLabels } from "../lib/marketPreview";
 import {
   Area,
-  AreaChart,
+  Bar,
   CartesianGrid,
+  ComposedChart,
   ReferenceDot,
   ResponsiveContainer,
   Tooltip,
@@ -68,6 +69,7 @@ export default function TrendModal({
     no: Number(point.no_percent || 0),
     yesPool: Number(point.yes_pool || 0),
     noPool: Number(point.no_pool || 0),
+    totalPool: Number((point.yes_pool || 0) + (point.no_pool || 0)),
   }));
 
   const lastPoint = points[points.length - 1];
@@ -119,8 +121,8 @@ export default function TrendModal({
               <p className="mt-1 text-lg font-semibold text-slate-300">{formatPct(firstPoint?.yes_percent || 0)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Data Points</p>
-              <p className="mt-1 text-lg font-semibold text-slate-300">{points.length}</p>
+              <p className="text-xs text-slate-400">Total Pool</p>
+              <p className="mt-1 text-lg font-semibold text-slate-300">{new Intl.NumberFormat("en-US").format(Number((lastPoint.yes_pool || 0) + (lastPoint.no_pool || 0)))} pts</p>
             </div>
           </div>
         )}
@@ -142,11 +144,15 @@ export default function TrendModal({
                 <span className="inline-block h-2.5 w-5 rounded-sm bg-[var(--no)]" />
                 {sideLabels.noLabel} %
               </span>
+              <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                <span className="inline-block h-2.5 w-5 rounded-sm bg-[#3b82f6] opacity-50" />
+                Volume
+              </span>
             </div>
 
             <div className="h-64 w-full sm:h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 6, right: 8, bottom: 8, left: -16 }}>
+                <ComposedChart data={chartData} margin={{ top: 6, right: 48, bottom: 8, left: -16 }}>
                   <defs>
                     <linearGradient id="yesFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#34d399" stopOpacity={0.26} />
@@ -161,11 +167,19 @@ export default function TrendModal({
                     tickFormatter={(value) => formatAxisTick(String(value), timeframe)}
                   />
                   <YAxis
+                    yAxisId="pct"
                     domain={[0, 100]}
                     ticks={[0, 25, 50, 75, 100]}
                     tick={{ fill: "#64748b", fontSize: 11 }}
                     tickFormatter={(value) => `${value}%`}
                     width={42}
+                  />
+                  <YAxis
+                    yAxisId="vol"
+                    orientation="right"
+                    tick={{ fill: "#64748b", fontSize: 10 }}
+                    tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)}
+                    width={44}
                   />
                   <Tooltip
                     contentStyle={{ background: "#0b1528", border: "1px solid #2b3b55", borderRadius: 12 }}
@@ -174,11 +188,21 @@ export default function TrendModal({
                       const numericValue = Number(value ?? 0);
                       if (key === "yes") return [formatPct(numericValue), sideLabels.yesLabel];
                       if (key === "no") return [formatPct(numericValue), sideLabels.noLabel];
-                      return [formatPct(numericValue), String(key)];
+                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Volume"];
+                      return [String(value), String(key)];
                     }}
                     labelFormatter={(value) => formatDateLabel(String(value), timeframe)}
                   />
+                  <Bar
+                    yAxisId="vol"
+                    dataKey="totalPool"
+                    fill="#3b82f6"
+                    opacity={0.25}
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={24}
+                  />
                   <Area
+                    yAxisId="pct"
                     type="monotone"
                     dataKey="yes"
                     stroke="#34d399"
@@ -188,6 +212,7 @@ export default function TrendModal({
                     activeDot={{ r: 4 }}
                   />
                   <Area
+                    yAxisId="pct"
                     type="monotone"
                     dataKey="no"
                     stroke="#fb923c"
@@ -201,6 +226,7 @@ export default function TrendModal({
                   {chartData.length > 0 && (
                     <>
                       <ReferenceDot
+                        yAxisId="pct"
                         x={chartData[chartData.length - 1].timestamp}
                         y={chartData[chartData.length - 1].yes}
                         r={5}
@@ -209,6 +235,7 @@ export default function TrendModal({
                         strokeWidth={2}
                       />
                       <ReferenceDot
+                        yAxisId="pct"
                         x={chartData[chartData.length - 1].timestamp}
                         y={chartData[chartData.length - 1].no}
                         r={4}
@@ -218,7 +245,7 @@ export default function TrendModal({
                       />
                     </>
                   )}
-                </AreaChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>

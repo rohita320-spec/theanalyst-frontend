@@ -2314,7 +2314,7 @@ export default function AdminPage() {
         {activeLogoAssets.length === 0 ? (
           <p className="text-sm text-slate-400">No active logos in the library.</p>
         ) : (
-          <div className="max-h-96 overflow-y-auto overflow-x-auto">
+          <div className="max-h-[260px] overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-[var(--surface)]">
                 <tr className="border-b border-[var(--stroke)] text-left text-xs uppercase tracking-wide text-slate-500">
