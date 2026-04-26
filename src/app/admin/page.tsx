@@ -732,8 +732,30 @@ export default function AdminPage() {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-        if (!bootstrapRes.ok) {
-          setError(`Failed to load admin data (HTTP ${bootstrapRes.status}). Check FRONTEND_ORIGINS on the backend.`);
+        if (bootstrapRes.status === 404) {
+          // Backend is running an old version without the bootstrap endpoint.
+          // Fall back to individual legacy endpoints.
+          const [usersRes, qRes] = await Promise.all([
+            timedFetch("admin/users", `${API_BASE}/admin/users`, {
+              credentials: "include",
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            }),
+            timedFetch("feed_questions", `${API_BASE}/feed_questions?limit=200&status=all`, {
+              credentials: "include",
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            }),
+          ]);
+          if (usersRes.ok) {
+            const b = await usersRes.json();
+            setAuthUsers(b.results || b.users || []);
+          }
+          if (qRes.ok) {
+            const b = await qRes.json();
+            setAllQuestions(b.results || []);
+          }
+          setError("Backend is running an old version — go to Railway dashboard and trigger a manual redeploy to restore full admin features.");
+        } else if (!bootstrapRes.ok) {
+          setError(`Failed to load admin data (HTTP ${bootstrapRes.status}). ${bootstrapRes.status === 403 ? "Check your admin role." : "Check FRONTEND_ORIGINS on the backend."}`);
         }
         if (bootstrapRes.ok) {
           const body = await bootstrapRes.json();
