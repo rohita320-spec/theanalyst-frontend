@@ -392,9 +392,8 @@ export default function AdminPage() {
   const [addLogoSubmitting, setAddLogoSubmitting] = useState(false);
   const [editingLogoId, setEditingLogoId] = useState<string | null>(null);
   const [editingLogoUrl, setEditingLogoUrl] = useState("");
-  const [quickLogoKeys, setQuickLogoKeys] = useState<string[]>([]);
-  const [quickLogoSubmitting, setQuickLogoSubmitting] = useState(false);
-  const [quickLogoMsg, setQuickLogoMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [editingLogoFile, setEditingLogoFile] = useState<File | null>(null);
+  const [logoLibrarySearch, setLogoLibrarySearch] = useState("");
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
 
@@ -566,31 +565,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleQuickLogoSave = async (newKeys: string[]) => {
-    if (!selectedQuestion) return;
-    setQuickLogoSubmitting(true);
-    setQuickLogoMsg(null);
-    try {
-      const res = await timedFetch("admin/edit_question/logos", `${API_BASE}/admin/edit_question`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify({ question_id: selectedQuestion._id, logo_keys: newKeys }),
-      });
-      const body = await res.json();
-      if (!body.success) throw new Error(body.detail || "Failed to save logos.");
-      setSelectedQuestion((prev) => prev ? { ...prev, logo_keys: newKeys } : prev);
-      await refreshQuestions();
-      setQuickLogoMsg({ type: "success", text: "Saved." });
-    } catch (err) {
-      setQuickLogoMsg({ type: "error", text: err instanceof Error ? err.message : "Network error." });
-    } finally {
-      setQuickLogoSubmitting(false);
-    }
-  };
 
   const handleAddLogoToLibrary = async () => {
     if (!addLogoName.trim() || (!addLogoFile && !addLogoUrl.trim())) {
@@ -642,28 +616,39 @@ export default function AdminPage() {
     }
   };
 
-  const handleEditLogoUrl = async (logoId: string) => {
-    if (!editingLogoUrl.trim()) return;
+  const handleEditLogo = async (logoId: string) => {
+    if (!editingLogoFile && !editingLogoUrl.trim()) return;
     setLogoLibraryMsg(null);
     try {
-      const res = await timedFetch("admin/logo_assets/edit", `${API_BASE}/admin/logo_assets/edit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify({ logo_id: logoId, logo_url: editingLogoUrl.trim() }),
-      });
+      let res: Response;
+      if (editingLogoFile) {
+        const form = new FormData();
+        form.set("logo_id", logoId);
+        form.set("logo_file", editingLogoFile);
+        res = await timedFetch("admin/logo_assets/edit_file", `${API_BASE}/admin/logo_assets/edit_file`, {
+          method: "POST",
+          headers: { ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+          credentials: "include",
+          body: form,
+        });
+      } else {
+        res = await timedFetch("admin/logo_assets/edit", `${API_BASE}/admin/logo_assets/edit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+          credentials: "include",
+          body: JSON.stringify({ logo_id: logoId, logo_url: editingLogoUrl.trim() }),
+        });
+      }
       const body = await res.json();
       if (!body.success) throw new Error(body.detail || "Edit failed.");
       const updated = body.logo_asset as LogoAsset;
       setActiveLogoAssets((prev) => prev.map((a) => (a.id === logoId ? updated : a)));
-      setLogoLibraryMsg({ type: "success", text: "Logo URL updated." });
+      setLogoLibraryMsg({ type: "success", text: "Logo updated." });
       setEditingLogoId(null);
       setEditingLogoUrl("");
+      setEditingLogoFile(null);
     } catch (err) {
-      setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to update URL." });
+      setLogoLibraryMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to update logo." });
     }
   };
 
@@ -991,8 +976,6 @@ export default function AdminPage() {
   useEffect(() => {
     setEditQuestionMode(false);
     setEditQuestionMsg(null);
-    setQuickLogoKeys(Array.isArray(selectedQuestion?.logo_keys) ? selectedQuestion.logo_keys : []);
-    setQuickLogoMsg(null);
   }, [selectedQuestion?._id]);
 
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
@@ -1859,12 +1842,19 @@ export default function AdminPage() {
             {logoLibraryMsg.text}
           </div>
         )}
+        <input
+          type="text"
+          value={logoLibrarySearch}
+          onChange={(e) => setLogoLibrarySearch(e.target.value)}
+          placeholder="Search by name or key…"
+          className="mb-3 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
         {activeLogoAssets.length === 0 ? (
           <p className="text-sm text-slate-400">No active logos in the library.</p>
         ) : (
           <div className="max-h-96 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-[var(--surface)]">
                 <tr className="border-b border-[var(--stroke)] text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="pb-2 pr-4">Logo</th>
                   <th className="pb-2 pr-4">Key</th>
@@ -1873,7 +1863,12 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--stroke)]">
-                {activeLogoAssets.map((asset) => (
+                {activeLogoAssets
+                  .filter((a) => {
+                    const q = logoLibrarySearch.trim().toLowerCase();
+                    return !q || a.display_name.toLowerCase().includes(q) || a.logo_key.toLowerCase().includes(q);
+                  })
+                  .map((asset) => (
                   <tr key={asset.id} className="text-slate-300">
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-2">
@@ -1885,30 +1880,39 @@ export default function AdminPage() {
                     <td className="py-2 pr-4 text-slate-400">{asset.category}</td>
                     <td className="py-2">
                       {editingLogoId === asset.id ? (
-                        <div className="flex items-center gap-1">
+                        <div className="space-y-1.5">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => { setEditingLogoFile(e.target.files?.[0] ?? null); setEditingLogoUrl(""); }}
+                            className="w-full rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-slate-300 file:mr-2 file:rounded file:border-0 file:bg-indigo-600 file:px-2 file:py-0.5 file:text-xs file:text-white"
+                          />
+                          <p className="text-center text-[10px] text-slate-500">— or paste URL —</p>
                           <input
                             type="url"
                             value={editingLogoUrl}
-                            onChange={(e) => setEditingLogoUrl(e.target.value)}
+                            onChange={(e) => { setEditingLogoUrl(e.target.value); setEditingLogoFile(null); }}
                             placeholder="https://..."
-                            className="w-44 rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                           />
-                          <button
-                            onClick={() => handleEditLogoUrl(asset.id)}
-                            disabled={!editingLogoUrl.trim()}
-                            className="rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
-                          >Save</button>
-                          <button
-                            onClick={() => { setEditingLogoId(null); setEditingLogoUrl(""); }}
-                            className="rounded border border-[var(--stroke)] px-2 py-1 text-xs text-slate-400 hover:text-white"
-                          >✕</button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleEditLogo(asset.id)}
+                              disabled={!editingLogoFile && !editingLogoUrl.trim()}
+                              className="flex-1 rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+                            >Save</button>
+                            <button
+                              onClick={() => { setEditingLogoId(null); setEditingLogoUrl(""); setEditingLogoFile(null); }}
+                              className="rounded border border-[var(--stroke)] px-2 py-1 text-xs text-slate-400 hover:text-white"
+                            >✕</button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => { setEditingLogoId(asset.id); setEditingLogoUrl(asset.image_url || ""); }}
+                            onClick={() => { setEditingLogoId(asset.id); setEditingLogoUrl(""); setEditingLogoFile(null); }}
                             className="rounded border border-indigo-500/30 px-2 py-1 text-xs text-indigo-400 hover:bg-indigo-500/10"
-                          >Edit URL</button>
+                          >Edit</button>
                           <button
                             onClick={() => moderateLogoAsset("deactivate", asset.id)}
                             className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
@@ -2055,45 +2059,6 @@ export default function AdminPage() {
                 <p>Status: <span className={selectedQuestion.status === "open" ? "status-open-text" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-slate-400"}>{selectedQuestion.status}</span></p>
                 {selectedQuestion.closing_time && new Date(selectedQuestion.closing_time) < now && selectedQuestion.status === "open" && (
                   <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-400">⚠ Past closing time</p>
-                )}
-              </div>
-
-              {/* Quick logo assignment */}
-              <div className="mb-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Logos</p>
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--stroke)]">
-                  {activeLogoAssets.length === 0 ? (
-                    <p className="px-3 py-3 text-center text-xs text-slate-500">No logos in library yet.</p>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-px bg-[var(--stroke)]">
-                      {activeLogoAssets.map((asset) => {
-                        const selected = quickLogoKeys.includes(asset.logo_key);
-                        return (
-                          <button
-                            key={asset.id}
-                            type="button"
-                            onClick={() => {
-                              const newKeys = selected ? quickLogoKeys.filter((k) => k !== asset.logo_key) : [...quickLogoKeys, asset.logo_key];
-                              setQuickLogoKeys(newKeys);
-                              handleQuickLogoSave(newKeys);
-                            }}
-                            className={`flex flex-col items-center gap-1 px-1 py-2 text-center transition-colors ${selected ? "bg-[var(--brand)]/10 ring-1 ring-inset ring-[var(--brand)]" : "bg-[#0b1528] hover:bg-white/5"}`}
-                          >
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white p-1">
-                              <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-full w-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.2"; }} />
-                            </div>
-                            <span className={`line-clamp-1 w-full text-[9px] leading-tight ${selected ? "text-[var(--brand)]" : "text-slate-400"}`}>{asset.display_name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                {quickLogoMsg && (
-                  <p className={`mt-1 text-xs ${quickLogoMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{quickLogoMsg.text}</p>
-                )}
-                {quickLogoSubmitting && (
-                  <p className="mt-1 text-xs text-slate-500">Saving…</p>
                 )}
               </div>
 
