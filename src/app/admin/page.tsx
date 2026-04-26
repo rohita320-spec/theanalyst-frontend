@@ -311,7 +311,7 @@ export default function AdminPage() {
   // Questions state
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [questionViewTab, setQuestionViewTab] = useState<"open" | "closed" | "resolved" | "all">("open");
+  const [questionViewTab, setQuestionViewTab] = useState<"open" | "closed" | "resolved" | "all">("all");
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
   const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1420,9 +1420,10 @@ export default function AdminPage() {
       {/* Summary cards */}
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Data Summary</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard label="Users" value={summary?.auth_users_count ?? authUsers.length} />
           <StatCard label="Open Questions" value={openQuestions.length} />
+          <StatCard label="Closed Questions" value={closedQuestions.length} />
           <StatCard label="Resolved Questions" value={finalizedQuestions.length} />
           <StatCard label="Pending Approvals" value={pendingQuestions.length} />
         </div>
