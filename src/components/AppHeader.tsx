@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearStoredAuthSession, logout } from "../lib/api";
+import { clearStoredAuthSession, logout, me } from "../lib/api";
 
 type Props = {
   active: "home" | "feed" | "leaderboard" | "profile";
@@ -78,9 +78,23 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
     };
 
     syncNotice();
-  syncAuth();
+    syncAuth();
     window.addEventListener("storage", onStorage);
     window.addEventListener("auth-changed", onAuthChanged);
+
+    // Sync live role from backend so nav updates after role changes without re-login
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (token) {
+      me(token).then((result) => {
+        try {
+          const stored = JSON.parse(localStorage.getItem("auth_user") || "{}");
+          if (stored.role !== result.user.role) {
+            localStorage.setItem("auth_user", JSON.stringify({ ...stored, role: result.user.role }));
+            syncAuth();
+          }
+        } catch { /* ignore */ }
+      }).catch(() => { /* ignore network errors */ });
+    }
 
     return () => {
       window.removeEventListener("storage", onStorage);

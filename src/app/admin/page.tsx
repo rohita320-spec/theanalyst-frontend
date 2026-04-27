@@ -751,6 +751,14 @@ export default function AdminPage() {
         setAdminToken(token);
         setUserRole(result.user.role as "admin" | "question_creator" | "question_creator_resolver");
         setState("allowed");
+        // Sync live role into localStorage so AppHeader nav updates without re-login
+        try {
+          const stored = JSON.parse(localStorage.getItem("auth_user") || "{}");
+          if (stored.role !== result.user.role) {
+            localStorage.setItem("auth_user", JSON.stringify({ ...stored, role: result.user.role }));
+            window.dispatchEvent(new Event("auth-changed"));
+          }
+        } catch { /* ignore */ }
 
         if (result.user.role === "question_creator" || result.user.role === "question_creator_resolver") {
           const myQRes = await timedFetch("creator/my_questions", `${API_BASE}/creator/my_questions`, {
