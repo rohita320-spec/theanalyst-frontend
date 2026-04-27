@@ -182,16 +182,20 @@ export default function TrendModal({
                     width={44}
                   />
                   <Tooltip
-                    contentStyle={{ background: "#0b1528", border: "1px solid #2b3b55", borderRadius: 12 }}
-                    labelStyle={{ color: "#94a3b8", fontSize: 12 }}
-                    formatter={(value, key) => {
-                      const numericValue = Number(value ?? 0);
-                      if (key === "yes") return [formatPct(numericValue), sideLabels.yesLabel];
-                      if (key === "no") return [formatPct(numericValue), sideLabels.noLabel];
-                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Volume"];
-                      return [String(value), String(key)];
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const yes = payload.find((p) => p.dataKey === "yes");
+                      const no = payload.find((p) => p.dataKey === "no");
+                      const vol = payload.find((p) => p.dataKey === "totalPool");
+                      return (
+                        <div style={{ background: "#0b1528", border: "1px solid #2b3b55", borderRadius: 12, padding: "8px 12px", fontSize: 12 }}>
+                          <p style={{ color: "#94a3b8", marginBottom: 6 }}>{formatDateLabel(String(label ?? ""), timeframe)}</p>
+                          {yes && <p style={{ color: "#34d399" }}>{sideLabels.yesLabel} : {formatPct(Number(yes.value ?? 0))}</p>}
+                          {no && <p style={{ color: "#fb923c" }}>{sideLabels.noLabel} : {formatPct(Number(no.value ?? 0))}</p>}
+                          {vol && <p style={{ color: "#3b82f6" }}>Volume : {new Intl.NumberFormat("en-US").format(Number(vol.value ?? 0))} pts</p>}
+                        </div>
+                      );
                     }}
-                    labelFormatter={(value) => formatDateLabel(String(value), timeframe)}
                   />
                   <Bar
                     yAxisId="vol"
