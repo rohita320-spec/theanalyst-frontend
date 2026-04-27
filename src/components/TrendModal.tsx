@@ -270,7 +270,7 @@ export default function TrendModal({
 
         {/* ── Analyst Desk ─────────────────────────────────────── */}
         <div className="mt-4">
-          <AnalystDesk category={question.category} />
+          <AnalystDesk category={question.category} mode="view" />
         </div>
 
         {/* ── Resolution Rules ─────────────────────────────────── */}

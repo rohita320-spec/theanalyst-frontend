@@ -114,9 +114,10 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
 
 type Props = {
   category: string;
+  mode?: "create" | "view";
 };
 
-export default function AnalystDesk({ category }: Props) {
+export default function AnalystDesk({ category, mode = "create" }: Props) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"chart" | "links">("chart");
   const defaultSymbol = CATEGORY_DEFAULT_SYMBOL[category] || "NSE:NIFTY50";
@@ -196,7 +197,9 @@ export default function AnalystDesk({ category }: Props) {
           {activeTab === "links" && (
             <div>
               <p className="mb-3 text-xs text-slate-500">
-                Verified data sources for <span className="font-medium text-slate-300">{category}</span> questions. Use these to write accurate resolution rules and closing dates.
+                {mode === "create"
+                  ? <>Verified data sources for <span className="font-medium text-slate-300">{category}</span> questions. Use these to write accurate resolution rules and set the right closing date.</>
+                  : <>Reference sources to help you research and analyse this <span className="font-medium text-slate-300">{category}</span> question before placing your prediction.</>}
               </p>
               <div className="flex flex-wrap gap-2">
                 {links.map((link) => (
@@ -211,9 +214,15 @@ export default function AnalystDesk({ category }: Props) {
                   </a>
                 ))}
               </div>
-              <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[10px] text-amber-300/80">
-                Always cite the specific page URL in your resolution rules so participants can verify the outcome independently.
-              </p>
+              {mode === "create" ? (
+                <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[10px] text-amber-300/80">
+                  Always cite the specific page URL in your resolution rules so participants can verify the outcome independently.
+                </p>
+              ) : (
+                <p className="mt-3 rounded-lg border border-[var(--brand)]/15 bg-[var(--brand)]/5 px-3 py-2 text-[10px] text-slate-400">
+                  Cross-reference multiple sources before predicting. Resolution is based on publicly verified data at the time the question closes.
+                </p>
+              )}
             </div>
           )}
         </div>
