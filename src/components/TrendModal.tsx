@@ -146,7 +146,7 @@ export default function TrendModal({
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
                 <span className="inline-block h-2.5 w-5 rounded-sm bg-[#3b82f6] opacity-50" />
-                Volume
+                Total Points
               </span>
             </div>
 
@@ -188,7 +188,7 @@ export default function TrendModal({
                       const numericValue = Number(value ?? 0);
                       if (key === "yes") return [formatPct(numericValue), sideLabels.yesLabel];
                       if (key === "no") return [formatPct(numericValue), sideLabels.noLabel];
-                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Volume"];
+                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Total Points"];
                       return [String(value), String(key)];
                     }}
                     labelFormatter={(value) => formatDateLabel(String(value), timeframe)}
@@ -204,22 +204,22 @@ export default function TrendModal({
                   <Area
                     yAxisId="pct"
                     type="monotone"
-                    dataKey="yes"
-                    stroke="#34d399"
-                    fill="url(#yesFill)"
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Area
-                    yAxisId="pct"
-                    type="monotone"
                     dataKey="no"
                     stroke="#fb923c"
                     fillOpacity={0}
                     fill="#fb923c"
                     strokeWidth={2}
                     strokeDasharray="6 4"
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Area
+                    yAxisId="pct"
+                    type="monotone"
+                    dataKey="yes"
+                    stroke="#34d399"
+                    fill="url(#yesFill)"
+                    strokeWidth={2.5}
                     dot={false}
                     activeDot={{ r: 4 }}
                   />

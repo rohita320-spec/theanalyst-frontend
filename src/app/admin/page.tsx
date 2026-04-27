@@ -101,7 +101,7 @@ type LogoLibraryPickerProps = {
   onSelectedPendingLogoIdsChange: (next: string[]) => void;
   onUploadLogo: (payload: { displayName: string; category: string; file?: File; logoUrl?: string; logoKey?: string }) => Promise<void>;
   uploading: boolean;
-  role: "admin" | "question_creator";
+  role: "admin" | "question_creator" | "question_creator_resolver";
 };
 
 function LogoLibraryPicker({
@@ -361,7 +361,7 @@ export default function AdminPage() {
   const [adminMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Role & creator/pending state
-  const [userRole, setUserRole] = useState<"admin" | "question_creator">("admin");
+  const [userRole, setUserRole] = useState<"admin" | "question_creator" | "question_creator_resolver">("admin");
   const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
   const [pendingInitialYes, setPendingInitialYes] = useState<Record<string, string>>({});
   const [pendingEditId, setPendingEditId] = useState<string | null>(null);
@@ -441,7 +441,7 @@ export default function AdminPage() {
   };
 
   const refreshLogoAssets = async (
-    roleOverride: "admin" | "question_creator" = userRole,
+    roleOverride: "admin" | "question_creator" | "question_creator_resolver" = userRole,
     tokenOverride: string = adminToken,
   ) => {
     setLogoLibraryLoading(true);
@@ -704,18 +704,17 @@ export default function AdminPage() {
       const token = localStorage.getItem("auth_token") || "";
       try {
         const result = await me(token || undefined);
-        if (result.user.role !== "admin" && result.user.role !== "question_creator") {
+        if (result.user.role !== "admin" && result.user.role !== "question_creator" && result.user.role !== "question_creator_resolver") {
           setState("forbidden");
           setError("Your account does not have admin access. Login with an admin or creator account.");
           return;
         }
         setAdminEmail(result.user.email || "");
         setAdminToken(token);
-        setUserRole(result.user.role as "admin" | "question_creator");
+        setUserRole(result.user.role as "admin" | "question_creator" | "question_creator_resolver");
         setState("allowed");
 
-        if (result.user.role === "question_creator") {
-          // Creators only see their own submitted questions
+        if (result.user.role === "question_creator" || result.user.role === "question_creator_resolver") {
           const myQRes = await timedFetch("creator/my_questions", `${API_BASE}/creator/my_questions`, {
             credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -723,6 +722,10 @@ export default function AdminPage() {
           if (myQRes.ok) {
             const body = await myQRes.json();
             setMyQuestions(body.results || []);
+          }
+          if (result.user.role === "question_creator_resolver") {
+            // Resolvers also need the full question list to resolve questions
+            await refreshQuestions();
           }
           await refreshLogoAssets("question_creator", token);
           return;
@@ -1319,11 +1322,12 @@ export default function AdminPage() {
   const roleBadge = (role: string) => {
     if (role === "admin") return "bg-[var(--brand)]/15 text-[var(--brand)]";
     if (role === "question_creator") return "bg-purple-500/15 text-purple-300";
+    if (role === "question_creator_resolver") return "bg-teal-500/15 text-teal-300";
     return "bg-slate-700/50 text-slate-300";
   };
 
-  // ── Creator Dashboard ──────────────────────────────────────────────────────
-  if (userRole === "question_creator") {
+  // ── Creator / Creator-Resolver Dashboard ───────────────────────────────────
+  if (userRole === "question_creator" || userRole === "question_creator_resolver") {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         {authNotice && (
@@ -1394,6 +1398,66 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+
+        {/* Resolve Questions — only for question_creator_resolver */}
+        {userRole === "question_creator_resolver" && (
+          <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-white">Resolve Questions</h2>
+                <p className="text-sm text-slate-400">Select a question to resolve its outcome.</p>
+              </div>
+              <button onClick={refreshQuestions} className="text-xs text-slate-500 hover:text-slate-300">{questionsLoading ? "Loading…" : "↻ Refresh"}</button>
+            </div>
+            {resolveMsg && (
+              <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${resolveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                {resolveMsg.text}
+              </div>
+            )}
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <div className="max-h-72 overflow-y-auto space-y-1 lg:w-72">
+                {allQuestions.filter((q) => q.status !== "resolved").length === 0 ? (
+                  <p className="text-sm text-slate-400">No open or closed questions to resolve.</p>
+                ) : allQuestions.filter((q) => q.status !== "resolved").map((q) => (
+                  <button
+                    key={q._id}
+                    onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
+                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${selectedQuestion?._id === q._id ? "bg-[var(--brand)]/15 border border-[var(--brand)]/30" : "border border-[var(--stroke)] hover:border-slate-500/60"}`}
+                  >
+                    <p className="line-clamp-1 text-sm font-medium text-white">{q.title}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{q.category} · {q.status} · YES {Number(q.yes_percent ?? 50).toFixed(1)}%</p>
+                  </button>
+                ))}
+              </div>
+              {selectedQuestion && (
+                <div className="flex-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                  <p className="mb-2 text-sm font-semibold text-white line-clamp-2">{selectedQuestion.title}</p>
+                  <div className="mb-4 space-y-1 text-xs text-slate-400">
+                    <p>Category: <span className="text-slate-200">{selectedQuestion.category}</span></p>
+                    <p>YES pool: <span className="text-emerald-300">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-orange-300">{selectedQuestion.no_pool} pts</span></p>
+                    <p>Market split: YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}% / NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</p>
+                    <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : "text-amber-400"}>{selectedQuestion.status}</span></p>
+                  </div>
+                  {!confirmResolve && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled" && (
+                    <div className="space-y-2">
+                      <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">✓ Resolve YES</button>
+                      <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving} className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">✗ Resolve NO</button>
+                    </div>
+                  )}
+                  {confirmResolve && (
+                    <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
+                      <p className="mb-3 text-sm text-slate-200">Resolve as {confirmResolve.answer.toUpperCase()}? This finalizes outcomes for all participants.</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setConfirmResolve(null)} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
+                        <button onClick={() => handleResolve(selectedQuestion._id, confirmResolve.answer)} disabled={!!resolving} className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-orange-600 hover:bg-orange-500"}`}>{resolving ? "Resolving…" : "Confirm"}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Quick Links */}
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
@@ -2521,7 +2585,8 @@ export default function AdminPage() {
                 className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none"
               >
                 <option value="admin">Admin — full access (create, resolve, manage users)</option>
-                <option value="question_creator">Question Creator — can create questions only</option>
+                <option value="question_creator">Question Creator — can create questions (pending review)</option>
+                <option value="question_creator_resolver">Creator & Resolver — can create (live) and resolve questions</option>
                 <option value="user">User — analyses only (default)</option>
               </select>
               <p className="mt-1 text-xs text-slate-500">Current: <span className="font-medium text-slate-300">{roleModal.currentRole}</span></p>

@@ -111,7 +111,7 @@ export type HistoryPoint = {
 export type AuthUser = {
   id: string;
   email: string;
-  role: "user" | "admin" | "question_creator";
+  role: "user" | "admin" | "question_creator" | "question_creator_resolver";
   username?: string;
   theme_preference?: "dark" | "bright";
 };
