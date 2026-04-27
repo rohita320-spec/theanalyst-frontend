@@ -765,7 +765,7 @@ export default function AdminPage() {
             // Resolvers also need the full question list to resolve questions
             await refreshQuestions();
           }
-          await refreshLogoAssets("question_creator", token);
+          await refreshLogoAssets(result.user.role as "question_creator" | "question_creator_resolver", token);
           return;
         }
 
