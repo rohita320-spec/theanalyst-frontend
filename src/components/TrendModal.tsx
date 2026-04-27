@@ -270,7 +270,12 @@ export default function TrendModal({
 
         {/* ── Analyst Desk ─────────────────────────────────────── */}
         <div className="mt-4">
-          <AnalystDesk category={question.category} mode="view" />
+          <AnalystDesk
+            category={question.category}
+            mode="view"
+            savedChartSymbol={typeof question.metadata?.chart_symbol === "string" ? question.metadata.chart_symbol : undefined}
+            savedReferenceLinks={Array.isArray(question.metadata?.reference_links) ? question.metadata.reference_links as { label: string; url: string }[] : undefined}
+          />
         </div>
 
         {/* ── Resolution Rules ─────────────────────────────────── */}

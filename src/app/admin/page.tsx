@@ -8,6 +8,9 @@ import AnalystDesk from "../../components/AnalystDesk";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+const MARKET_CATS = new Set(["Crypto", "Economy", "Markets"]);
+type RefLink = { label: string; url: string };
+
 type AuthUserRow = {
   id: string;
   email: string;
@@ -368,6 +371,8 @@ export default function AdminPage() {
   const [createResolutionRules, setCreateResolutionRules] = useState("");
   const [createSelectedLogoKeys, setCreateSelectedLogoKeys] = useState<string[]>([]);
   const [createSelectedPendingLogoIds, setCreateSelectedPendingLogoIds] = useState<string[]>([]);
+  const [createChartSymbol, setCreateChartSymbol] = useState("");
+  const [createReferenceLinks, setCreateReferenceLinks] = useState<RefLink[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createLogoUploading, setCreateLogoUploading] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -385,6 +390,8 @@ export default function AdminPage() {
   const [editQuestionMetadataSeed, setEditQuestionMetadataSeed] = useState("");
   const [editSelectedLogoKeys, setEditSelectedLogoKeys] = useState<string[]>([]);
   const [editSelectedPendingLogoIds, setEditSelectedPendingLogoIds] = useState<string[]>([]);
+  const [editChartSymbol, setEditChartSymbol] = useState("");
+  const [editReferenceLinks, setEditReferenceLinks] = useState<RefLink[]>([]);
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
   const [editLogoUploading, setEditLogoUploading] = useState(false);
   const [editQuestionMsg, setEditQuestionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1160,6 +1167,10 @@ export default function AdminPage() {
           logo_keys: createSelectedLogoKeys,
           pending_logo_ids: createSelectedPendingLogoIds,
           ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
+          metadata: {
+            ...(MARKET_CATS.has(createCategory) && createChartSymbol.trim() ? { chart_symbol: createChartSymbol.trim() } : {}),
+            ...(createReferenceLinks.filter((l) => l.url.trim()).length > 0 ? { reference_links: createReferenceLinks.filter((l) => l.url.trim()) } : {}),
+          },
         }),
       });
       const body = await res.json();
@@ -1170,7 +1181,7 @@ export default function AdminPage() {
           ? "Question submitted for review! An admin will approve it shortly."
           : `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%`;
         setCreateMsg({ type: "success", text: successText });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateSelectedLogoKeys([]); setCreateSelectedPendingLogoIds([]); setCreateStep("form");
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateSelectedLogoKeys([]); setCreateSelectedPendingLogoIds([]); setCreateChartSymbol(""); setCreateReferenceLinks([]); setCreateStep("form");
         setTimeout(() => {
           setCreateModalOpen(false);
           setCreateMsg(null);
@@ -1587,6 +1598,28 @@ export default function AdminPage() {
                         role={userRole}
                       />
                       <AnalystDesk category={createCategory} />
+                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                        {MARKET_CATS.has(createCategory) && (
+                          <div>
+                            <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
+                            <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          </div>
+                        )}
+                        <div>
+                          <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                          <div className="space-y-2">
+                            {createReferenceLinks.map((link, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                          </div>
+                        </div>
+                      </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                         <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
@@ -1906,6 +1939,9 @@ export default function AdminPage() {
                           const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
                           setEditQuestionMetadata(metadataText);
                           setEditQuestionMetadataSeed(metadataText);
+                          const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                          setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
+                          setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
                           setEditSelectedLogoKeys(Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : []);
                           setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
                           setEditQuestionMsg(null);
@@ -1967,6 +2003,28 @@ export default function AdminPage() {
                         className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
                       <AnalystDesk category={editQuestionCategory} />
+                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                        {MARKET_CATS.has(editQuestionCategory) && (
+                          <div>
+                            <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
+                            <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          </div>
+                        )}
+                        <div>
+                          <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                          <div className="space-y-2">
+                            {editReferenceLinks.map((link, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                          </div>
+                        </div>
+                      </div>
                       <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
                       <textarea
                         value={editQuestionRules}
@@ -2019,21 +2077,14 @@ export default function AdminPage() {
                               return;
                             }
 
-                            let parsedMetadata: Record<string, unknown> | undefined;
-                            const metadataChanged = editQuestionMetadata.trim() !== editQuestionMetadataSeed.trim();
-                            if (metadataChanged && editQuestionMetadata.trim()) {
-                              try {
-                                const parsed = JSON.parse(editQuestionMetadata);
-                                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-                                  setEditQuestionMsg({ type: "error", text: "Metadata must be a JSON object" });
-                                  return;
-                                }
-                                parsedMetadata = parsed as Record<string, unknown>;
-                              } catch {
-                                setEditQuestionMsg({ type: "error", text: "Metadata must be valid JSON" });
-                                return;
-                              }
+                            const builtMetadata: Record<string, unknown> = {};
+                            if (MARKET_CATS.has(editQuestionCategory) && editChartSymbol.trim()) {
+                              builtMetadata.chart_symbol = editChartSymbol.trim();
                             }
+                            const validLinks = editReferenceLinks.filter((l) => l.url.trim());
+                            if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
+                            const parsedMetadata = Object.keys(builtMetadata).length > 0 ? builtMetadata : {};
+                            const metadataChanged = true;
 
                             setEditQuestionSubmitting(true);
                             setEditQuestionMsg(null);
@@ -2860,6 +2911,28 @@ export default function AdminPage() {
                     role={userRole}
                   />
                   <AnalystDesk category={createCategory} />
+                  <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                    {MARKET_CATS.has(createCategory) && (
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
+                        <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                      <div className="space-y-2">
+                        {createReferenceLinks.map((link, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                      </div>
+                    </div>
+                  </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                     <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
