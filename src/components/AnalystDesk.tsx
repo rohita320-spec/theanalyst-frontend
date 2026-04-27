@@ -199,7 +199,7 @@ export default function AnalystDesk({ category, mode = "create" }: Props) {
               <p className="mb-3 text-xs text-slate-500">
                 {mode === "create"
                   ? <>Verified data sources for <span className="font-medium text-slate-300">{category}</span> questions. Use these to write accurate resolution rules and set the right closing date.</>
-                  : <>Reference sources to help you research and analyse this <span className="font-medium text-slate-300">{category}</span> question before placing your prediction.</>}
+                  : <>Reference sources to help you research and analyse this <span className="font-medium text-slate-300">{category}</span> question before placing a prediction.</>}
               </p>
               <div className="flex flex-wrap gap-2">
                 {links.map((link) => (
@@ -220,7 +220,7 @@ export default function AnalystDesk({ category, mode = "create" }: Props) {
                 </p>
               ) : (
                 <p className="mt-3 rounded-lg border border-[var(--brand)]/15 bg-[var(--brand)]/5 px-3 py-2 text-[10px] text-slate-400">
-                  Cross-reference multiple sources before predicting. Resolution is based on publicly verified data at the time the question closes.
+                  Cross-reference multiple sources before predicting. Resolution is based on publicly verified data at the time of question resolution.
                 </p>
               )}
             </div>
