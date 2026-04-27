@@ -187,11 +187,23 @@ export default function TrendModal({
                       const yes = payload.find((p) => p.dataKey === "yes");
                       const no = payload.find((p) => p.dataKey === "no");
                       const vol = payload.find((p) => p.dataKey === "totalPool");
+                      const yesVal = Number(yes?.value ?? 0);
+                      const noVal = Number(no?.value ?? 0);
+                      const yesFirst = yesVal >= noVal;
                       return (
                         <div style={{ background: "#0b1528", border: "1px solid #2b3b55", borderRadius: 12, padding: "8px 12px", fontSize: 12 }}>
                           <p style={{ color: "#94a3b8", marginBottom: 6 }}>{formatDateLabel(String(label ?? ""), timeframe)}</p>
-                          {yes && <p style={{ color: "#34d399" }}>{sideLabels.yesLabel} : {formatPct(Number(yes.value ?? 0))}</p>}
-                          {no && <p style={{ color: "#fb923c" }}>{sideLabels.noLabel} : {formatPct(Number(no.value ?? 0))}</p>}
+                          {yesFirst ? (
+                            <>
+                              {yes && <p style={{ color: "#34d399" }}>{sideLabels.yesLabel} : {formatPct(yesVal)}</p>}
+                              {no && <p style={{ color: "#fb923c" }}>{sideLabels.noLabel} : {formatPct(noVal)}</p>}
+                            </>
+                          ) : (
+                            <>
+                              {no && <p style={{ color: "#fb923c" }}>{sideLabels.noLabel} : {formatPct(noVal)}</p>}
+                              {yes && <p style={{ color: "#34d399" }}>{sideLabels.yesLabel} : {formatPct(yesVal)}</p>}
+                            </>
+                          )}
                           {vol && <p style={{ color: "#3b82f6" }}>Volume : {new Intl.NumberFormat("en-US").format(Number(vol.value ?? 0))} pts</p>}
                         </div>
                       );

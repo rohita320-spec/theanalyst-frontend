@@ -251,7 +251,7 @@ function LogoLibraryPicker({
             placeholder="Direct image URL (https://example.com/logo.png)"
             className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
-          <p className="text-[10px] text-amber-400/80">⚠ URL must be a direct image address (.png, .jpg, .svg…), not a webpage link.</p>
+          <p className="text-[10px] text-amber-400/80">⚠ URL must be a direct image address, e.g. https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/BSE_logo.svg/250px-BSE_logo.svg.png — not a webpage link.</p>
           <p className="text-center text-[10px] text-slate-500">— or upload a file —</p>
           <input
             type="file"
@@ -1340,7 +1340,7 @@ export default function AdminPage() {
     : allQuestions;
   const now = new Date();
   const canTransitionSelectedQuestion = !!selectedQuestion && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled";
-  const publicAppUrl = storageStatus?.frontend_url || "https://theanalyst-frontend-production.up.railway.app";
+  const publicAppUrl = "https://theanalyst-nine.vercel.app";
   const publicLandingUrl = `${publicAppUrl.replace(/\/$/, "")}/?public=1`;
   const apiTimingRows = Object.values(apiTimings)
     .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -2376,7 +2376,7 @@ export default function AdminPage() {
             <div className="mt-3 space-y-2 border-t border-[var(--stroke)] pt-3 text-sm">
               <p className="admin-section-muted text-xs font-semibold uppercase tracking-wide">Live Services</p>
               <a href={`${storageStatus?.backend_base_url || API_BASE}/health`} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
-                <span className="admin-quick-link-title">Backend API (Railway)</span>
+                <span className="admin-quick-link-title">Backend API</span>
                 <span className="text-emerald-500">↗ /health</span>
               </a>
               <a href={storageStatus?.api_docs_url || `${API_BASE}/docs`} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
@@ -2384,7 +2384,7 @@ export default function AdminPage() {
                 <span className="admin-quick-link-meta">↗ /docs</span>
               </a>
               <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="admin-quick-link flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:border-slate-500">
-                <span className="admin-quick-link-title">Public Landing Page (Railway)</span>
+                <span className="admin-quick-link-title">Public Landing Page (Vercel)</span>
                 <span className="admin-quick-link-meta">↗ live site</span>
               </a>
               <div className="admin-quick-link rounded-lg border px-3 py-3 text-xs">
@@ -2721,7 +2721,7 @@ export default function AdminPage() {
               >
                 <option value="admin">Admin — full access (create, resolve, manage users)</option>
                 <option value="question_creator">Question Creator — can create questions (pending review)</option>
-                <option value="question_creator_resolver">Creator & Resolver — can create (live) and resolve questions</option>
+                <option value="question_creator_resolver">Creator & Resolver — can create (pending review) and resolve questions</option>
                 <option value="user">User — analyses only (default)</option>
               </select>
               <p className="mt-1 text-xs text-slate-500">Current: <span className="font-medium text-slate-300">{roleModal.currentRole}</span></p>
@@ -2759,7 +2759,7 @@ export default function AdminPage() {
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">Git + Deploy</p>
-            <p className="text-slate-400">Code changes are committed to GitHub and deployed to Railway services. This admin uses API base URL: <span className="text-slate-300">{API_BASE}</span>.</p>
+            <p className="text-slate-400">Code changes are committed to GitHub and deployed via Vercel (frontend) and Railway (backend API). Frontend: <a href="https://theanalyst-nine.vercel.app" target="_blank" rel="noreferrer" className="text-[var(--brand)] hover:underline">theanalyst-nine.vercel.app</a> · API: <span className="text-slate-300">{API_BASE}</span></p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
             <p className="font-semibold text-[var(--brand)]">PostgreSQL (Data Layer)</p>
