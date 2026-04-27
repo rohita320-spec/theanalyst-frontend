@@ -2,6 +2,7 @@
 
 import type { FeedQuestion, HistoryPoint } from "../lib/api";
 import { getQuestionSideLabels } from "../lib/marketPreview";
+import AnalystDesk from "./AnalystDesk";
 import {
   Area,
   Bar,
@@ -266,6 +267,11 @@ export default function TrendModal({
             </div>
           </div>
         )}
+
+        {/* ── Analyst Desk ─────────────────────────────────────── */}
+        <div className="mt-4">
+          <AnalystDesk category={question.category} />
+        </div>
 
         {/* ── Resolution Rules ─────────────────────────────────── */}
         <div className="mt-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">

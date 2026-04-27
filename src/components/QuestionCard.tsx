@@ -226,13 +226,6 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       {!loggedIn && isOpen && (
         <p className="mt-1.5 text-center text-[11px] text-slate-500">Login to participate</p>
       )}
-
-      {question.resolution_rules && (
-        <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-slate-500">
-          <span className="mr-1 font-medium text-slate-400">Rules:</span>
-          {question.resolution_rules}
-        </p>
-      )}
     </article>
   );
 }
