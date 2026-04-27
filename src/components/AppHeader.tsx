@@ -158,12 +158,12 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
           >
             My Profile
           </Link>
-          {(authRole === "admin" || authRole === "question_creator") && (
+          {(authRole === "admin" || authRole === "question_creator" || authRole === "question_creator_resolver") && (
             <Link
               href="/admin"
               className="admin-menu-link rounded-lg px-3 py-2 text-center text-sm transition-colors"
             >
-              Admin
+              {authRole === "admin" ? "Admin" : "Dashboard"}
             </Link>
           )}
         </nav>
