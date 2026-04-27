@@ -232,6 +232,44 @@ function LogoLibraryPicker({
           </div>
         </div>
       )}
+
+      {/* Add new logo */}
+      <div className="mt-3 border-t border-[var(--stroke)] pt-3">
+        <p className="mb-2 text-[10px] uppercase tracking-wide text-slate-500">Add new logo</p>
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={uploadDisplayName}
+            onChange={(e) => setUploadDisplayName(e.target.value)}
+            placeholder="Display name (e.g. Apple)"
+            className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <input
+            type="url"
+            value={uploadLogoUrl}
+            onChange={(e) => { setUploadLogoUrl(e.target.value); if (uploadFile) setUploadFile(null); }}
+            placeholder="Direct image URL (https://example.com/logo.png)"
+            className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <p className="text-[10px] text-amber-400/80">⚠ URL must be a direct image address (.png, .jpg, .svg…), not a webpage link.</p>
+          <p className="text-center text-[10px] text-slate-500">— or upload a file —</p>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => { setUploadFile(e.target.files?.[0] ?? null); setUploadLogoUrl(""); }}
+            className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-slate-300 file:mr-2 file:rounded file:border-0 file:bg-indigo-600 file:px-2 file:py-0.5 file:text-xs file:text-white"
+          />
+          {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={uploading || !uploadDisplayName.trim() || (!uploadFile && !uploadLogoUrl.trim())}
+            className="w-full rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-40"
+          >
+            {uploading ? "Uploading…" : "Upload Logo"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1416,9 +1454,9 @@ export default function AdminPage() {
             )}
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="max-h-72 overflow-y-auto space-y-1 lg:w-72">
-                {allQuestions.filter((q) => q.status !== "resolved").length === 0 ? (
-                  <p className="text-sm text-slate-400">No open or closed questions to resolve.</p>
-                ) : allQuestions.filter((q) => q.status !== "resolved").map((q) => (
+                {allQuestions.filter((q) => q.status === "open" || q.status === "closed").length === 0 ? (
+                  <p className="text-sm text-slate-400">No approved questions to resolve. Questions must be approved by admin first.</p>
+                ) : allQuestions.filter((q) => q.status === "open" || q.status === "closed").map((q) => (
                   <button
                     key={q._id}
                     onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}

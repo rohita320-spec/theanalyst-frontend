@@ -121,7 +121,7 @@ export default function TrendModal({
               <p className="mt-1 text-lg font-semibold text-slate-300">{formatPct(firstPoint?.yes_percent || 0)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Total Pool</p>
+              <p className="text-xs text-slate-400">Total Points</p>
               <p className="mt-1 text-lg font-semibold text-slate-300">{new Intl.NumberFormat("en-US").format(Number((lastPoint.yes_pool || 0) + (lastPoint.no_pool || 0)))} pts</p>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function TrendModal({
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
                 <span className="inline-block h-2.5 w-5 rounded-sm bg-[#3b82f6] opacity-50" />
-                Total Points
+                Volume
               </span>
             </div>
 
@@ -188,7 +188,7 @@ export default function TrendModal({
                       const numericValue = Number(value ?? 0);
                       if (key === "yes") return [formatPct(numericValue), sideLabels.yesLabel];
                       if (key === "no") return [formatPct(numericValue), sideLabels.noLabel];
-                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Total Points"];
+                      if (key === "totalPool") return [new Intl.NumberFormat("en-US").format(numericValue) + " pts", "Volume"];
                       return [String(value), String(key)];
                     }}
                     labelFormatter={(value) => formatDateLabel(String(value), timeframe)}
