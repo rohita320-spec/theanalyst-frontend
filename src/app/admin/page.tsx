@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
+import AnalystDesk from "../../components/AnalystDesk";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -1585,6 +1586,7 @@ export default function AdminPage() {
                         uploading={createLogoUploading}
                         role={userRole}
                       />
+                      <AnalystDesk category={createCategory} />
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                         <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
@@ -1964,6 +1966,7 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionClosingTime(e.target.value)}
                         className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
+                      <AnalystDesk category={editQuestionCategory} />
                       <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
                       <textarea
                         value={editQuestionRules}
@@ -2856,6 +2859,7 @@ export default function AdminPage() {
                     uploading={createLogoUploading}
                     role={userRole}
                   />
+                  <AnalystDesk category={createCategory} />
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
                     <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
