@@ -11,6 +11,12 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const MARKET_CATS = new Set(["Crypto", "Economy", "Markets"]);
 type RefLink = { label: string; url: string };
 
+const CHART_EXAMPLES: Record<string, string[]> = {
+  Crypto: ["BINANCE:BTCUSDT", "BINANCE:ETHUSDT", "BINANCE:SOLUSDT"],
+  Economy: ["NSE:NIFTY50", "BSE:SENSEX", "NASDAQ:SPY"],
+  Markets: ["NSE:NIFTY50", "NSE:BANKNIFTY", "BSE:SENSEX"],
+};
+
 type AuthUserRow = {
   id: string;
   email: string;
@@ -1598,25 +1604,38 @@ export default function AdminPage() {
                         role={userRole}
                       />
                       <AnalystDesk category={createCategory} />
-                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                        </div>
                         {MARKET_CATS.has(createCategory) && (
                           <div>
-                            <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
-                            <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="mb-1 block text-xs font-medium text-slate-300">TradingView Chart</label>
+                            <p className="mb-2 text-[11px] text-slate-500">Enter the symbol in <span className="text-slate-300">EXCHANGE:TICKER</span> format. Click an example below to fill it in, or type your own.</p>
+                            <div className="mb-2 flex flex-wrap gap-1.5">
+                              {(CHART_EXAMPLES[createCategory] || []).map((sym) => (
+                                <button key={sym} type="button" onClick={() => setCreateChartSymbol(sym)} className={`rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${createChartSymbol === sym ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-400 hover:border-[var(--brand)]/50 hover:text-slate-200"}`}>{sym}</button>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NSE:NIFTY50 or BINANCE:BTCUSDT" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              {createChartSymbol && <button type="button" onClick={() => setCreateChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Clear</button>}
+                            </div>
+                            {createChartSymbol && <p className="mt-1 text-[10px] text-emerald-400">✓ Chart will be shown to users for {createChartSymbol}</p>}
                           </div>
                         )}
                         <div>
-                          <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links</label>
+                          <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question. Enter a short label and the full URL.</p>
                           <div className="space-y-2">
                             {createReferenceLinks.map((link, idx) => (
-                              <div key={idx} className="flex gap-2">
-                                <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              <div key={idx} className="flex items-center gap-2">
+                                <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                                 <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                                <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Remove</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
                           </div>
                         </div>
                       </div>
@@ -2003,25 +2022,36 @@ export default function AdminPage() {
                         className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
                       <AnalystDesk category={editQuestionCategory} />
-                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         {MARKET_CATS.has(editQuestionCategory) && (
                           <div>
-                            <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
-                            <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="mb-1 block text-xs font-medium text-slate-300">TradingView Chart</label>
+                            <p className="mb-2 text-[11px] text-slate-500">Enter the symbol in <span className="text-slate-300">EXCHANGE:TICKER</span> format. Click an example below to fill it in, or type your own.</p>
+                            <div className="mb-2 flex flex-wrap gap-1.5">
+                              {(CHART_EXAMPLES[editQuestionCategory] || []).map((sym) => (
+                                <button key={sym} type="button" onClick={() => setEditChartSymbol(sym)} className={`rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${editChartSymbol === sym ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-400 hover:border-[var(--brand)]/50 hover:text-slate-200"}`}>{sym}</button>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NSE:NIFTY50 or BINANCE:BTCUSDT" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              {editChartSymbol && <button type="button" onClick={() => setEditChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Clear</button>}
+                            </div>
+                            {editChartSymbol && <p className="mt-1 text-[10px] text-emerald-400">✓ Chart will be shown to users for {editChartSymbol}</p>}
                           </div>
                         )}
                         <div>
-                          <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links</label>
+                          <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question. Enter a short label and the full URL.</p>
                           <div className="space-y-2">
                             {editReferenceLinks.map((link, idx) => (
-                              <div key={idx} className="flex gap-2">
-                                <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              <div key={idx} className="flex items-center gap-2">
+                                <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                                 <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                                <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Remove</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
                           </div>
                         </div>
                       </div>
@@ -2911,25 +2941,36 @@ export default function AdminPage() {
                     role={userRole}
                   />
                   <AnalystDesk category={createCategory} />
-                  <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Save References (shown to users)</p>
+                  <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                     {MARKET_CATS.has(createCategory) && (
                       <div>
-                        <label className="mb-1 block text-xs text-slate-400">Chart Symbol <span className="text-slate-600">(e.g. NSE:NIFTY50, BINANCE:BTCUSDT)</span></label>
-                        <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="EXCHANGE:SYMBOL" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                        <label className="mb-1 block text-xs font-medium text-slate-300">TradingView Chart</label>
+                        <p className="mb-2 text-[11px] text-slate-500">Enter the symbol in <span className="text-slate-300">EXCHANGE:TICKER</span> format. Click an example below to fill it in, or type your own.</p>
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {(CHART_EXAMPLES[createCategory] || []).map((sym) => (
+                            <button key={sym} type="button" onClick={() => setCreateChartSymbol(sym)} className={`rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${createChartSymbol === sym ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-[var(--stroke)] text-slate-400 hover:border-[var(--brand)]/50 hover:text-slate-200"}`}>{sym}</button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NSE:NIFTY50 or BINANCE:BTCUSDT" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          {createChartSymbol && <button type="button" onClick={() => setCreateChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Clear</button>}
+                        </div>
+                        {createChartSymbol && <p className="mt-1 text-[10px] text-emerald-400">✓ Chart will be shown to users for {createChartSymbol}</p>}
                       </div>
                     )}
                     <div>
-                      <label className="mb-1 block text-xs text-slate-400">Reference Links</label>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links</label>
+                      <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question. Enter a short label and the full URL.</p>
                       <div className="space-y-2">
                         {createReferenceLinks.map((link, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          <div key={idx} className="flex items-center gap-2">
+                            <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                             <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="rounded-lg border border-red-500/30 px-2 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60 hover:text-red-300">Remove</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1 text-xs text-[var(--brand)] hover:border-[var(--brand)]/60">+ Add link</button>
+                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
                       </div>
                     </div>
                   </div>
