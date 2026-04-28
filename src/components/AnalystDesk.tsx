@@ -69,8 +69,10 @@ const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
 
 function TradingViewWidget({ symbol }: { symbol: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const container = containerRef.current;
     if (!container) return;
     container.innerHTML = "";
@@ -79,6 +81,7 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     script.type = "text/javascript";
     script.src = "https://s.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.async = true;
+    script.onload = () => setTimeout(() => setLoading(false), 800);
     script.appendChild(
       document.createTextNode(
         JSON.stringify({
@@ -101,10 +104,20 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
 
     return () => {
       container.innerHTML = "";
+      setLoading(true);
     };
   }, [symbol]);
 
-  return <div ref={containerRef} className="tradingview-widget-container" style={{ height: 380 }} />;
+  return (
+    <div className="relative" style={{ height: 380 }}>
+      {loading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-[#0b1528]">
+          <p className="text-xs text-slate-500">Loading chart for {symbol}…</p>
+        </div>
+      )}
+      <div ref={containerRef} className="tradingview-widget-container" style={{ height: 380 }} />
+    </div>
+  );
 }
 
 type Props = {
@@ -163,8 +176,10 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
           {/* VIEW MODE */}
           {mode === "view" && (
             <div className="space-y-4">
+              {!savedChartSymbol && (!savedResearchLinks || savedResearchLinks.length === 0) && (
+                <p className="text-xs text-slate-500">No research data has been added for this question.</p>
+              )}
 
-              {/* Saved chart */}
               {savedChartSymbol && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
@@ -184,7 +199,6 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                 </div>
               )}
 
-              {/* Admin-saved research links */}
               {savedResearchLinks && savedResearchLinks.length > 0 && (
                 <div>
                   <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">Research Links</p>
@@ -204,26 +218,11 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                 </div>
               )}
 
-              {/* General category sources */}
-              <div>
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">General Sources — {category}</p>
-                <div className="flex flex-wrap gap-2">
-                  {generalLinks.map((link) => (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-[var(--brand)]/50 hover:bg-[var(--brand)]/5 hover:text-[var(--brand)]"
-                    >
-                      {link.label} ↗
-                    </a>
-                  ))}
-                </div>
-                <p className="mt-3 rounded-lg border border-[var(--brand)]/15 bg-[var(--brand)]/5 px-3 py-2 text-[10px] text-slate-400">
+              {(savedChartSymbol || (savedResearchLinks && savedResearchLinks.length > 0)) && (
+                <p className="rounded-lg border border-[var(--brand)]/15 bg-[var(--brand)]/5 px-3 py-2 text-[10px] text-slate-400">
                   Cross-reference multiple sources before placing a prediction. Resolution is based on publicly verified data at the time of question resolution.
                 </p>
-              </div>
+              )}
             </div>
           )}
 
