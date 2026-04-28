@@ -11,13 +11,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const MARKET_CATS = new Set(["Crypto", "Economy", "Markets"]);
 type RefLink = { label: string; url: string };
 
-function resolveChartSymbol(raw: string, category: string): string {
-  const s = raw.trim().toUpperCase();
-  if (!s) return "";
-  if (s.includes(":")) return s;
-  if (category === "Crypto") return `BINANCE:${s}`;
-  return `NSE:${s}`;
-}
 
 type AuthUserRow = {
   id: string;
@@ -344,6 +337,8 @@ function parseLogoEntries(raw: string) {
   return parseCommaList(raw).map((url) => ({ url }));
 }
 
+type SymbolResult = { symbol: string; description: string; exchange: string };
+
 export default function AdminPage() {
   const [state, setState] = useState<"checking" | "allowed" | "forbidden">("checking");
   const [adminToken, setAdminToken] = useState("");
@@ -380,6 +375,7 @@ export default function AdminPage() {
   const [createSelectedLogoKeys, setCreateSelectedLogoKeys] = useState<string[]>([]);
   const [createSelectedPendingLogoIds, setCreateSelectedPendingLogoIds] = useState<string[]>([]);
   const [createChartSymbol, setCreateChartSymbol] = useState("");
+  const [createChartResults, setCreateChartResults] = useState<SymbolResult[]>([]);
   const [createReferenceLinks, setCreateReferenceLinks] = useState<RefLink[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createLogoUploading, setCreateLogoUploading] = useState(false);
@@ -399,6 +395,7 @@ export default function AdminPage() {
   const [editSelectedLogoKeys, setEditSelectedLogoKeys] = useState<string[]>([]);
   const [editSelectedPendingLogoIds, setEditSelectedPendingLogoIds] = useState<string[]>([]);
   const [editChartSymbol, setEditChartSymbol] = useState("");
+  const [editChartResults, setEditChartResults] = useState<SymbolResult[]>([]);
   const [editReferenceLinks, setEditReferenceLinks] = useState<RefLink[]>([]);
   const [editQuestionSubmitting, setEditQuestionSubmitting] = useState(false);
   const [editLogoUploading, setEditLogoUploading] = useState(false);
@@ -1068,6 +1065,32 @@ export default function AdminPage() {
     setEditQuestionMsg(null);
   }, [selectedQuestion?._id]);
 
+  // Debounced symbol search for create form
+  useEffect(() => {
+    if (!createChartSymbol || createChartSymbol.includes(":")) { setCreateChartResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/symbol_search?q=${encodeURIComponent(createChartSymbol)}`, { headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : {}, credentials: "include" });
+        const data = await res.json();
+        setCreateChartResults(data.symbols || []);
+      } catch { setCreateChartResults([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [createChartSymbol, adminToken]);
+
+  // Debounced symbol search for edit form
+  useEffect(() => {
+    if (!editChartSymbol || editChartSymbol.includes(":")) { setEditChartResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/symbol_search?q=${encodeURIComponent(editChartSymbol)}`, { headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : {}, credentials: "include" });
+        const data = await res.json();
+        setEditChartResults(data.symbols || []);
+      } catch { setEditChartResults([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [editChartSymbol, adminToken]);
+
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
     setConfirmResolve(null);
     setResolving(answer);
@@ -1176,7 +1199,7 @@ export default function AdminPage() {
           pending_logo_ids: createSelectedPendingLogoIds,
           ...(createResolutionRules.trim() ? { resolution_rules: createResolutionRules.trim() } : {}),
           metadata: {
-            ...(resolveChartSymbol(createChartSymbol, createCategory) ? { chart_symbol: resolveChartSymbol(createChartSymbol, createCategory) } : {}),
+            ...(createChartSymbol.trim() ? { chart_symbol: createChartSymbol.trim() } : {}),
             ...(createReferenceLinks.filter((l) => l.url.trim()).length > 0 ? { reference_links: createReferenceLinks.filter((l) => l.url.trim()) } : {}),
           },
         }),
@@ -1610,15 +1633,27 @@ export default function AdminPage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
-                          <div className="flex gap-2">
-                            <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NIFTY50, RELIANCE, BTCUSDT, AAPL" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            {createChartSymbol && <button type="button" onClick={() => setCreateChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                          <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
+                          <div className="relative">
+                            <div className="flex gap-2">
+                              <input type="text" value={createChartSymbol} onChange={(e) => { setCreateChartSymbol(e.target.value.toUpperCase()); }} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              {createChartSymbol && <button type="button" onClick={() => { setCreateChartSymbol(""); setCreateChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                            </div>
+                            {createChartResults.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
+                                {createChartResults.map((r) => (
+                                  <button key={r.symbol} type="button" onClick={() => { setCreateChartSymbol(r.symbol); setCreateChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
+                                    <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
+                                    <span className="truncate text-slate-400">{r.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {createChartSymbol && (
+                          {createChartSymbol && createChartSymbol.includes(":") && (
                             <div className="mt-1.5 flex items-center gap-2">
-                              <p className="text-[10px] text-emerald-400">✓ Chart: {resolveChartSymbol(createChartSymbol, createCategory)}</p>
-                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(resolveChartSymbol(createChartSymbol, createCategory))}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
+                              <p className="text-[10px] text-emerald-400">✓ Chart: {createChartSymbol}</p>
+                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(createChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
                             </div>
                           )}
                         </div>
@@ -2024,15 +2059,27 @@ export default function AdminPage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
-                          <div className="flex gap-2">
-                            <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NIFTY50, RELIANCE, BTCUSDT, AAPL" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            {editChartSymbol && <button type="button" onClick={() => setEditChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                          <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
+                          <div className="relative">
+                            <div className="flex gap-2">
+                              <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              {editChartSymbol && <button type="button" onClick={() => { setEditChartSymbol(""); setEditChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                            </div>
+                            {editChartResults.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
+                                {editChartResults.map((r) => (
+                                  <button key={r.symbol} type="button" onClick={() => { setEditChartSymbol(r.symbol); setEditChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
+                                    <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
+                                    <span className="truncate text-slate-400">{r.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {editChartSymbol && (
+                          {editChartSymbol && editChartSymbol.includes(":") && (
                             <div className="mt-1.5 flex items-center gap-2">
-                              <p className="text-[10px] text-emerald-400">✓ Chart: {resolveChartSymbol(editChartSymbol, editQuestionCategory)}</p>
-                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(resolveChartSymbol(editChartSymbol, editQuestionCategory))}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
+                              <p className="text-[10px] text-emerald-400">✓ Chart: {editChartSymbol}</p>
+                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(editChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
                             </div>
                           )}
                         </div>
@@ -2104,8 +2151,7 @@ export default function AdminPage() {
                             }
 
                             const builtMetadata: Record<string, unknown> = {};
-                            const resolvedEdit = resolveChartSymbol(editChartSymbol, editQuestionCategory);
-                            if (resolvedEdit) builtMetadata.chart_symbol = resolvedEdit;
+                            if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
                             const validLinks = editReferenceLinks.filter((l) => l.url.trim());
                             if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
                             const parsedMetadata = Object.keys(builtMetadata).length > 0 ? builtMetadata : {};
@@ -2940,15 +2986,27 @@ export default function AdminPage() {
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                      <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
-                      <div className="flex gap-2">
-                        <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. NIFTY50, RELIANCE, BTCUSDT, AAPL" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                        {createChartSymbol && <button type="button" onClick={() => setCreateChartSymbol("")} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                      <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
+                      <div className="relative">
+                        <div className="flex gap-2">
+                          <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          {createChartSymbol && <button type="button" onClick={() => { setCreateChartSymbol(""); setCreateChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                        </div>
+                        {createChartResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
+                            {createChartResults.map((r) => (
+                              <button key={r.symbol} type="button" onClick={() => { setCreateChartSymbol(r.symbol); setCreateChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
+                                <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
+                                <span className="truncate text-slate-400">{r.description}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {createChartSymbol && (
+                      {createChartSymbol && createChartSymbol.includes(":") && (
                         <div className="mt-1.5 flex items-center gap-2">
-                          <p className="text-[10px] text-emerald-400">✓ Chart: {resolveChartSymbol(createChartSymbol, createCategory)}</p>
-                          <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(resolveChartSymbol(createChartSymbol, createCategory))}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
+                          <p className="text-[10px] text-emerald-400">✓ Chart: {createChartSymbol}</p>
+                          <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(createChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
                         </div>
                       )}
                     </div>
