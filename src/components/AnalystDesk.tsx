@@ -34,28 +34,29 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     // Fallback: hide loading after 8s regardless
     const fallback = setTimeout(() => setLoading(false), 8000);
 
+    // TradingView requires this target div to exist before the script runs
+    const widgetDiv = document.createElement("div");
+    widgetDiv.className = "tradingview-widget-container__widget";
+    container.appendChild(widgetDiv);
+
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.src = "https://s.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.async = true;
-    script.appendChild(
-      document.createTextNode(
-        JSON.stringify({
-          width: "100%",
-          height: 380,
-          symbol,
-          interval: "D",
-          timezone: "Asia/Kolkata",
-          theme: "dark",
-          style: "1",
-          locale: "en",
-          enable_publishing: false,
-          allow_symbol_change: true,
-          calendar: false,
-          support_host: "https://www.tradingview.com",
-        }),
-      ),
-    );
+    script.innerHTML = JSON.stringify({
+      width: "100%",
+      height: 380,
+      symbol,
+      interval: "D",
+      timezone: "Asia/Kolkata",
+      theme: "dark",
+      style: "1",
+      locale: "en",
+      enable_publishing: false,
+      allow_symbol_change: true,
+      calendar: false,
+      support_host: "https://www.tradingview.com",
+    });
     container.appendChild(script);
 
     return () => {
