@@ -12,8 +12,12 @@ const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
   Markets: "NSE:NIFTY50",
 };
 
+// Stable ID per component instance so TradingView can find its container.
+let tvWidgetCount = 0;
+
 function TradingViewWidget({ symbol }: { symbol: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const containerId = useRef(`tv-widget-${++tvWidgetCount}`);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,59 +26,69 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     if (!container) return;
     container.innerHTML = "";
 
-    // Detect when TradingView injects its iframe (more reliable than script onload)
-    const observer = new MutationObserver(() => {
-      if (container.querySelector("iframe")) {
-        observer.disconnect();
-        setTimeout(() => setLoading(false), 400);
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let fallback: ReturnType<typeof setTimeout> | null = null;
+
+    const initWidget = () => {
+      // tv.js API: passes config as a plain JS object — no text-content parsing needed
+      new (window as { TradingView?: { widget: new (cfg: Record<string, unknown>) => void } }).TradingView!.widget({
+        autosize: true,
+        symbol,
+        interval: "D",
+        timezone: "Asia/Kolkata",
+        theme: "dark",
+        style: "1",
+        locale: "en",
+        enable_publishing: false,
+        allow_symbol_change: true,
+        calendar: false,
+        container_id: containerId.current,
+      });
+
+      pollInterval = setInterval(() => {
+        if (container.querySelector("iframe")) {
+          if (pollInterval) clearInterval(pollInterval);
+          setTimeout(() => setLoading(false), 300);
+        }
+      }, 200);
+      fallback = setTimeout(() => setLoading(false), 10_000);
+    };
+
+    const tv = (window as { TradingView?: unknown }).TradingView;
+    if (tv) {
+      initWidget();
+    } else {
+      // Load tv.js once; reuse if already in flight
+      let script = document.querySelector<HTMLScriptElement>('script[src="https://s.tradingview.com/tv.js"]');
+      if (!script) {
+        script = document.createElement("script");
+        script.src = "https://s.tradingview.com/tv.js";
+        script.async = true;
+        document.head.appendChild(script);
       }
-    });
-    observer.observe(container, { childList: true, subtree: true });
-
-    // Fallback: hide loading after 8s regardless
-    const fallback = setTimeout(() => setLoading(false), 8000);
-
-    // TradingView requires this target div to exist before the script runs
-    const widgetDiv = document.createElement("div");
-    widgetDiv.className = "tradingview-widget-container__widget";
-    container.appendChild(widgetDiv);
-
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src = "https://s.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      width: "100%",
-      height: 380,
-      symbol,
-      interval: "D",
-      timezone: "Asia/Kolkata",
-      theme: "dark",
-      style: "1",
-      locale: "en",
-      enable_publishing: false,
-      allow_symbol_change: true,
-      calendar: false,
-      support_host: "https://www.tradingview.com",
-    });
-    container.appendChild(script);
+      script.addEventListener("load", initWidget, { once: true });
+    }
 
     return () => {
-      observer.disconnect();
-      clearTimeout(fallback);
+      if (pollInterval) clearInterval(pollInterval);
+      if (fallback) clearTimeout(fallback);
       container.innerHTML = "";
       setLoading(true);
     };
   }, [symbol]);
 
   return (
-    <div className="relative" style={{ height: 380 }}>
+    <div className="relative" style={{ height: 400 }}>
       {loading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-[#0b1528]">
           <p className="text-xs text-slate-500">Loading chart for {symbol}…</p>
         </div>
       )}
-      <div ref={containerRef} className="tradingview-widget-container" style={{ height: 380 }} />
+      <div
+        id={containerId.current}
+        ref={containerRef}
+        style={{ height: 400, width: "100%" }}
+      />
     </div>
   );
 }
