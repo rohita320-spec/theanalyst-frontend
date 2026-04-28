@@ -6,61 +6,6 @@ type ResearchLink = { label: string; url: string };
 
 const MARKET_CATEGORIES = new Set(["Crypto", "Economy", "Markets"]);
 
-const RESEARCH_LINKS: Record<string, ResearchLink[]> = {
-  Crypto: [
-    { label: "CoinGecko", url: "https://www.coingecko.com" },
-    { label: "CoinMarketCap", url: "https://coinmarketcap.com" },
-    { label: "Binance Markets", url: "https://www.binance.com/en/markets/overview" },
-    { label: "CryptoCompare", url: "https://www.cryptocompare.com" },
-    { label: "Messari", url: "https://messari.io" },
-  ],
-  Economy: [
-    { label: "NSE India", url: "https://www.nseindia.com" },
-    { label: "BSE India", url: "https://www.bseindia.com" },
-    { label: "RBI Data", url: "https://www.rbi.org.in/Scripts/Statistics.aspx" },
-    { label: "SEBI", url: "https://www.sebi.gov.in" },
-    { label: "MoSPI (Govt. Stats)", url: "https://mospi.gov.in" },
-    { label: "World Bank Data", url: "https://data.worldbank.org" },
-  ],
-  Markets: [
-    { label: "NSE India", url: "https://www.nseindia.com" },
-    { label: "BSE India", url: "https://www.bseindia.com" },
-    { label: "Moneycontrol", url: "https://www.moneycontrol.com" },
-    { label: "Yahoo Finance", url: "https://finance.yahoo.com" },
-    { label: "Screener.in", url: "https://www.screener.in" },
-    { label: "Trendlyne", url: "https://trendlyne.com" },
-  ],
-  Sports: [
-    { label: "ESPN Cricinfo", url: "https://www.espncricinfo.com" },
-    { label: "CricBuzz", url: "https://www.cricbuzz.com" },
-    { label: "BCCI", url: "https://www.bcci.tv" },
-    { label: "ICC", url: "https://www.icc-cricket.com" },
-    { label: "FIFA", url: "https://www.fifa.com" },
-    { label: "ESPN", url: "https://www.espn.com" },
-  ],
-  "Global events": [
-    { label: "Reuters", url: "https://www.reuters.com" },
-    { label: "BBC News", url: "https://www.bbc.com/news" },
-    { label: "The Hindu", url: "https://www.thehindu.com" },
-    { label: "Economic Times", url: "https://economictimes.indiatimes.com" },
-    { label: "UN News", url: "https://news.un.org" },
-  ],
-  Entertainment: [
-    { label: "IMDb", url: "https://www.imdb.com" },
-    { label: "Box Office India", url: "https://www.boxofficeindia.com" },
-    { label: "Bollywood Hungama", url: "https://www.bollywoodhungama.com" },
-    { label: "Pinkvilla", url: "https://www.pinkvilla.com" },
-    { label: "Koimoi", url: "https://www.koimoi.com" },
-  ],
-  General: [
-    { label: "Google Trends", url: "https://trends.google.com" },
-    { label: "Wikipedia", url: "https://www.wikipedia.org" },
-    { label: "Reuters", url: "https://www.reuters.com" },
-    { label: "The Hindu", url: "https://www.thehindu.com" },
-    { label: "World Bank Data", url: "https://data.worldbank.org" },
-  ],
-};
-
 const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
   Crypto: "BINANCE:BTCUSDT",
   Economy: "NSE:NIFTY50",
@@ -77,11 +22,22 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     if (!container) return;
     container.innerHTML = "";
 
+    // Detect when TradingView injects its iframe (more reliable than script onload)
+    const observer = new MutationObserver(() => {
+      if (container.querySelector("iframe")) {
+        observer.disconnect();
+        setTimeout(() => setLoading(false), 400);
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    // Fallback: hide loading after 8s regardless
+    const fallback = setTimeout(() => setLoading(false), 8000);
+
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.src = "https://s.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.async = true;
-    script.onload = () => setTimeout(() => setLoading(false), 800);
     script.appendChild(
       document.createTextNode(
         JSON.stringify({
@@ -103,6 +59,8 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     container.appendChild(script);
 
     return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
       container.innerHTML = "";
       setLoading(true);
     };
@@ -132,7 +90,6 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
   const isMarket = MARKET_CATEGORIES.has(category);
 
   const defaultSymbol = CATEGORY_DEFAULT_SYMBOL[category] || "NSE:NIFTY50";
-  const [activeTab, setActiveTab] = useState<"chart" | "links">(isMarket ? "chart" : "links");
   const [loadedSymbol, setLoadedSymbol] = useState(defaultSymbol);
   const [inputSymbol, setInputSymbol] = useState(defaultSymbol);
 
@@ -140,10 +97,7 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
     const sym = CATEGORY_DEFAULT_SYMBOL[category] || "NSE:NIFTY50";
     setLoadedSymbol(sym);
     setInputSymbol(sym);
-    setActiveTab(MARKET_CATEGORIES.has(category) ? "chart" : "links");
   }, [category]);
-
-  const generalLinks = RESEARCH_LINKS[category] || RESEARCH_LINKS["General"];
   const hasSavedContent = savedChartSymbol || (savedResearchLinks && savedResearchLinks.length > 0);
 
   return (
@@ -226,73 +180,30 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
             </div>
           )}
 
-          {/* CREATE MODE — research tool for the creator */}
-          {mode === "create" && (
-            <>
-              {isMarket && (
-                <div className="mb-3 flex gap-1 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-1 text-xs">
-                  {(["chart", "links"] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveTab(tab)}
-                      className={`flex-1 rounded-md py-1.5 capitalize transition-colors ${activeTab === tab ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}
-                    >
-                      {tab === "chart" ? "📈 Chart" : "🔗 Research Links"}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {isMarket && activeTab === "chart" && (
-                <div>
-                  <div className="mb-2 flex gap-2">
-                    <input
-                      type="text"
-                      value={inputSymbol}
-                      onChange={(e) => setInputSymbol(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => { if (e.key === "Enter") setLoadedSymbol(inputSymbol.trim() || loadedSymbol); }}
-                      placeholder="e.g. NSE:NIFTY50, BINANCE:BTCUSDT, NASDAQ:AAPL"
-                      className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setLoadedSymbol(inputSymbol.trim() || loadedSymbol)}
-                      className="rounded-lg bg-[var(--brand)]/20 px-3 py-1.5 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/30"
-                    >
-                      Load
-                    </button>
-                  </div>
-                  <div className="overflow-hidden rounded-lg">
-                    <TradingViewWidget symbol={loadedSymbol} />
-                  </div>
-                </div>
-              )}
-
-              {(!isMarket || activeTab === "links") && (
-                <div>
-                  <p className="mb-3 text-xs text-slate-500">
-                    Verified data sources for <span className="font-medium text-slate-300">{category}</span> questions. Use these to write accurate resolution rules and set the right closing date.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {generalLinks.map((link) => (
-                      <a
-                        key={link.url}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-[var(--stroke)] px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-[var(--brand)]/50 hover:bg-[var(--brand)]/5 hover:text-[var(--brand)]"
-                      >
-                        {link.label} ↗
-                      </a>
-                    ))}
-                  </div>
-                  <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[10px] text-amber-300/80">
-                    Always cite the specific page URL in your resolution rules so participants can verify the outcome independently.
-                  </p>
-                </div>
-              )}
-            </>
+          {/* CREATE MODE — chart preview for market-category questions */}
+          {mode === "create" && isMarket && (
+            <div>
+              <div className="mb-2 flex gap-2">
+                <input
+                  type="text"
+                  value={inputSymbol}
+                  onChange={(e) => setInputSymbol(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => { if (e.key === "Enter") setLoadedSymbol(inputSymbol.trim() || loadedSymbol); }}
+                  placeholder="e.g. NSE:NIFTY50, BINANCE:BTCUSDT, NASDAQ:AAPL"
+                  className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLoadedSymbol(inputSymbol.trim() || loadedSymbol)}
+                  className="rounded-lg bg-[var(--brand)]/20 px-3 py-1.5 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/30"
+                >
+                  Load
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-lg">
+                <TradingViewWidget symbol={loadedSymbol} />
+              </div>
+            </div>
           )}
         </div>
       )}
