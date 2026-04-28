@@ -1607,7 +1607,7 @@ export default function AdminPage() {
                       />
                       <AnalystDesk category={createCategory} />
                       <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
                           <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
@@ -1623,7 +1623,7 @@ export default function AdminPage() {
                           )}
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links <span className="font-normal text-slate-500">(optional)</span></label>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
                           <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
                           <div className="space-y-2">
                             {createReferenceLinks.map((link, idx) => (
@@ -1633,7 +1633,7 @@ export default function AdminPage() {
                                 <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
                           </div>
                         </div>
                       </div>
@@ -2021,7 +2021,7 @@ export default function AdminPage() {
                       />
                       <AnalystDesk category={editQuestionCategory} />
                       <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
                           <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
@@ -2037,7 +2037,7 @@ export default function AdminPage() {
                           )}
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links <span className="font-normal text-slate-500">(optional)</span></label>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
                           <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
                           <div className="space-y-2">
                             {editReferenceLinks.map((link, idx) => (
@@ -2047,7 +2047,7 @@ export default function AdminPage() {
                                 <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
+                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
                           </div>
                         </div>
                       </div>
@@ -2937,7 +2937,7 @@ export default function AdminPage() {
                   />
                   <AnalystDesk category={createCategory} />
                   <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Reference Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
                       <p className="mb-2 text-[11px] text-slate-500">Type the ticker or company name — e.g. <span className="text-slate-300">NIFTY50</span>, <span className="text-slate-300">RELIANCE</span>, <span className="text-slate-300">BTCUSDT</span>, <span className="text-slate-300">AAPL</span>. Exchange is added automatically.</p>
@@ -2953,7 +2953,7 @@ export default function AdminPage() {
                       )}
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-300">Reference Links <span className="font-normal text-slate-500">(optional)</span></label>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
                       <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
                       <div className="space-y-2">
                         {createReferenceLinks.map((link, idx) => (
@@ -2963,7 +2963,7 @@ export default function AdminPage() {
                             <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Reference Link</button>
+                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
                       </div>
                     </div>
                   </div>

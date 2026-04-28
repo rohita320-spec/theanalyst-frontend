@@ -19,7 +19,6 @@ const RESEARCH_LINKS: Record<string, ResearchLink[]> = {
     { label: "BSE India", url: "https://www.bseindia.com" },
     { label: "RBI Data", url: "https://www.rbi.org.in/Scripts/Statistics.aspx" },
     { label: "SEBI", url: "https://www.sebi.gov.in" },
-    { label: "Ministry of Finance", url: "https://www.finmin.nic.in" },
     { label: "MoSPI (Govt. Stats)", url: "https://mospi.gov.in" },
     { label: "World Bank Data", url: "https://data.worldbank.org" },
   ],
@@ -37,7 +36,6 @@ const RESEARCH_LINKS: Record<string, ResearchLink[]> = {
     { label: "BCCI", url: "https://www.bcci.tv" },
     { label: "ICC", url: "https://www.icc-cricket.com" },
     { label: "FIFA", url: "https://www.fifa.com" },
-    { label: "ISL Football", url: "https://www.indiansuperleague.com" },
     { label: "ESPN", url: "https://www.espn.com" },
   ],
   "Global events": [
@@ -45,7 +43,6 @@ const RESEARCH_LINKS: Record<string, ResearchLink[]> = {
     { label: "BBC News", url: "https://www.bbc.com/news" },
     { label: "The Hindu", url: "https://www.thehindu.com" },
     { label: "Economic Times", url: "https://economictimes.indiatimes.com" },
-    { label: "NDTV", url: "https://www.ndtv.com" },
     { label: "UN News", url: "https://news.un.org" },
   ],
   Entertainment: [
@@ -86,7 +83,7 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
       document.createTextNode(
         JSON.stringify({
           width: "100%",
-          height: 400,
+          height: 380,
           symbol,
           interval: "D",
           timezone: "Asia/Kolkata",
@@ -107,24 +104,20 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     };
   }, [symbol]);
 
-  return <div ref={containerRef} className="tradingview-widget-container" style={{ height: 400 }} />;
+  return <div ref={containerRef} className="tradingview-widget-container" style={{ height: 380 }} />;
 }
 
 type Props = {
   category: string;
-  // create mode: admin/creator research tool while writing the question
-  // view mode: user sees saved chart + links in TrendModal
   mode?: "create" | "view";
-  // passed in view mode from question.metadata
   savedChartSymbol?: string;
-  savedReferenceLinks?: ResearchLink[];
+  savedResearchLinks?: ResearchLink[];
 };
 
-export default function AnalystDesk({ category, mode = "create", savedChartSymbol, savedReferenceLinks }: Props) {
+export default function AnalystDesk({ category, mode = "create", savedChartSymbol, savedResearchLinks }: Props) {
   const [open, setOpen] = useState(false);
   const isMarket = MARKET_CATEGORIES.has(category);
 
-  // Create mode state (chart tab only for market categories)
   const defaultSymbol = CATEGORY_DEFAULT_SYMBOL[category] || "NSE:NIFTY50";
   const [activeTab, setActiveTab] = useState<"chart" | "links">(isMarket ? "chart" : "links");
   const [loadedSymbol, setLoadedSymbol] = useState(defaultSymbol);
@@ -138,7 +131,7 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
   }, [category]);
 
   const generalLinks = RESEARCH_LINKS[category] || RESEARCH_LINKS["General"];
-  const hasSavedContent = savedChartSymbol || (savedReferenceLinks && savedReferenceLinks.length > 0);
+  const hasSavedContent = savedChartSymbol || (savedResearchLinks && savedResearchLinks.length > 0);
 
   return (
     <div className="rounded-xl border border-[var(--brand)]/25 bg-[#060d1a]">
@@ -152,7 +145,7 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
           <span>Analyst Desk</span>
           {hasSavedContent && mode === "view" && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-              References added
+              Research added
             </span>
           )}
           {!hasSavedContent && (
@@ -167,23 +160,36 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
       {open && (
         <div className="border-t border-[var(--stroke)]/60 px-4 pb-4 pt-3">
 
-          {/* VIEW MODE: show admin-saved chart + links, then general links */}
+          {/* VIEW MODE */}
           {mode === "view" && (
             <div className="space-y-4">
+
+              {/* Saved chart */}
               {savedChartSymbol && (
                 <div>
-                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">Reference Chart</p>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Chart — {savedChartSymbol}</p>
+                    <a
+                      href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(savedChartSymbol)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-[var(--brand)] hover:underline"
+                    >
+                      Open in TradingView ↗
+                    </a>
+                  </div>
                   <div className="overflow-hidden rounded-lg">
                     <TradingViewWidget symbol={savedChartSymbol} />
                   </div>
                 </div>
               )}
 
-              {savedReferenceLinks && savedReferenceLinks.length > 0 && (
+              {/* Admin-saved research links */}
+              {savedResearchLinks && savedResearchLinks.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">Question References</p>
+                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">Research Links</p>
                   <div className="flex flex-wrap gap-2">
-                    {savedReferenceLinks.map((link) => (
+                    {savedResearchLinks.map((link) => (
                       <a
                         key={link.url}
                         href={link.url}
@@ -198,6 +204,7 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                 </div>
               )}
 
+              {/* General category sources */}
               <div>
                 <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">General Sources — {category}</p>
                 <div className="flex flex-wrap gap-2">
@@ -220,10 +227,9 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
             </div>
           )}
 
-          {/* CREATE MODE: research tool for the creator */}
+          {/* CREATE MODE — research tool for the creator */}
           {mode === "create" && (
             <>
-              {/* Tab bar — chart tab only for market categories */}
               {isMarket && (
                 <div className="mb-3 flex gap-1 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-1 text-xs">
                   {(["chart", "links"] as const).map((tab) => (
@@ -258,9 +264,6 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                       Load
                     </button>
                   </div>
-                  <p className="mb-2 text-[10px] text-slate-500">
-                    Format: <span className="text-slate-300">EXCHANGE:SYMBOL</span> — e.g. NSE:RELIANCE · BINANCE:ETHUSDT · NASDAQ:TSLA. Change symbol inside the chart too.
-                  </p>
                   <div className="overflow-hidden rounded-lg">
                     <TradingViewWidget symbol={loadedSymbol} />
                   </div>

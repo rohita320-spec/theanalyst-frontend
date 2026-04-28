@@ -274,7 +274,7 @@ export default function TrendModal({
             category={question.category}
             mode="view"
             savedChartSymbol={typeof question.metadata?.chart_symbol === "string" ? question.metadata.chart_symbol : undefined}
-            savedReferenceLinks={Array.isArray(question.metadata?.reference_links) ? question.metadata.reference_links as { label: string; url: string }[] : undefined}
+            savedResearchLinks={Array.isArray(question.metadata?.reference_links) ? question.metadata.reference_links as { label: string; url: string }[] : undefined}
           />
         </div>
 
