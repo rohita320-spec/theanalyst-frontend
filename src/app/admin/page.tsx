@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
-import AnalystDesk from "../../components/AnalystDesk";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -1628,7 +1627,6 @@ export default function AdminPage() {
                         uploading={createLogoUploading}
                         role={userRole}
                       />
-                      <AnalystDesk category={createCategory} />
                       <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
@@ -2054,7 +2052,6 @@ export default function AdminPage() {
                         onChange={(e) => setEditQuestionClosingTime(e.target.value)}
                         className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
                       />
-                      <AnalystDesk category={editQuestionCategory} />
                       <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                         <div>
@@ -2981,7 +2978,6 @@ export default function AdminPage() {
                     uploading={createLogoUploading}
                     role={userRole}
                   />
-                  <AnalystDesk category={createCategory} />
                   <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
                     <div>
