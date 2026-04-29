@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type ResearchLink = { label: string; url: string };
 
@@ -12,82 +12,32 @@ const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
   Markets: "NSE:NIFTY50",
 };
 
-// Stable ID per component instance so TradingView can find its container.
-let tvWidgetCount = 0;
-
 function TradingViewWidget({ symbol }: { symbol: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerId = useRef(`tv-widget-${++tvWidgetCount}`);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    setLoading(true);
-    const container = containerRef.current;
-    if (!container) return;
-    container.innerHTML = "";
-
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
-    let fallback: ReturnType<typeof setTimeout> | null = null;
-
-    const initWidget = () => {
-      // tv.js API: passes config as a plain JS object — no text-content parsing needed
-      new (window as { TradingView?: { widget: new (cfg: Record<string, unknown>) => void } }).TradingView!.widget({
-        autosize: true,
-        symbol,
-        interval: "D",
-        timezone: "Asia/Kolkata",
-        theme: "dark",
-        style: "1",
-        locale: "en",
-        enable_publishing: false,
-        allow_symbol_change: true,
-        calendar: false,
-        container_id: containerId.current,
-      });
-
-      pollInterval = setInterval(() => {
-        if (container.querySelector("iframe")) {
-          if (pollInterval) clearInterval(pollInterval);
-          setTimeout(() => setLoading(false), 300);
-        }
-      }, 200);
-      fallback = setTimeout(() => setLoading(false), 10_000);
-    };
-
-    const tv = (window as { TradingView?: unknown }).TradingView;
-    if (tv) {
-      initWidget();
-    } else {
-      // Load tv.js once; reuse if already in flight
-      let script = document.querySelector<HTMLScriptElement>('script[src="https://s.tradingview.com/tv.js"]');
-      if (!script) {
-        script = document.createElement("script");
-        script.src = "https://s.tradingview.com/tv.js";
-        script.async = true;
-        document.head.appendChild(script);
-      }
-      script.addEventListener("load", initWidget, { once: true });
-    }
-
-    return () => {
-      if (pollInterval) clearInterval(pollInterval);
-      if (fallback) clearTimeout(fallback);
-      container.innerHTML = "";
-      setLoading(true);
-    };
-  }, [symbol]);
+  const src =
+    `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(symbol)}` +
+    `&interval=D&theme=dark&style=1&locale=en&timezone=Asia%2FKolkata` +
+    `&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=1&saveimage=1` +
+    `&withdateranges=1&showpopupbutton=1&studies=%5B%5D` +
+    `&studies_overrides=%7B%7D&overrides=%7B%7D` +
+    `&enabled_features=%5B%5D&disabled_features=%5B%5D`;
 
   return (
-    <div className="relative" style={{ height: 400 }}>
-      {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-[#0b1528]">
+    <div className="relative rounded-lg overflow-hidden" style={{ height: 400 }}>
+      {!loaded && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0b1528]">
           <p className="text-xs text-slate-500">Loading chart for {symbol}…</p>
         </div>
       )}
-      <div
-        id={containerId.current}
-        ref={containerRef}
-        style={{ height: 400, width: "100%" }}
+      <iframe
+        key={symbol}
+        src={src}
+        width="100%"
+        height="400"
+        allowFullScreen
+        onLoad={() => setLoaded(true)}
+        style={{ display: "block", border: 0 }}
       />
     </div>
   );
