@@ -356,6 +356,7 @@ export default function AdminPage() {
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionViewTab, setQuestionViewTab] = useState<"open" | "closed" | "resolved" | "all">("all");
+  const [creatorResolverTab, setCreatorResolverTab] = useState<"open" | "closed" | "resolved" | "all" | "pending">("all");
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
   const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1416,6 +1417,22 @@ export default function AdminPage() {
 
   // ── Creator / Creator-Resolver Dashboard ───────────────────────────────────
   if (userRole === "question_creator" || userRole === "question_creator_resolver") {
+    const isResolver = userRole === "question_creator_resolver";
+
+    // Derived counts for stats
+    const myPendingQs   = myQuestions.filter((q) => q.status === "pending_approval");
+    const crOpen        = allQuestions.filter((q) => getQuestionViewStatus(q) === "open");
+    const crClosed      = allQuestions.filter((q) => getQuestionViewStatus(q) === "closed");
+    const crResolved    = allQuestions.filter((q) => getQuestionViewStatus(q) === "resolved");
+
+    // Resolver question list based on tab
+    const crFilteredQs =
+      creatorResolverTab === "open"    ? crOpen    :
+      creatorResolverTab === "closed"  ? crClosed  :
+      creatorResolverTab === "resolved"? crResolved:
+      creatorResolverTab === "pending" ? myPendingQs.map((q) => ({ ...q, yes_percent: 50, no_percent: 50, yes_pool: 0, no_pool: 0, entry_cost: q.entry_cost, status: q.status as FeedQuestion["status"], closed_reason: undefined } as FeedQuestion)):
+      allQuestions;
+
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         {authNotice && (
@@ -1427,53 +1444,174 @@ export default function AdminPage() {
             {authNotice.message}
           </div>
         )}
-        <div className="mb-6 flex flex-col gap-1">
-          <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
-          <h1 className="text-3xl font-semibold text-white">Contributor Dashboard</h1>
-          <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
+
+        {/* Header */}
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
+            <h1 className="text-3xl font-semibold text-white">Contributor Dashboard</h1>
+            <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
+          </div>
+          <button
+            onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
+            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
+          >
+            + New Question
+          </button>
         </div>
 
-        {/* Submit a Question */}
-        <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">Submit a Question</h2>
-              <p className="text-sm text-slate-400">Questions go to admin review before going live in the feed.</p>
+        {/* Stats */}
+        <section className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          {isResolver ? (
+            <>
+              <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+                <p className="text-xs text-slate-400">Open Questions</p>
+                <p className="mt-1.5 text-2xl font-semibold text-emerald-400">{crOpen.length}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+                <p className="text-xs text-slate-400">Closed Questions</p>
+                <p className="mt-1.5 text-2xl font-semibold text-amber-400">{crClosed.length}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+                <p className="text-xs text-slate-400">Resolved Questions</p>
+                <p className="mt-1.5 text-2xl font-semibold text-blue-400">{crResolved.length}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+                <p className="text-xs text-slate-400">My Pending Approvals</p>
+                <p className="mt-1.5 text-2xl font-semibold text-amber-300">{myPendingQs.length}</p>
+              </div>
+            </>
+          ) : (
+            <div className="col-span-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
+              <p className="text-xs text-slate-400">Pending Approvals</p>
+              <p className="mt-1.5 text-2xl font-semibold text-amber-300">{myPendingQs.length}</p>
+              <p className="mt-1 text-xs text-slate-500">Questions awaiting admin review before going live.</p>
             </div>
-            <button
-              onClick={() => { setCreateModalOpen(true); setCreateStep("form"); setCreateMsg(null); }}
-              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110"
-            >
-              + New Question
-            </button>
-          </div>
+          )}
         </section>
 
-        {/* My Submitted Questions */}
+        {/* Question Management */}
         <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">My Submitted Questions</h2>
-            <button onClick={refreshMyQuestions} className="text-xs text-slate-500 hover:text-slate-300">
-              {myQuestionsLoading ? "Loading..." : "↻ Refresh"}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-white">Question Management</h2>
+            <button
+              onClick={isResolver ? refreshQuestions : refreshMyQuestions}
+              className="text-xs text-slate-500 hover:text-slate-300"
+            >
+              {(isResolver ? questionsLoading : myQuestionsLoading) ? "Loading…" : "↻ Refresh"}
             </button>
           </div>
-          {myQuestions.length === 0 ? (
-            <p className="text-sm text-slate-400">No questions yet. Submit your first question above.</p>
+
+          {resolveMsg && (
+            <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${resolveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+              {resolveMsg.text}
+            </div>
+          )}
+
+          {/* Resolver: full tabs; Creator: pending only */}
+          {isResolver ? (
+            <>
+              <div className="mb-4 grid gap-2 sm:grid-cols-5">
+                {(["open","closed","resolved","all","pending"] as const).map((tab) => {
+                  const counts: Record<string, number> = { open: crOpen.length, closed: crClosed.length, resolved: crResolved.length, all: allQuestions.length, pending: myPendingQs.length };
+                  const labels: Record<string, string> = { open: "Open", closed: "Closed", resolved: "Resolved", all: "All", pending: "My Pending" };
+                  const colors: Record<string, string> = { open: "text-emerald-400", closed: "text-amber-400", resolved: "text-blue-400", all: "text-[var(--brand)]", pending: "text-amber-300" };
+                  const isActive = creatorResolverTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => { setCreatorResolverTab(tab); setSelectedQuestion(null); setConfirmResolve(null); }}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${isActive ? "admin-status-tab-active" : "admin-status-tab"}`}
+                    >
+                      <span className={colors[tab]}>{labels[tab]}</span>
+                      <span className="admin-status-count">{counts[tab]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+                {/* Question list */}
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${creatorResolverTab === "open" ? "bg-emerald-400" : creatorResolverTab === "closed" ? "bg-amber-400" : creatorResolverTab === "resolved" ? "bg-blue-400" : creatorResolverTab === "pending" ? "bg-amber-300" : "bg-[var(--brand)]"}`} />
+                    <p className="text-sm font-medium text-slate-300">
+                      {creatorResolverTab === "open" ? `Open (${crOpen.length})` : creatorResolverTab === "closed" ? `Closed (${crClosed.length})` : creatorResolverTab === "resolved" ? `Resolved (${crResolved.length})` : creatorResolverTab === "pending" ? `My Pending (${myPendingQs.length})` : `All (${allQuestions.length})`}
+                    </p>
+                  </div>
+                  <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
+                    {crFilteredQs.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
+                    {crFilteredQs.map((q) => (
+                      <button
+                        key={q._id}
+                        onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
+                        className={`admin-question-item w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors ${selectedQuestion?._id === q._id ? "admin-question-item-active" : "border-[var(--stroke)] bg-[#0b1528] text-slate-200 hover:border-slate-500"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="line-clamp-1 font-medium">{q.title}</p>
+                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : q.status === "pending_approval" ? "bg-amber-500/15 text-amber-300" : "bg-blue-500/15 text-blue-400"}`}>
+                            {q.status === "pending_approval" ? "Pending" : q.status}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {q.category} · {formatDate(q.closing_time ?? "")} · {q.entry_cost} pts · YES {Number(q.yes_percent ?? 50).toFixed(2)}%
+                        </p>
+                        {q.status === "closed" && q.closed_reason !== "cancelled" && (
+                          <p className="mt-0.5 text-[11px] font-medium text-amber-400">Pending resolution</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Detail panel — no edit/approve/reject, only resolve */}
+                {selectedQuestion && (
+                  <div className="admin-detail-panel w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none">
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-white">Question Detail</h3>
+                      <button onClick={() => { setSelectedQuestion(null); setConfirmResolve(null); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
+                    </div>
+                    <p className="mb-3 text-sm font-medium text-slate-200">{selectedQuestion.title}</p>
+                    <div className="mb-4 space-y-1 text-xs text-slate-400">
+                      <p>Category: <span className="text-slate-200">{selectedQuestion.category}</span></p>
+                      <p>Entry: <span className="text-slate-200">{selectedQuestion.entry_cost} pts</span></p>
+                      <p>YES pool: <span className="text-emerald-300">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-orange-300">{selectedQuestion.no_pool} pts</span></p>
+                      <p>Split: YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}% / NO {Number(selectedQuestion.no_percent ?? 50).toFixed(2)}%</p>
+                      <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-blue-400"}>{selectedQuestion.status}</span></p>
+                      {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
+                    </div>
+                    {selectedQuestion.status !== "resolved" && selectedQuestion.status !== "pending_approval" && selectedQuestion.closed_reason !== "cancelled" && !confirmResolve && (
+                      <div className="space-y-2">
+                        <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">✓ Resolve YES</button>
+                        <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving} className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">✗ Resolve NO</button>
+                      </div>
+                    )}
+                    {confirmResolve && (
+                      <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
+                        <p className="mb-3 text-sm text-slate-200">Resolve as <strong>{confirmResolve.answer.toUpperCase()}</strong>? This finalizes outcomes for all participants.</p>
+                        <div className="flex gap-2">
+                          <button onClick={() => setConfirmResolve(null)} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
+                          <button onClick={() => handleResolve(selectedQuestion._id, confirmResolve.answer)} disabled={!!resolving} className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-orange-600 hover:bg-orange-500"}`}>{resolving ? "Resolving…" : "Confirm"}</button>
+                        </div>
+                      </div>
+                    )}
+                    {(selectedQuestion.status === "resolved" || selectedQuestion.status === "pending_approval") && (
+                      <p className="text-xs text-slate-500">{selectedQuestion.status === "resolved" ? "This question has already been resolved." : "This question is awaiting admin approval."}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
+            /* Creator: pending approvals only */
             <div className="space-y-3">
-              {myQuestions.map((q) => (
+              {myPendingQs.length === 0 ? (
+                <p className="text-sm text-slate-400">No questions pending review. Submit a new question to get started.</p>
+              ) : myPendingQs.map((q) => (
                 <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <p className="text-sm font-medium text-white">{q.title}</p>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                      q.status === "pending_approval" ? "bg-amber-500/15 text-amber-300" :
-                      q.status === "open" ? "status-open" :
-                      q.status === "closed" ? "bg-slate-700/50 text-slate-300" :
-                      q.status === "resolved" ? "bg-blue-500/15 text-blue-300" :
-                      "bg-slate-700/50 text-slate-300"
-                    }`}>
-                      {q.status === "pending_approval" ? "Pending Review" : q.status.charAt(0).toUpperCase() + q.status.slice(1)}
-                    </span>
+                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-300">Pending Review</span>
                   </div>
                   <div className="flex flex-wrap gap-4 text-[11px] text-slate-400">
                     <span>Category: {q.category}</span>
@@ -1486,66 +1624,6 @@ export default function AdminPage() {
             </div>
           )}
         </section>
-
-        {/* Resolve Questions — only for question_creator_resolver */}
-        {userRole === "question_creator_resolver" && (
-          <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-white">Resolve Questions</h2>
-                <p className="text-sm text-slate-400">Select a question to resolve its outcome.</p>
-              </div>
-              <button onClick={refreshQuestions} className="text-xs text-slate-500 hover:text-slate-300">{questionsLoading ? "Loading…" : "↻ Refresh"}</button>
-            </div>
-            {resolveMsg && (
-              <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${resolveMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                {resolveMsg.text}
-              </div>
-            )}
-            <div className="flex flex-col gap-4 lg:flex-row">
-              <div className="max-h-72 overflow-y-auto space-y-1 lg:w-72">
-                {allQuestions.filter((q) => q.status === "open" || q.status === "closed").length === 0 ? (
-                  <p className="text-sm text-slate-400">No approved questions to resolve. Questions must be approved by admin first.</p>
-                ) : allQuestions.filter((q) => q.status === "open" || q.status === "closed").map((q) => (
-                  <button
-                    key={q._id}
-                    onClick={() => { setSelectedQuestion(q); setResolveMsg(null); setConfirmResolve(null); }}
-                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${selectedQuestion?._id === q._id ? "bg-[var(--brand)]/15 border border-[var(--brand)]/30" : "border border-[var(--stroke)] hover:border-slate-500/60"}`}
-                  >
-                    <p className="line-clamp-1 text-sm font-medium text-white">{q.title}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{q.category} · {q.status} · YES {Number(q.yes_percent ?? 50).toFixed(1)}%</p>
-                  </button>
-                ))}
-              </div>
-              {selectedQuestion && (
-                <div className="flex-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-                  <p className="mb-2 text-sm font-semibold text-white line-clamp-2">{selectedQuestion.title}</p>
-                  <div className="mb-4 space-y-1 text-xs text-slate-400">
-                    <p>Category: <span className="text-slate-200">{selectedQuestion.category}</span></p>
-                    <p>YES pool: <span className="text-emerald-300">{selectedQuestion.yes_pool} pts</span> · NO pool: <span className="text-orange-300">{selectedQuestion.no_pool} pts</span></p>
-                    <p>Market split: YES {Number(selectedQuestion.yes_percent ?? 50).toFixed(2)}% / NO {Number(selectedQuestion.no_percent ?? (100 - Number(selectedQuestion.yes_percent ?? 50))).toFixed(2)}%</p>
-                    <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : "text-amber-400"}>{selectedQuestion.status}</span></p>
-                  </div>
-                  {!confirmResolve && selectedQuestion.status !== "resolved" && selectedQuestion.closed_reason !== "cancelled" && (
-                    <div className="space-y-2">
-                      <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">✓ Resolve YES</button>
-                      <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving} className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">✗ Resolve NO</button>
-                    </div>
-                  )}
-                  {confirmResolve && (
-                    <div className="rounded-xl border border-[var(--stroke)] bg-slate-800/60 p-3">
-                      <p className="mb-3 text-sm text-slate-200">Resolve as {confirmResolve.answer.toUpperCase()}? This finalizes outcomes for all participants.</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => setConfirmResolve(null)} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
-                        <button onClick={() => handleResolve(selectedQuestion._id, confirmResolve.answer)} disabled={!!resolving} className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white disabled:opacity-50 ${confirmResolve.answer === "yes" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-orange-600 hover:bg-orange-500"}`}>{resolving ? "Resolving…" : "Confirm"}</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
 
         {/* Quick Links */}
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
