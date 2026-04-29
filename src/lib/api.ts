@@ -127,6 +127,7 @@ export type UserPrediction = {
   question_id: string;
   question_title?: string;
   question_status?: string;
+  question_logo_keys?: string[];
   answer: "yes" | "no";
   points_used: number;
   points_earned: number;
