@@ -14,7 +14,11 @@ type FeedQuestion = {
   no_percent: number;
   entry_cost: number;
   closing_time?: string;
+  closes_label?: string;
+  logo_keys?: string[];
 };
+
+type LogoLookup = Record<string, string>; // logo_key → image_url
 
 type DemoQuestion = {
   id: string;
@@ -216,6 +220,7 @@ export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [forcePublicView, setForcePublicView] = useState(false);
   const [questions, setQuestions] = useState<FeedQuestion[]>([]);
+  const [logoLookup, setLogoLookup] = useState<LogoLookup>({});
   const [demoQuestions, setDemoQuestions] = useState<DemoQuestion[]>(DEMO_PREVIEW_QUESTIONS);
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [demoVote, setDemoVote] = useState<"yes" | "no" | null>(null);
@@ -278,6 +283,18 @@ export default function LandingPage() {
       })
       .catch(() => {})
       .finally(() => setQuestionsLoading(false));
+
+    fetch(`${API_BASE}/logos/active`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const assets: Array<{ logo_key: string; image_url: string }> = body?.results || body?.assets || [];
+        const lookup: LogoLookup = {};
+        for (const a of assets) {
+          if (a.logo_key && a.image_url) lookup[a.logo_key] = a.image_url;
+        }
+        setLogoLookup(lookup);
+      })
+      .catch(() => {});
 
     fetch(`${API_BASE}/landing/demo_questions?limit=4`)
       .then((r) => (r.ok ? r.json() : null))
@@ -487,7 +504,7 @@ export default function LandingPage() {
         {questionsLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 animate-pulse rounded-xl border border-[var(--stroke)] bg-[var(--surface)]" />
+              <div key={i} className="h-24 animate-pulse rounded-xl border border-[var(--stroke)] bg-[var(--surface)]" />
             ))}
           </div>
         ) : (
@@ -495,17 +512,47 @@ export default function LandingPage() {
             {questions.slice(0, 3).map((q) => {
               const yes = Number(q.yes_percent ?? 50);
               const no = Number(q.no_percent ?? 50);
+              const widthTotal = yes + no;
+              const yesWidth = widthTotal > 0 ? (yes / widthTotal) * 100 : 50;
+              const logoUrls = (q.logo_keys || [])
+                .map((k) => logoLookup[k])
+                .filter(Boolean)
+                .slice(0, 2) as string[];
+              const closesText = q.closes_label || formatDate(q.closing_time);
               return (
-                <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-3.5">
-                  <p className="mb-0.5 text-[10px] uppercase tracking-wide text-slate-500">{q.category}</p>
-                  <p className="mb-2 line-clamp-2 text-xs font-medium leading-snug text-white">{q.title}</p>
-                  <ProbBar yes={yes} no={no} />
-                  <div className="mt-1.5 flex justify-between text-[11px] text-slate-400">
-                    <span className="text-emerald-400">YES {yes.toFixed(0)}%</span>
-                    <span>{formatDate(q.closing_time)}</span>
-                    <span className="text-orange-400">NO {no.toFixed(0)}%</span>
+                <Link key={q._id} href="/feed" className="group block rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-500/60">
+                  {/* Header: logo + title + Open badge */}
+                  <div className="mb-2.5 flex items-start gap-2.5">
+                    {logoUrls.length > 0 ? (
+                      <div className="flex shrink-0 gap-1">
+                        {logoUrls.map((url, i) => (
+                          <img key={i} src={url} alt="" className="h-9 w-9 rounded-lg bg-white object-contain p-0.5" loading="lazy" referrerPolicy="no-referrer" />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--brand)]/10 text-xs font-bold text-[var(--brand)]">
+                        {q.category.charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-0.5 flex items-center justify-between gap-1">
+                        <span className="text-[10px] text-slate-500">{q.category}{closesText ? ` · ${closesText}` : ""}</span>
+                        <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">Open</span>
+                      </div>
+                      <p className="line-clamp-2 text-xs font-semibold leading-snug text-white">{q.title}</p>
+                    </div>
                   </div>
-                </div>
+                  {/* Bar */}
+                  <div className="mb-1.5 flex h-1.5 overflow-hidden rounded-full">
+                    <div className="h-full bg-[var(--yes)] transition-all" style={{ width: `${yesWidth}%` }} />
+                    <div className="h-full bg-[var(--no)] transition-all" style={{ width: `${100 - yesWidth}%` }} />
+                  </div>
+                  {/* Percentages */}
+                  <div className="flex items-center justify-between text-[11px] font-medium">
+                    <span className="text-[var(--yes)]">YES {yes.toFixed(1)}%</span>
+                    <span className="text-[var(--no)]">{no.toFixed(1)}% NO</span>
+                  </div>
+                </Link>
               );
             })}
           </div>
