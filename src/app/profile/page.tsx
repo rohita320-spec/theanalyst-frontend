@@ -307,12 +307,24 @@ export default function ProfilePage() {
                       <span className="font-semibold text-white">{formatNumber(profile?.points_balance || 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">All-Time Net Earned</span>
-                      <span className="font-semibold text-emerald-300">{formatNumber(profile?.points_earned_total || 0)}</span>
+                      <span className="text-slate-300">Net Earned</span>
+                      <span className={`font-semibold ${Number(profile?.points_earned_total || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                        {Number(profile?.points_earned_total || 0) > 0 ? "+" : ""}{formatNumber(profile?.points_earned_total || 0)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">Gross Outcome Points</span>
-                      <span className="font-semibold text-white">{formatNumber(profile?.gross_points_earned || 0)}</span>
+                      <span className="text-slate-300">ROI</span>
+                      <span className={`font-semibold ${(() => { const spent = Number(profile?.total_points_spent || 0); const net = Number(profile?.net_points || 0); return spent > 0 ? net / spent * 100 : 0; })() >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                        {(() => { const spent = Number(profile?.total_points_spent || 0); const net = Number(profile?.net_points || 0); if (!spent) return "—"; const roi = (net / spent) * 100; return `${roi > 0 ? "+" : ""}${roi.toFixed(1)}%`; })()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300">Accuracy</span>
+                      <span className="font-semibold text-white">
+                        {profile && profile.closed_analyses_count > 0
+                          ? `${Math.round((profile.correct_predictions / profile.closed_analyses_count) * 100)}%`
+                          : "—"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-300">Points Lost</span>
@@ -330,18 +342,10 @@ export default function ProfilePage() {
             </section>
 
             {/* Summary stats */}
-            <section className="mb-6 grid gap-4 md:grid-cols-3">
+            <section className="mb-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
                 <p className="text-sm text-slate-400">Questions Answered</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{formatNumber(profile?.answered_questions_count || 0)}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
-                <p className="text-sm text-slate-400">Resolved Hit Rate</p>
-                <p className="mt-2 text-3xl font-semibold text-white">
-                  {profile && profile.closed_analyses_count > 0
-                    ? `${Math.round((profile.correct_predictions / profile.closed_analyses_count) * 100)}%`
-                    : "0%"}
-                </p>
               </div>
               <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
                 <p className="text-sm text-slate-400">Leaderboard Score</p>
