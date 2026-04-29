@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "../../components/AppHeader";
 import { clearStoredAuthSession, fetchMeProfileSummary, updateMeProfilePreferences, type ProfilePayload, type UserPrediction } from "../../lib/api";
 
@@ -150,6 +150,29 @@ export default function ProfilePage() {
     await saveProfilePreferences(nextTheme);
   };
 
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("profile_avatar");
+      if (saved) setAvatarDataUrl(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setAvatarDataUrl(result);
+      try { localStorage.setItem("profile_avatar", result); } catch { /* ignore */ }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const [predictionTab, setPredictionTab] = useState<"open" | "closed">("open");
 
   const openGroups = useMemo(() => groupByQuestion(openPredictions), [openPredictions]);
@@ -172,8 +195,31 @@ export default function ProfilePage() {
                     Analyst Profile
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand)]/20 text-3xl font-bold text-[var(--brand)]">
-                      {(username || profile?.username || "?").charAt(0).toUpperCase()}
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--brand)]/20 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
+                        title="Change profile photo"
+                      >
+                        {avatarDataUrl ? (
+                          <>
+                            <img src={avatarDataUrl} alt="Avatar" className="h-full w-full object-cover" />
+                            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 text-[10px] text-white font-medium">Change</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex h-full w-full items-center justify-center text-3xl font-bold text-[var(--brand)]">
+                              {(username || profile?.username || "?").charAt(0).toUpperCase()}
+                            </span>
+                            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 text-[10px] text-white font-medium">Add photo</span>
+                          </>
+                        )}
+                      </button>
+                      {!avatarDataUrl && (
+                        <p className="text-[10px] text-slate-500">Tap to add</p>
+                      )}
+                      <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                     </div>
                     <div>
                       <h2 className="text-3xl font-semibold text-white">@{username || profile?.username || "analyst"}</h2>
