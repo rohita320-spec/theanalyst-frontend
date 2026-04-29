@@ -299,7 +299,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-[var(--stroke)] bg-[#0b1528] p-5">
+                <div className="self-start rounded-3xl border border-[var(--stroke)] bg-[#0b1528] p-5">
                   <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">Performance Snapshot</p>
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between">
