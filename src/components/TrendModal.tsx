@@ -153,7 +153,7 @@ export default function TrendModal({
 
             <div className="h-64 w-full sm:h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 6, right: 48, bottom: 8, left: -16 }}>
+                <ComposedChart data={chartData} margin={{ top: 6, right: 48, bottom: 8, left: 0 }}>
                   <defs>
                     <linearGradient id="yesFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#34d399" stopOpacity={0.26} />

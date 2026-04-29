@@ -192,7 +192,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
         <div className="mt-1.5 flex items-center justify-between text-xs font-medium">
           <span className="text-[var(--yes)]">{sideLabels.yesLabel} {formatPct(safeYes)}</span>
-          <span className="text-[11px] text-slate-500">Pool: {formatNumber(totalPool)}</span>
+          <span className="text-[11px] text-slate-500">Volume: {formatNumber(totalPool)}</span>
           <span className="text-[var(--no)]">{formatPct(safeNo)} {sideLabels.noLabel}</span>
         </div>
       </div>

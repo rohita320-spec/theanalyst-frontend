@@ -356,7 +356,7 @@ export default function ProfilePage() {
             {/* Open questions — grouped by question */}
             <section className="mb-6 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-6">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-xl font-semibold text-white">Live Positions (Unrealized P&L)</h3>
+                <h3 className="text-xl font-semibold text-white">Live Positions</h3>
                 <span className="rounded-full bg-[var(--brand)]/15 px-3 py-1 text-xs font-medium text-[var(--brand)]">
                   {openPredictions.length}
                 </span>
@@ -367,7 +367,6 @@ export default function ProfilePage() {
               ) : (
                 <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
                   {openPredictions.map((prediction) => {
-                    const livePnl = Number(prediction.unrealized_pnl || 0);
                     return (
                       <div key={`live-${prediction._id}`} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] px-3 py-3 text-sm">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -377,17 +376,12 @@ export default function ProfilePage() {
                           <span className="font-semibold text-white">{prediction.question_title || prediction.question_id}</span>
                           <span className="ml-auto text-xs text-slate-500">{formatDate(prediction.created_at)}</span>
                         </div>
-                        <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-3 lg:grid-cols-6">
+                        <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-3 lg:grid-cols-5">
                           <span>Points: <span className="font-semibold text-white">{formatNumber(prediction.points_used)}</span></span>
                           <span>Entry %: <span className="font-semibold text-white">{Number(prediction.entry_probability_percent || 0).toFixed(2)}%</span></span>
                           <span>Current %: <span className="font-semibold text-white">{Number(prediction.current_side_percent || 0).toFixed(2)}%</span></span>
                           <span>Shares: <span className="font-semibold text-white">{Number(prediction.shares_bought || 0).toFixed(4)}</span></span>
                           <span>Current Value: <span className="font-semibold text-white">{formatNumber(prediction.current_position_value || 0)}</span></span>
-                          <span>
-                            Unrealized P&L: <span className={`font-semibold ${livePnl >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                              {livePnl > 0 ? "+" : ""}{formatNumber(livePnl)}
-                            </span>
-                          </span>
                         </div>
                       </div>
                     );

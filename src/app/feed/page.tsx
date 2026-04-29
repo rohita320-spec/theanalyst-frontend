@@ -384,7 +384,7 @@ export default function FeedPage() {
                     : "bg-orange-500/20 text-orange-300"
                 }`}
               >
-                {selectedSideLabel} ({confirmModal.answer.toUpperCase()})
+                {selectedSideLabel}
               </span>
             </div>
 
