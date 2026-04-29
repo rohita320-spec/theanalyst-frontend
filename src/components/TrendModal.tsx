@@ -278,6 +278,37 @@ export default function TrendModal({
           />
         </div>
 
+        {/* ── Analysis Breakdown ───────────────────────────────── */}
+        {question.analysis_counts && Object.keys(question.analysis_counts).length > 0 && (() => {
+          const entries = Object.entries(question.analysis_counts as Record<string, number>)
+            .filter(([, n]) => n > 0)
+            .sort(([, a], [, b]) => b - a);
+          if (!entries.length) return null;
+          const total = entries.reduce((s, [, n]) => s + n, 0);
+          return (
+            <div className="mt-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+              <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">Analysis Breakdown</h4>
+              <div className="space-y-2">
+                {entries.map(([type, count]) => {
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={type}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="text-slate-300">{type}</span>
+                        <span className="text-slate-500">{count} · {pct}%</span>
+                      </div>
+                      <div className="h-1 overflow-hidden rounded-full bg-slate-800">
+                        <div className="h-full rounded-full bg-[var(--brand)]" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-[11px] text-slate-600">{total} analyst{total !== 1 ? "s" : ""} tagged their approach</p>
+            </div>
+          );
+        })()}
+
         {/* ── Resolution Rules ─────────────────────────────────── */}
         <div className="mt-4 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
           <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>

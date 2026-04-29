@@ -32,6 +32,20 @@ const categories = [
   "Sports",
 ];
 
+const ANALYSIS_TYPES: Record<string, string[]> = {
+  crypto: ["Technical Analysis", "Fundamental Analysis", "On-Chain Analysis"],
+  markets: ["Technical Analysis", "Fundamental Analysis"],
+  economy: ["Macro Analysis", "Historical Trends", "Fundamental Analysis", "Policy Analysis"],
+  entertainment: ["Trend Analysis", "Historical Analysis", "Public Opinion"],
+  general: ["Logical Reasoning", "Historical Trends", "News/Event-Driven", "Public Opinion"],
+  "global events": ["Geopolitical Analysis", "Historical Patterns"],
+  sports: ["Statistical Analysis", "Form Analysis", "Historical Head-to-Head"],
+};
+
+function getAnalysisTypesForCategory(category: string): string[] {
+  return ANALYSIS_TYPES[category.toLowerCase()] ?? [];
+}
+
 type Notification = { type: "success" | "error" | "info"; text: string };
 
 function formatNumber(value: number) {
@@ -72,6 +86,7 @@ export default function FeedPage() {
   const [pointsInput, setPointsInput] = useState("");
   const [modalError, setModalError] = useState("");
   const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [selectedAnalysisType, setSelectedAnalysisType] = useState<string | null>(null);
 
   useEffect(() => {
     const syncAuthFromStorage = () => {
@@ -176,6 +191,7 @@ export default function FeedPage() {
     setConfirmModal({ question, answer });
     setPointsInput(String(Math.max(Number(question.entry_cost || 500), 0)));
     setModalError("");
+    setSelectedAnalysisType(null);
   };
 
   const onConfirmSubmit = async () => {
@@ -205,12 +221,13 @@ export default function FeedPage() {
     setPlacing(key);
 
     try {
-      const result = await placePrediction(authToken, question._id, answer, pts);
+      const result = await placePrediction(authToken, question._id, answer, pts, selectedAnalysisType);
       if (!result.success) {
         setModalError(result.message || "Position could not be submitted.");
         return;
       }
       setConfirmModal(null);
+      setSelectedAnalysisType(null);
       showNotification(
         "success",
         `✓ ${answer.toUpperCase()} position submitted! New balance: ${formatNumber(result.new_balance)} pts`,
@@ -373,7 +390,7 @@ export default function FeedPage() {
                 <h2 className="mt-1 text-base font-semibold text-white line-clamp-2">{confirmModal.question.title}</h2>
               </div>
               <button
-                onClick={() => { setConfirmModal(null); setModalError(""); }}
+                onClick={() => { setConfirmModal(null); setModalError(""); setSelectedAnalysisType(null); }}
                 className="mt-0.5 flex-none rounded-lg p-1.5 text-slate-500 hover:bg-slate-700/50 hover:text-white"
               >
                 ✕
@@ -393,6 +410,32 @@ export default function FeedPage() {
                 {selectedSideLabel}
               </span>
             </div>
+
+            {/* Analysis type picker */}
+            {(() => {
+              const types = getAnalysisTypesForCategory(confirmModal.question.category);
+              if (!types.length) return null;
+              return (
+                <div className="mb-5">
+                  <p className="mb-2 text-sm font-medium text-slate-300">Analysis type <span className="text-slate-500 font-normal">(optional)</span></p>
+                  <div className="flex flex-wrap gap-2">
+                    {types.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setSelectedAnalysisType(selectedAnalysisType === t ? null : t)}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          selectedAnalysisType === t
+                            ? "border-[var(--brand)] bg-[var(--brand)]/20 text-[var(--brand)]"
+                            : "border-[var(--stroke)] text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Points input */}
             <div className="mb-2">
@@ -474,7 +517,7 @@ export default function FeedPage() {
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => { setConfirmModal(null); setModalError(""); }}
+                onClick={() => { setConfirmModal(null); setModalError(""); setSelectedAnalysisType(null); }}
                 className="flex-1 rounded-xl border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white"
               >
                 Cancel

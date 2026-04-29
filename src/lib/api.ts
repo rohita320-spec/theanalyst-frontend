@@ -33,6 +33,7 @@ export type FeedQuestion = {
   logo_keys?: string[];
   pending_logo_ids?: string[];
   metadata?: Record<string, unknown> | null;
+  analysis_counts?: Record<string, number> | null;
 };
 
 export type LogoAsset = {
@@ -142,6 +143,7 @@ export type UserPrediction = {
   unrealized_pnl?: number;
   is_resolved: boolean;
   is_correct: boolean;
+  analysis_type?: string | null;
   created_at?: string;
 };
 
@@ -367,6 +369,7 @@ export async function placePrediction(
   questionId: string,
   answer: "yes" | "no",
   pointsToSpend: number,
+  analysisType?: string | null,
 ): Promise<PlacePredictionResult> {
   if (USE_MOCK_DATA) {
     return {
@@ -392,6 +395,7 @@ export async function placePrediction(
       question_id: questionId,
       answer,
       points_to_spend: pointsToSpend,
+      ...(analysisType ? { analysis_type: analysisType } : {}),
     }),
   });
 

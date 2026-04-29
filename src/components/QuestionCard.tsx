@@ -197,6 +197,23 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
       </div>
 
+      {/* Analysis type counters */}
+      {question.analysis_counts && Object.keys(question.analysis_counts).length > 0 && (() => {
+        const entries = Object.entries(question.analysis_counts as Record<string, number>)
+          .filter(([, n]) => n > 0)
+          .sort(([, a], [, b]) => b - a);
+        if (!entries.length) return null;
+        return (
+          <div className="mb-2.5 flex flex-wrap gap-1">
+            {entries.map(([type, count]) => (
+              <span key={type} className="rounded-full border border-[var(--stroke)] px-2 py-0.5 text-[10px] text-slate-400">
+                {type} <span className="text-slate-500">{count}</span>
+              </span>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Action buttons */}
       <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
