@@ -411,7 +411,7 @@ export default function ProfilePage() {
                           <QuestionLogoStack logoKeys={group.question_logo_keys} lookup={logoLookup} />
                           <span className="flex-1 text-sm font-semibold text-white leading-snug">{group.question_title}</span>
                           <span className="shrink-0 text-[11px] text-slate-400">{formatNumber(totalSpent)} pts</span>
-                          <span className="shrink-0 text-[11px] text-slate-500 mr-1">· {group.predictions.length} position{group.predictions.length !== 1 ? "s" : ""}</span>
+                          <span className="shrink-0 text-[11px] text-slate-500 mr-1">{group.predictions.length} position{group.predictions.length !== 1 ? "s" : ""}</span>
                           <span className="shrink-0 text-xs text-slate-500">{isOpen ? "▲" : "▼"}</span>
                         </button>
 
@@ -480,7 +480,7 @@ export default function ProfilePage() {
                             <QuestionLogoStack logoKeys={group.question_logo_keys} lookup={logoLookup} />
                             <span className="flex-1 text-sm font-semibold text-white leading-snug">{group.question_title}</span>
                             <span className="shrink-0 text-[11px] text-slate-400">{formatNumber(totalSpent)} pts</span>
-                            <span className="shrink-0 text-[11px] text-slate-500 mr-1">· {group.predictions.length} position{group.predictions.length !== 1 ? "s" : ""}</span>
+                            <span className="shrink-0 text-[11px] text-slate-500 mr-1">{group.predictions.length} position{group.predictions.length !== 1 ? "s" : ""}</span>
                             <span className="shrink-0 text-xs text-slate-500">{isOpen ? "▲" : "▼"}</span>
                           </button>
                           {isOpen && (
@@ -523,8 +523,8 @@ export default function ProfilePage() {
                             <QuestionLogoStack logoKeys={group.question_logo_keys} lookup={logoLookup} />
                             <span className="flex-1 text-sm font-semibold text-white leading-snug">{group.question_title}</span>
                             <span className="shrink-0 text-[11px] text-slate-400">{formatNumber(totalSpent)} pts spent</span>
-                            <span className={`shrink-0 text-[11px] font-semibold ${netResult >= 0 ? "text-emerald-400" : "text-red-400"}`}>· {netResult > 0 ? "+" : ""}{formatNumber(netResult)}</span>
-                            <span className="shrink-0 text-xs text-slate-500 ml-1">{isOpen ? "▲" : "▼"}</span>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${netResult >= 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>{netResult > 0 ? "+" : ""}{formatNumber(netResult)}</span>
+                            <span className="shrink-0 text-xs text-slate-500">{isOpen ? "▲" : "▼"}</span>
                           </button>
                           {isOpen && (
                             <div className="border-t border-[var(--stroke)]/60 px-4 pb-3 pt-2 space-y-2">
