@@ -274,7 +274,7 @@ export default function FeedPage() {
             <p className="mt-1.5 text-2xl font-semibold text-white">{openQuestions}</p>
           </div>
           <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
-            <p className="text-sm text-slate-400">Active Pool</p>
+            <p className="text-sm text-slate-400">Active Points</p>
             <p className="mt-1.5 text-2xl font-semibold text-white">{formatNumber(totalPool)}</p>
           </div>
           <div className="col-span-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 md:col-span-1">
@@ -301,23 +301,29 @@ export default function FeedPage() {
             ))}
           </div>
 
-          {/* Status filter */}
-          <div className="mb-5 flex items-center gap-2">
+          {/* Status filter — segmented control, visually separate from category pills */}
+          <div className="mb-5 flex items-center gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-1 w-fit">
             {(["open", "closed", "resolved", "all"] as const).map((s) => {
               const counts: Record<string, number> = { open: openQuestions, closed: closedQuestions, resolved: resolvedQuestions, all: questions.length };
-              const colors: Record<string, string> = {
-                open: selectedStatus === s ? "feed-status-tab-active-open" : "feed-status-tab",
-                closed: selectedStatus === s ? "feed-status-tab-active-closed" : "feed-status-tab",
-                resolved: selectedStatus === s ? "feed-status-tab-active-resolved" : "feed-status-tab",
-                all: selectedStatus === s ? "feed-status-tab-active-all" : "feed-status-tab",
+              const activeColors: Record<string, string> = {
+                open:     "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                closed:   "bg-slate-500/20 text-slate-200 border border-slate-500/30",
+                resolved: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+                all:      "bg-[var(--brand)]/20 text-[var(--brand)] border border-[var(--brand)]/30",
               };
+              const isActive = selectedStatus === s;
               return (
                 <button
                   key={s}
                   onClick={() => setSelectedStatus(s)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${colors[s]}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all ${
+                    isActive ? activeColors[s] : "border border-transparent text-slate-500 hover:text-slate-300"
+                  }`}
                 >
-                  {s.charAt(0).toUpperCase() + s.slice(1)} ({counts[s]})
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? "bg-white/15" : "bg-slate-700/60 text-slate-400"}`}>
+                    {counts[s]}
+                  </span>
                 </button>
               );
             })}
