@@ -470,13 +470,13 @@ export default function LandingPage() {
       <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 pb-4 pt-5 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5 sm:p-6">
           <p className="mb-1.5 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-3 py-0.5 text-[11px] font-medium tracking-wide text-[var(--brand)]">
-            Points-Based Participation
+            Analysis-Based Participation
           </p>
           <h1 className="mb-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
             Submit Your Analysis
           </h1>
           <p className="mb-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Explore event-driven questions, submit your view using points on YES or NO, and track how outcomes affect your ranking.
+            Explore curated questions across markets, sports, and global events. Back your analysis with points — choose YES or NO, or pick a side when teams are involved — and see how your accuracy shapes your standing.
           </p>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row">
             <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
@@ -488,9 +488,9 @@ export default function LandingPage() {
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">How it works</p>
           <div className="grid gap-2">
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">01. Browse open questions</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your view using points</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">03. Track results and ranking</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">01. Browse curated questions</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your analysis using points</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">03. Track outcomes and your standing</div>
           </div>
         </div>
       </section>
@@ -607,7 +607,7 @@ export default function LandingPage() {
               {!demoResolved ? (
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
                   <p className="mb-2 text-xs text-slate-400">
-                    {demoVote ? "View submitted — watching market move..." : "Submit your view to see the market react:"}
+                    {demoVote ? "Analysis submitted — watching sentiment shift..." : "Back your analysis to see the market react:"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -721,7 +721,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
-                  <p className="mb-2 text-xs text-slate-400">Submit your view to see the market react:</p>
+                  <p className="mb-2 text-xs text-slate-400">Back your analysis to see the market react:</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleCardVote(demo, "yes")}
