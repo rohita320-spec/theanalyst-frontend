@@ -129,6 +129,16 @@ function LogoLibraryPicker({
   const [logoSearch, setLogoSearch] = useState("");
 
   const searchLower = logoSearch.trim().toLowerCase();
+  const uploadNameLower = uploadDisplayName.trim().toLowerCase();
+  const existingUploadMatches = uploadNameLower
+    ? activeAssets.filter((asset) => {
+        const displayName = asset.display_name.toLowerCase();
+        const logoKey = asset.logo_key.toLowerCase();
+        return displayName.includes(uploadNameLower) || logoKey.includes(uploadNameLower);
+      }).slice(0, 6)
+    : [];
+  const hasExactUploadMatch = existingUploadMatches.some((asset) => asset.display_name.toLowerCase() === uploadNameLower || asset.logo_key.toLowerCase() === uploadNameLower);
+
   // Always include selected assets so they're never silently hidden; also filter by search or category
   const visibleActiveAssets = activeAssets.filter((asset) => {
     const selected = selectedLogoKeys.includes(asset.logo_key);
@@ -248,6 +258,33 @@ function LogoLibraryPicker({
             placeholder="Display name (e.g. Apple)"
             className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
+          {existingUploadMatches.length > 0 && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+              <p>
+                {hasExactUploadMatch
+                  ? "This logo already exists in the library. Select the existing logo below instead of uploading another copy."
+                  : "Similar logos already exist in the library. You can select one below to avoid duplicate uploads."}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {existingUploadMatches.map((asset) => {
+                  const selected = selectedLogoKeys.includes(asset.logo_key);
+                  return (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => {
+                        toggleLogoKey(asset.logo_key);
+                        setLogoSearch(asset.display_name);
+                      }}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] ${selected ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]" : "border-amber-400/40 text-amber-100 hover:border-amber-300"}`}
+                    >
+                      {selected ? "Selected" : "Use existing"} · {asset.display_name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <input
             type="url"
             value={uploadLogoUrl}
