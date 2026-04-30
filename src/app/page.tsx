@@ -476,7 +476,7 @@ export default function LandingPage() {
             Submit Your Analysis
           </h1>
           <p className="mb-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Explore curated questions across markets, sports, and global events. Back your analysis with points — choose YES or NO, or pick a side when teams are involved — and see how your accuracy shapes your standing.
+            Explore curated questions across markets, sports, and global events. Contribute your view with points, select the outcome you support, and classify your reasoning with an analysis type so participation remains educational, structured, and professionally framed.
           </p>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row">
             <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
@@ -489,7 +489,7 @@ export default function LandingPage() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">How it works</p>
           <div className="grid gap-2">
             <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">01. Browse curated questions</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your analysis using points</div>
+            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your analysis using points and select an analysis type</div>
             <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">03. Track outcomes and your standing</div>
           </div>
         </div>
