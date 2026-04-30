@@ -131,22 +131,29 @@ export function getQuestionSideLabels(question: FeedQuestion): QuestionSideLabel
 
   if (question.category === "Sports") {
     const title = String(question.title || "").trim();
-    const patterns: RegExp[] = [
-      /^will\s+(.+?)\s+win\b.*?\bagainst\s+(.+)$/i,
-      /^will\s+(.+?)\s+beat\s+(.+)$/i,
-      /^who\s+will\s+win\b.*?\b(.+?)\s+vs\.?\s+(.+)$/i,
-      /^who\s+will\s+win\b.*?\b(.+?)\s+or\s+(.+)$/i,
-      /^(.+?)\s+vs\.?\s+(.+)$/i,
-    ];
 
-    for (const pattern of patterns) {
+    // Match "TEAM1 vs TEAM2" anywhere — capture at most 3 words on each side
+    // This handles "who will win in today's IPL match RCB vs GT" → ["RCB", "GT"]
+    const vsMatch = title.match(
+      /([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+vs\.?\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})(?:\s*\?)?$/i,
+    );
+    if (vsMatch) {
+      const yesLabel = normalizeLabel(vsMatch[1]);
+      const noLabel = normalizeLabel(vsMatch[2]);
+      if (yesLabel && noLabel) return { yesLabel, noLabel };
+    }
+
+    // "Will TEAM beat/win against TEAM2?" — limit each team to 3 words max
+    const headToHeadPatterns: RegExp[] = [
+      /^will\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+win\b.*?\bagainst\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})/i,
+      /^will\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+beat\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})/i,
+    ];
+    for (const pattern of headToHeadPatterns) {
       const match = title.match(pattern);
       if (match) {
         const yesLabel = normalizeLabel(match[1]);
         const noLabel = normalizeLabel(match[2]);
-        if (yesLabel && noLabel) {
-          return { yesLabel, noLabel };
-        }
+        if (yesLabel && noLabel) return { yesLabel, noLabel };
       }
     }
   }

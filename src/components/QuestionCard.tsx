@@ -97,6 +97,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
   const widthTotal = safeYes + safeNo;
   const yesWidth = widthTotal > 0 ? (safeYes / widthTotal) * 100 : 50;
   const sideLabels = getQuestionSideLabels(question);
+  const isVsQuestion = sideLabels.yesLabel !== "YES";
   const logos = getQuestionLogos(question, logoLibraryLookup || undefined).slice(0, 2);
   const totalPool = Number(question.yes_pool || 0) + Number(question.no_pool || 0);
 
@@ -116,12 +117,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     const sideLabel = side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
     const normalizedSide = side === "yes" ? "YES" : "NO";
     const normalizedLabel = String(sideLabel || "").trim().toUpperCase();
-
-    // For regular markets show YES / NO.
-    // For VS/sports labels show YES: TEAM_A and NO: TEAM_B.
-    if (!normalizedLabel || normalizedLabel === normalizedSide) {
-      return normalizedSide;
-    }
+    if (!normalizedLabel || normalizedLabel === normalizedSide) return normalizedSide;
+    // VS questions: show just the team name on the button
+    if (isVsQuestion) return sideLabel;
     return `${normalizedSide}: ${sideLabel}`;
   }
 
@@ -132,9 +130,33 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     >
       {/* Header: logo + title + status */}
       <div className="mb-2.5 flex items-start gap-2.5">
-        {/* Logo zone — prominent */}
-        <div className="flex shrink-0 gap-1">
-          {logos.length > 0 ? (
+        {/* Logo zone — VS layout for head-to-head questions, single logo otherwise */}
+        <div className="flex shrink-0 items-center gap-1">
+          {isVsQuestion && logos.length === 2 ? (
+            <>
+              <img
+                key={`${question._id}-logo-0`}
+                src={logos[0].url}
+                alt={logos[0].label || sideLabels.yesLabel}
+                className="h-10 w-10 rounded-lg bg-white object-contain p-0.5"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+              <span className="text-[9px] font-bold text-slate-500 leading-none">vs</span>
+              <img
+                key={`${question._id}-logo-1`}
+                src={logos[1].url}
+                alt={logos[1].label || sideLabels.noLabel}
+                className="h-10 w-10 rounded-lg bg-white object-contain p-0.5"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            </>
+          ) : logos.length > 0 ? (
             logos.map((logo, idx) => (
               <img
                 key={`${question._id}-logo-${idx}`}
@@ -155,8 +177,6 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
                       return;
                     }
                   }
-
-                  // Last resort: hide broken image so card UI remains clean.
                   img.style.display = "none";
                 }}
               />
