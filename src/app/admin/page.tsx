@@ -526,6 +526,17 @@ export default function AdminPage() {
     return res;
   };
 
+  // Safely parse JSON — if Railway returns an HTML gateway error (502/504),
+  // res.json() throws, which would land in the outer catch as "Network error."
+  // This returns a synthetic error object instead so the normal error path handles it.
+  const safeJson = async (res: Response): Promise<Record<string, unknown>> => {
+    try {
+      return await res.json();
+    } catch {
+      return { success: false, detail: `Backend temporarily unavailable (HTTP ${res.status}). Please retry in a moment.` };
+    }
+  };
+
   const applyLogoAssetState = (assets: LogoAsset[]) => {
     setActiveLogoAssets(assets.filter((asset) => asset.status === "active"));
     setPendingLogoAssets(assets.filter((asset) => asset.status === "pending_approval"));
@@ -644,7 +655,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({ logo_id: logoId }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (!body.success) {
         setLogoLibraryMsg({ type: "error", text: body.detail || `Failed to ${action} logo.` });
         return;
@@ -756,7 +767,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({}),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (!body.success) {
         throw new Error(body.detail || "Legacy logo backfill failed.");
       }
@@ -985,7 +996,7 @@ export default function AdminPage() {
           ...(parsedInitialYes !== null ? { initial_yes_percent: parsedInitialYes } : {}),
         }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         setApproveMsg({ type: "success", text: "Question approved and is now live!" });
         await Promise.all([refreshPendingQuestions(), refreshQuestions()]);
@@ -1010,7 +1021,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({ question_id: questionId }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         setApproveMsg({ type: "success", text: "Question rejected and removed." });
         await refreshPendingQuestions();
@@ -1084,7 +1095,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify(editPayload),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         setApproveMsg({ type: "success", text: "Pending question updated. You can now approve." });
         setPendingEditId(null);
@@ -1146,7 +1157,7 @@ export default function AdminPage() {
           credentials: "include",
           body: JSON.stringify({ question_id: questionId }),
         });
-        const body = await res.json();
+        const body = await safeJson(res);
         if (body.success) {
           setResolveMsg({ type: "success", text: "Question closed. Resolve as YES/NO or cancel with point refunds when ready." });
           await refreshQuestions();
@@ -1164,7 +1175,7 @@ export default function AdminPage() {
           credentials: "include",
           body: JSON.stringify({ question_id: questionId }),
         });
-        const body = await res.json();
+        const body = await safeJson(res);
         if (body.success) {
           const refundInfo = (body.participants_refunded ?? 0) > 0
             ? ` ${body.participants_refunded} participant(s) refunded ${body.total_refunded} pts.`
@@ -1185,7 +1196,7 @@ export default function AdminPage() {
           credentials: "include",
           body: JSON.stringify({ question_id: questionId, correct_answer: answer }),
         });
-        const body = await res.json();
+        const body = await safeJson(res);
         if (body.success) {
           setResolveMsg({ type: "success", text: `Resolved as ${answer.toUpperCase()}. ${body.message || ""}` });
           await refreshQuestions();
@@ -1247,7 +1258,7 @@ export default function AdminPage() {
           },
         }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         const yesPercent = Number(body.yes_percent ?? probability).toFixed(2);
         const noPercent = Number(body.no_percent ?? (100 - probability)).toFixed(2);
@@ -1287,7 +1298,7 @@ export default function AdminPage() {
         headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
         credentials: "include",
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (res.ok && body.success) {
         setSmokeResult(body);
         setSmokeMsg({
@@ -1352,7 +1363,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({ user_id: roleModal.userId, target_role: targetRole }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         setRoleMsg({ type: "success", text: `✓ ${roleModal.email} is now ${body.user.role}.` });
         await refreshUsers();
@@ -1380,7 +1391,7 @@ export default function AdminPage() {
         credentials: "include",
         body: JSON.stringify({ user_id: userId }),
       });
-      const body = await res.json();
+      const body = await safeJson(res);
       if (body.success) {
         const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
         const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
@@ -2045,7 +2056,7 @@ export default function AdminPage() {
                           credentials: "include",
                           body: JSON.stringify({ question_id: selectedQuestion._id }),
                         });
-                        const body = await res.json();
+                        const body = await safeJson(res);
                         if (body.success) {
                           const deletedPredictions = Number(body?.deleted?.predictions_deleted || 0);
                           const deletedPositions = Number(body?.deleted?.positions_deleted || 0);
@@ -2319,7 +2330,7 @@ export default function AdminPage() {
                                   ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
                                 }),
                               });
-                              const body = await res.json();
+                              const body = await safeJson(res);
                               if (body.success) {
                                 setEditQuestionMsg({ type: "success", text: "Question updated." });
                                 await refreshQuestions();
