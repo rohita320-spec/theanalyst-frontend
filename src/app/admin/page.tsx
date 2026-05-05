@@ -2507,7 +2507,7 @@ export default function AdminPage() {
             <p><code className="text-purple-300">entry_cost</code> — 100 / 200 / 500 / 800 (default 500)</p>
             <p><code className="text-purple-300">resolution_rules</code> — exact YES/NO criteria</p>
             <p><code className="text-purple-300">chart_symbol</code> — TradingView ticker (e.g. BTCUSDT, AAPL)</p>
-            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL for subject</p>
+            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL, e.g. <code className="text-slate-400 text-[10px]">https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png</code></p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
           <p className="text-amber-400/80 text-[11px]">Sports questions: write as "Will [Team A] beat [Team B] in [Tournament/Event]?" — logo_url = Wikipedia image of the home team or tournament.</p>
@@ -2529,7 +2529,7 @@ Return a JSON array where every object has these exact fields:
   "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
   "resolution_rules": "Exact YES/NO resolution criteria",
   "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia image URL for the main subject (https://upload.wikimedia.org/...), else null",
+  "logo_url": "Wikipedia direct image URL for the main subject — use the format https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
   "reference_links": [
     { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
     { "label": "Source name", "url": "https://..." }
