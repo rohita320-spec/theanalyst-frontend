@@ -2004,6 +2004,28 @@ export default function AdminPage() {
               <button onClick={questionViewTab === "draft" ? refreshDraftQuestions : refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
                 {(questionViewTab === "draft" ? draftsLoading : questionsLoading) ? "..." : "↻ Refresh"}
               </button>
+              {questionViewTab === "draft" && draftQuestions.length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Delete all ${draftQuestions.length} draft(s) permanently? This cannot be undone.`)) return;
+                    try {
+                      const res = await timedFetch("admin/delete_all_drafts", `${API_BASE}/admin/delete_all_drafts`, {
+                        method: "POST",
+                        credentials: "include",
+                        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+                      });
+                      const body = await safeJson(res);
+                      if (body.success) {
+                        setSelectedQuestion(null);
+                        await refreshDraftQuestions();
+                      }
+                    } catch { /* silent */ }
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300"
+                >
+                  Delete All
+                </button>
+              )}
             </div>
             <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
               {filteredQuestions.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
