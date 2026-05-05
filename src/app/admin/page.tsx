@@ -444,7 +444,6 @@ export default function AdminPage() {
   const [createVsMode, setCreateVsMode] = useState(false);
   const [createVsTeamA, setCreateVsTeamA] = useState("");
   const [createVsTeamB, setCreateVsTeamB] = useState("");
-  const [createVsContext, setCreateVsContext] = useState("");
 
   // Full edit for open questions
   const [editQuestionMode, setEditQuestionMode] = useState(false);
@@ -1321,7 +1320,7 @@ export default function AdminPage() {
           ? "Question submitted for review! An admin will approve it shortly."
           : `Question created. Initial split: YES ${yesPercent}% / NO ${noPercent}%`;
         setCreateMsg({ type: "success", text: successText });
-        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateSelectedLogoKeys([]); setCreateSelectedPendingLogoIds([]); setCreateChartSymbol(""); setCreateReferenceLinks([]); setCreateStep("form"); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateVsContext("");
+        setCreateQuestion(""); setCreateClosingTime(""); setCreateEntryCost("500"); setCreateCategory("General"); setCreateInitialProbability("50"); setCreateResolutionRules(""); setCreateSelectedLogoKeys([]); setCreateSelectedPendingLogoIds([]); setCreateChartSymbol(""); setCreateReferenceLinks([]); setCreateStep("form"); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB("");
         setTimeout(() => {
           setCreateModalOpen(false);
           setCreateMsg(null);
@@ -2355,7 +2354,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                     <div className="space-y-4">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
-                        <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateVsContext(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                        <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
                           <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
                         </select>
                       </div>
@@ -2364,18 +2363,17 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                           <div className="mb-2.5 flex items-center justify-between">
                             <p className="text-xs font-semibold text-slate-300">Question Type</p>
                             <div className="flex rounded-lg border border-[var(--stroke)] p-0.5 text-xs">
-                              <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateVsContext(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
+                              <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
                               <button type="button" onClick={() => setCreateVsMode(true)} className={`rounded px-3 py-1 transition-colors ${createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>VS Match</button>
                             </div>
                           </div>
                           {createVsMode ? (
                             <div className="space-y-2.5">
                               <div className="flex items-center gap-2">
-                                <input type="text" value={createVsTeamA} onChange={(e) => { const v = e.target.value; setCreateVsTeamA(v); setCreateQuestion(v || createVsTeamB ? `${v || "Team A"} vs ${createVsTeamB || "Team B"}${createVsContext ? ": " + createVsContext : ""}` : ""); }} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                                 <span className="text-sm font-bold text-slate-400">vs</span>
-                                <input type="text" value={createVsTeamB} onChange={(e) => { const v = e.target.value; setCreateVsTeamB(v); setCreateQuestion(createVsTeamA || v ? `${createVsTeamA || "Team A"} vs ${v || "Team B"}${createVsContext ? ": " + createVsContext : ""}` : ""); }} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                               </div>
-                              <input type="text" value={createVsContext} onChange={(e) => { const ctx = e.target.value; setCreateVsContext(ctx); if (createVsTeamA || createVsTeamB) setCreateQuestion(`${createVsTeamA || "Team A"} vs ${createVsTeamB || "Team B"}${ctx ? ": " + ctx : ""}`); }} placeholder="Match context (optional) — e.g. Who will win on May 10?" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                               <div className="flex items-center gap-4 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e]/40 px-3 py-2 text-[11px]">
                                 <div><span className="text-slate-500">{createVsTeamA || "Team A"} logo: </span><span className={createSelectedLogoKeys[0] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[0] || "not selected"}</span></div>
                                 <span className="text-slate-700">·</span>
@@ -2387,12 +2385,10 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                           )}
                         </div>
                       )}
-                      {(!createVsMode || createCategory !== "Sports") && (
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                        <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                        <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                       </div>
-                      )}
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
                         <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
@@ -4111,7 +4107,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                 <div className="space-y-4">
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
-                    <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateVsContext(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                    <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
                       <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
                     </select>
                   </div>
@@ -4120,18 +4116,17 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                       <div className="mb-2.5 flex items-center justify-between">
                         <p className="text-xs font-semibold text-slate-300">Question Type</p>
                         <div className="flex rounded-lg border border-[var(--stroke)] p-0.5 text-xs">
-                          <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateVsContext(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
+                          <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
                           <button type="button" onClick={() => setCreateVsMode(true)} className={`rounded px-3 py-1 transition-colors ${createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>VS Match</button>
                         </div>
                       </div>
                       {createVsMode ? (
                         <div className="space-y-2.5">
                           <div className="flex items-center gap-2">
-                            <input type="text" value={createVsTeamA} onChange={(e) => { const v = e.target.value; setCreateVsTeamA(v); setCreateQuestion(v || createVsTeamB ? `${v || "Team A"} vs ${createVsTeamB || "Team B"}${createVsContext ? ": " + createVsContext : ""}` : ""); }} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                             <span className="text-sm font-bold text-slate-400">vs</span>
-                            <input type="text" value={createVsTeamB} onChange={(e) => { const v = e.target.value; setCreateVsTeamB(v); setCreateQuestion(createVsTeamA || v ? `${createVsTeamA || "Team A"} vs ${v || "Team B"}${createVsContext ? ": " + createVsContext : ""}` : ""); }} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                           </div>
-                          <input type="text" value={createVsContext} onChange={(e) => { const ctx = e.target.value; setCreateVsContext(ctx); if (createVsTeamA || createVsTeamB) setCreateQuestion(`${createVsTeamA || "Team A"} vs ${createVsTeamB || "Team B"}${ctx ? ": " + ctx : ""}`); }} placeholder="Match context (optional) — e.g. Who will win on May 10?" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                           <div className="flex items-center gap-4 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e]/40 px-3 py-2 text-[11px]">
                             <div><span className="text-slate-500">{createVsTeamA || "Team A"} logo: </span><span className={createSelectedLogoKeys[0] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[0] || "not selected"}</span></div>
                             <span className="text-slate-700">·</span>
@@ -4143,12 +4138,10 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                       )}
                     </div>
                   )}
-                  {(!createVsMode || createCategory !== "Sports") && (
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                      <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g., Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                    </div>
-                  )}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
+                    <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
                     <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
