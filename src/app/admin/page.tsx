@@ -94,6 +94,20 @@ type MyQuestion = {
   metadata?: Record<string, unknown> | null;
 };
 
+type DraftQuestion = {
+  _id: string;
+  title: string;
+  category: string;
+  entry_cost: number;
+  closing_time?: string;
+  status: "draft";
+  resolution_rules?: string | null;
+  yes_percent?: number;
+  no_percent?: number;
+  initial_yes_percent?: number;
+  metadata?: Record<string, unknown> | null;
+};
+
 type LogoLibraryPickerProps = {
   title: string;
   category: string;
@@ -392,7 +406,16 @@ export default function AdminPage() {
   // Questions state
   const [allQuestions, setAllQuestions] = useState<FeedQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [questionViewTab, setQuestionViewTab] = useState<"open" | "closed" | "resolved" | "all">("all");
+  const [questionViewTab, setQuestionViewTab] = useState<"draft" | "open" | "closed" | "resolved" | "all">("all");
+  const [draftQuestions, setDraftQuestions] = useState<DraftQuestion[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [draftMsg, setDraftMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  // AI Draft Import state
+  const [aiDraftJson, setAiDraftJson] = useState("");
+  const [aiDraftValidated, setAiDraftValidated] = useState<Record<string, unknown>[] | null>(null);
+  const [aiDraftValidationError, setAiDraftValidationError] = useState<string | null>(null);
+  const [aiDraftSaving, setAiDraftSaving] = useState(false);
+  const [aiDraftMsg, setAiDraftMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [creatorResolverTab, setCreatorResolverTab] = useState<"open" | "closed" | "resolved" | "all" | "pending">("all");
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
   const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
@@ -890,7 +913,7 @@ export default function AdminPage() {
             return next;
           });
         }
-        await refreshLogoAssets("admin", token);
+        await Promise.all([refreshLogoAssets("admin", token), refreshDraftQuestions()]);
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
           clearStoredAuthSession("Your session expired. Please login again.");
@@ -943,6 +966,22 @@ export default function AdminPage() {
       }
     } finally {
       setPendingLoading(false);
+    }
+  };
+
+  const refreshDraftQuestions = async () => {
+    setDraftsLoading(true);
+    try {
+      const res = await timedFetch("admin/draft_questions", `${API_BASE}/admin/draft_questions`, {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setDraftQuestions(body.results || []);
+      }
+    } finally {
+      setDraftsLoading(false);
     }
   };
 
@@ -1436,7 +1475,9 @@ export default function AdminPage() {
   const openQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "open");
   const closedQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "closed");
   const finalizedQuestions = allQuestions.filter((q) => getQuestionViewStatus(q) === "resolved");
-  const filteredQuestions = questionViewTab === "open"
+  const filteredQuestions: FeedQuestion[] = questionViewTab === "draft"
+    ? (draftQuestions as unknown as FeedQuestion[])
+    : questionViewTab === "open"
     ? openQuestions
     : questionViewTab === "closed"
     ? closedQuestions
@@ -1921,7 +1962,11 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="mb-4 grid gap-2 sm:grid-cols-4">
+        <div className="mb-4 grid gap-2 sm:grid-cols-5">
+          <button onClick={() => { setQuestionViewTab("draft"); setSelectedQuestion(null); setDraftMsg(null); }} className={`${questionViewTab === "draft" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
+            <span className="text-purple-400">Drafts</span>
+            <span className="admin-status-count">{draftQuestions.length}</span>
+          </button>
           <button onClick={() => setQuestionViewTab("open")} className={`${questionViewTab === "open" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="status-open-text">Open</span>
             <span className="admin-status-count">{openQuestions.length}</span>
@@ -1943,9 +1988,11 @@ export default function AdminPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="mb-2 flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
+              <span className={`h-2 w-2 rounded-full ${questionViewTab === "draft" ? "bg-purple-400" : questionViewTab === "open" ? "bg-emerald-400" : questionViewTab === "closed" ? "bg-amber-400" : questionViewTab === "resolved" ? "bg-blue-400" : "bg-[var(--brand)]"}`} />
               <p className="admin-section-label text-sm font-medium">
-                {questionViewTab === "open"
+                {questionViewTab === "draft"
+                  ? `Drafts (${draftQuestions.length})`
+                  : questionViewTab === "open"
                   ? `Open (${openQuestions.length})`
                   : questionViewTab === "closed"
                   ? `Closed (${closedQuestions.length})`
@@ -1953,8 +2000,8 @@ export default function AdminPage() {
                   ? `Resolved (${finalizedQuestions.length})`
                   : `All (${allQuestions.length})`}
               </p>
-              <button onClick={refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
-                {questionsLoading ? "..." : "↻ Refresh"}
+              <button onClick={questionViewTab === "draft" ? refreshDraftQuestions : refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
+                {(questionViewTab === "draft" ? draftsLoading : questionsLoading) ? "..." : "↻ Refresh"}
               </button>
             </div>
             <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
@@ -1969,7 +2016,7 @@ export default function AdminPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-1 font-medium">{q.title}</p>
-                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : "bg-blue-500/15 text-blue-400"}`}>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : (q.status as string) === "draft" ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"}`}>
                         {q.status}
                       </span>
                     </div>
@@ -2015,8 +2062,73 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* Draft actions — approve or delete */}
+              {(selectedQuestion.status as string) === "draft" && (
+                <div className="space-y-2">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Draft Actions</p>
+                  {draftMsg && (
+                    <div className={`rounded-lg border px-3 py-2 text-xs ${draftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                      {draftMsg.text}
+                    </div>
+                  )}
+                  <button
+                    disabled={!!resolving}
+                    onClick={async () => {
+                      setResolving("approve_draft");
+                      setDraftMsg(null);
+                      try {
+                        const res = await timedFetch("admin/approve_draft", `${API_BASE}/admin/approve_draft/${selectedQuestion._id}`, {
+                          method: "POST",
+                          credentials: "include",
+                          headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+                        });
+                        const body = await safeJson(res);
+                        if (body.success) {
+                          setDraftMsg({ type: "success", text: "Draft approved and published as Open." });
+                          setSelectedQuestion(null);
+                          await Promise.all([refreshDraftQuestions(), refreshQuestions()]);
+                        } else {
+                          setDraftMsg({ type: "error", text: String(body.detail || "Failed to approve draft.") });
+                        }
+                      } catch { setDraftMsg({ type: "error", text: "Network error." }); }
+                      finally { setResolving(""); }
+                    }}
+                    className="w-full rounded-lg bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
+                  >
+                    {resolving === "approve_draft" ? "Approving…" : "✓ Approve → Publish"}
+                  </button>
+                  <button
+                    disabled={!!resolving}
+                    onClick={async () => {
+                      if (!window.confirm("Delete this draft permanently?")) return;
+                      setResolving("delete_draft");
+                      setDraftMsg(null);
+                      try {
+                        const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                          credentials: "include",
+                          body: JSON.stringify({ question_id: selectedQuestion._id }),
+                        });
+                        const body = await safeJson(res);
+                        if (body.success) {
+                          setSelectedQuestion(null);
+                          await refreshDraftQuestions();
+                        } else {
+                          setDraftMsg({ type: "error", text: String(body.detail || "Failed to delete draft.") });
+                        }
+                      } catch { setDraftMsg({ type: "error", text: "Network error." }); }
+                      finally { setResolving(""); }
+                    }}
+                    className="w-full rounded-lg border border-red-500/40 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                  >
+                    {resolving === "delete_draft" ? "Deleting…" : "Delete Draft"}
+                  </button>
+                </div>
+              )}
+
               {/* Actions — delete is always available, lifecycle changes only for active questions */}
-              {!confirmResolve && (
+              {(selectedQuestion.status as string) !== "draft" && !confirmResolve && (
                 <div className="space-y-2">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Actions</p>
                   {canTransitionSelectedQuestion && (
@@ -2371,6 +2483,128 @@ export default function AdminPage() {
         </div>
       </section>
 
+
+      {/* ─── AI Draft Import ──────────────────────────────── */}
+      <section className="mb-8 rounded-2xl border border-purple-500/30 bg-[var(--surface)] p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Paste JSON generated by ChatGPT / Claude chat. Accepts one question object <code className="text-purple-300">{"{...}"}</code> or an array <code className="text-purple-300">{"[{...}]"}</code>.
+            Questions are saved as <span className="text-purple-300">Drafts</span> — not published until you approve them.
+          </p>
+        </div>
+
+        <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1">
+          <p className="font-medium text-slate-300">Required fields per question:</p>
+          <p><code className="text-purple-300">question_text</code> · <code className="text-purple-300">category</code> (Crypto / Markets / Economy / Sports / Entertainment / Global Events / General) · <code className="text-purple-300">closing_time</code> (ISO 8601)</p>
+          <p className="text-slate-500">Optional: <code>entry_cost</code> (default 500) · <code>initial_probability</code> (0–1, default 0.5) · <code>resolution_rules</code></p>
+          <p className="mt-1 text-slate-500 italic">Example prompt for ChatGPT / Claude: "Generate 5 prediction market questions in JSON array format about [topic]. Use fields: question_text, category, closing_time (ISO), entry_cost, initial_probability, resolution_rules."</p>
+        </div>
+
+        <textarea
+          value={aiDraftJson}
+          onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
+          rows={8}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 0.55,\n    "resolution_rules": "YES if BTC/USD closing price >= $100,000 on Binance on Dec 31, 2026."\n  }\n]'}
+          className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
+        />
+
+        {aiDraftValidationError && (
+          <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {aiDraftValidationError}
+          </div>
+        )}
+
+        {aiDraftValidated && (
+          <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
+            <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated — ready to save as drafts:</p>
+            <ul className="space-y-0.5 text-slate-400">
+              {aiDraftValidated.map((q, i) => (
+                <li key={i} className="truncate">
+                  {i + 1}. [{String((q as Record<string,unknown>).category ?? "—")}] {String((q as Record<string,unknown>).question_text ?? "").slice(0, 80)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {aiDraftMsg && (
+          <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${aiDraftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+            {aiDraftMsg.text}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setAiDraftValidated(null);
+              setAiDraftValidationError(null);
+              setAiDraftMsg(null);
+              if (!aiDraftJson.trim()) { setAiDraftValidationError("Paste some JSON first."); return; }
+              try {
+                let parsed = JSON.parse(aiDraftJson.trim());
+                if (!Array.isArray(parsed)) parsed = [parsed];
+                if (parsed.length === 0) { setAiDraftValidationError("No questions found in JSON."); return; }
+                if (parsed.length > 50) { setAiDraftValidationError("Maximum 50 questions per import."); return; }
+                const errors: string[] = [];
+                for (let i = 0; i < parsed.length; i++) {
+                  const q = parsed[i] as Record<string, unknown>;
+                  if (!q.question_text) errors.push(`Item ${i + 1}: missing question_text`);
+                  if (!q.category) errors.push(`Item ${i + 1}: missing category`);
+                  if (!q.closing_time) errors.push(`Item ${i + 1}: missing closing_time`);
+                }
+                if (errors.length > 0) { setAiDraftValidationError(errors.join(" · ")); return; }
+                setAiDraftValidated(parsed as Record<string, unknown>[]);
+              } catch (e) {
+                setAiDraftValidationError(`Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`);
+              }
+            }}
+            className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
+          >
+            Validate JSON
+          </button>
+          <button
+            disabled={!aiDraftValidated || aiDraftSaving}
+            onClick={async () => {
+              if (!aiDraftValidated) return;
+              setAiDraftSaving(true);
+              setAiDraftMsg(null);
+              try {
+                const res = await timedFetch("admin/import_drafts", `${API_BASE}/admin/import_drafts`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                  credentials: "include",
+                  body: JSON.stringify({ questions: aiDraftValidated, source: "manual_ai_import" }),
+                });
+                const body = await safeJson(res);
+                if (body.success) {
+                  const created = Number(body.created_count ?? 0);
+                  const errCount = Number(body.error_count ?? 0);
+                  setAiDraftMsg({ type: errCount === 0 ? "success" : "error", text: `Saved ${created} draft(s) successfully.${errCount > 0 ? ` ${errCount} failed — check JSON.` : ""}` });
+                  setAiDraftJson("");
+                  setAiDraftValidated(null);
+                  setQuestionViewTab("draft");
+                  await refreshDraftQuestions();
+                } else {
+                  setAiDraftMsg({ type: "error", text: String(body.detail || "Import failed.") });
+                }
+              } catch { setAiDraftMsg({ type: "error", text: "Network error." }); }
+              finally { setAiDraftSaving(false); }
+            }}
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40"
+          >
+            {aiDraftSaving ? "Saving…" : "Save as Drafts"}
+          </button>
+          {(aiDraftJson || aiDraftValidated) && (
+            <button
+              onClick={() => { setAiDraftJson(""); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
+              className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </section>
 
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
