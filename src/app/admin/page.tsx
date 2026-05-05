@@ -398,6 +398,7 @@ export default function AdminPage() {
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
   const [activeLogoAssets, setActiveLogoAssets] = useState<LogoAsset[]>([]);
   const [pendingLogoAssets, setPendingLogoAssets] = useState<LogoAsset[]>([]);
+  const [inactiveLogoAssets, setInactiveLogoAssets] = useState<LogoAsset[]>([]);
   const [error, setError] = useState("");
   const [smokeLoading, setSmokeLoading] = useState(false);
   const [smokeResult, setSmokeResult] = useState<SmokeTestResult | null>(null);
@@ -564,6 +565,7 @@ export default function AdminPage() {
   const applyLogoAssetState = (assets: LogoAsset[]) => {
     setActiveLogoAssets(assets.filter((asset) => asset.status === "active"));
     setPendingLogoAssets(assets.filter((asset) => asset.status === "pending_approval"));
+    setInactiveLogoAssets(assets.filter((asset) => asset.status === "inactive" || asset.status === "rejected"));
   };
 
   const refreshLogoAssets = async (
@@ -768,8 +770,16 @@ export default function AdminPage() {
       const body = await res.json();
       if (!body.success) throw new Error(body.detail || "Edit failed.");
       const updated = body.logo_asset as LogoAsset;
-      setActiveLogoAssets((prev) => prev.map((a) => (a.id === logoId ? updated : a)));
-      setLogoLibraryMsg({ type: "success", text: "Logo updated." });
+      if (updated.status === "active") {
+        setInactiveLogoAssets((prev) => prev.filter((a) => a.id !== logoId));
+        setActiveLogoAssets((prev) => {
+          const exists = prev.some((a) => a.id === logoId);
+          return exists ? prev.map((a) => (a.id === logoId ? updated : a)) : [...prev, updated];
+        });
+      } else {
+        setActiveLogoAssets((prev) => prev.map((a) => (a.id === logoId ? updated : a)));
+      }
+      setLogoLibraryMsg({ type: "success", text: updated.status === "active" ? "Logo reactivated." : "Logo updated." });
       setEditingLogoId(null);
       setEditingLogoUrl("");
       setEditingLogoFile(null);
@@ -1083,7 +1093,8 @@ export default function AdminPage() {
     setPendingEditEntryCost(String(q.entry_cost ?? ""));
     setPendingEditClosingTime(formatDateTimeLocal(q.closing_time));
     setPendingEditRules(q.resolution_rules || "");
-    setPendingEditSelectedLogoKeys(Array.isArray(q.logo_keys) ? q.logo_keys : []);
+    const activeKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
+    setPendingEditSelectedLogoKeys((Array.isArray(q.logo_keys) ? q.logo_keys : []).filter((k) => activeKeySet.has(k)));
     setPendingEditSelectedPendingLogoIds(Array.isArray(q.pending_logo_ids) ? q.pending_logo_ids : []);
     
     setApproveMsg(null);
@@ -2552,7 +2563,9 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                           const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
                           setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
                           setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
-                          setEditSelectedLogoKeys(Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : []);
+                          const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
+                          const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
+                          setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
                           setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
                           setEditQuestionMsg(null);
                         }}
@@ -3470,6 +3483,60 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                     <button onClick={() => moderateLogoAsset("approve", asset.id)} className="rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10">Approve</button>
                     <button onClick={() => moderateLogoAsset("reject", asset.id)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10">Reject</button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {inactiveLogoAssets.length > 0 && (
+          <div className="mt-5 border-t border-[var(--stroke)] pt-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Inactive / Deactivated ({inactiveLogoAssets.length})</p>
+            <p className="mb-3 text-[11px] text-amber-400/70">These logos were deactivated (e.g. file lost on redeploy). Paste a URL to reactivate.</p>
+            <div className="space-y-2">
+              {inactiveLogoAssets.map((asset) => (
+                <div key={asset.id} className="rounded-lg border border-amber-500/20 bg-[#0b1528] px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <img src={resolveLogoImageUrl(asset.image_url)} alt={asset.display_name} className="h-8 w-8 rounded bg-white object-contain p-0.5 opacity-40" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.1"; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-400">{asset.display_name}</p>
+                      <p className="text-[11px] text-slate-500">{asset.logo_key} · {asset.category} · <span className="text-amber-400/60">{asset.status}</span></p>
+                    </div>
+                    {editingLogoId !== asset.id && (
+                      <button
+                        onClick={() => { setEditingLogoId(asset.id); setEditingLogoUrl(""); setEditingLogoFile(null); }}
+                        className="rounded border border-amber-500/40 px-2 py-1 text-xs text-amber-400 hover:bg-amber-500/10"
+                      >Reactivate</button>
+                    )}
+                  </div>
+                  {editingLogoId === asset.id && (
+                    <div className="mt-2 space-y-1.5">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => { setEditingLogoFile(e.target.files?.[0] ?? null); setEditingLogoUrl(""); }}
+                        className="w-full rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-slate-300 file:mr-2 file:rounded file:border-0 file:bg-amber-600 file:px-2 file:py-0.5 file:text-xs file:text-white"
+                      />
+                      <p className="text-center text-[10px] text-slate-500">— or paste URL —</p>
+                      <input
+                        type="url"
+                        value={editingLogoUrl}
+                        onChange={(e) => { setEditingLogoUrl(e.target.value); setEditingLogoFile(null); }}
+                        placeholder="https://upload.wikimedia.org/..."
+                        className="w-full rounded border border-[var(--stroke)] bg-[var(--surface)] px-2 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditLogo(asset.id)}
+                          disabled={!editingLogoFile && !editingLogoUrl.trim()}
+                          className="flex-1 rounded border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+                        >Reactivate</button>
+                        <button
+                          onClick={() => { setEditingLogoId(null); setEditingLogoUrl(""); setEditingLogoFile(null); }}
+                          className="rounded border border-[var(--stroke)] px-2 py-1 text-xs text-slate-400 hover:text-white"
+                        >✕</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
