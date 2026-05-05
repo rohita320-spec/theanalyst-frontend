@@ -2202,7 +2202,7 @@ export default function AdminPage() {
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: set both logo_url (Team A) and logo_url_b (Team B). Use question_text format "[Team A] vs [Team B]: [context]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" For individual sports questions (player or team winning a tournament): write as "Will [Player/Team] win [Event]?" and set only logo_url, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups (two teams/players facing each other): use question_text format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports questions (one team/player in a tournament or event): write freely, e.g. "Will India win the T20 World Cup?" or "Will Novak Djokovic win the French Open?" — set logo_url for that team/player, logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
@@ -3178,7 +3178,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports VS: use format "[Team A] vs [Team B]: [context]" e.g. "Mumbai Indians vs RCB: Who will win on May 10?" · logo_url = Team A, logo_url_b = Team B. Individual: "Will [Player/Team] win [Event]?" · logo_url_b = null.</p>
+          <p className="text-amber-400/80 text-[11px]">Sports VS: format "[Team A] vs [Team B]: [question]" · logo_url = Team A, logo_url_b = Team B. Individual sports: free-form question text · logo_url = team/player, logo_url_b = null.</p>
         </div>
 
         {/* Copy-paste prompt */}
@@ -3191,7 +3191,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: set both logo_url (Team A) and logo_url_b (Team B). Use question_text format "[Team A] vs [Team B]: [context]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" For individual sports questions (player or team winning a tournament): write as "Will [Player/Team] win [Event]?" and set only logo_url, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups (two teams/players facing each other): use question_text format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports questions (one team/player in a tournament or event): write freely, e.g. "Will India win the T20 World Cup?" or "Will Novak Djokovic win the French Open?" — set logo_url for that team/player, logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
@@ -3220,7 +3220,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           value={aiDraftJson}
           onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
           rows={12}
-          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Will Real Madrid beat Manchester City in the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final match against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "logo_url_b": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "logo_url_b": null,\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Real Madrid vs Manchester City: Who will win the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "logo_url_b": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
           className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
         />
 
