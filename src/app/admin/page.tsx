@@ -901,7 +901,7 @@ export default function AdminPage() {
           }
           if (qRes.ok) {
             const b = await qRes.json();
-            setAllQuestions(b.results || []);
+            setAllQuestions((b.results || []).filter((q: FeedQuestion) => (q.status as string) !== "draft"));
           }
           setError("Backend is running an old version — go to Railway dashboard and trigger a manual redeploy to restore full admin features.");
         } else if (!bootstrapRes.ok) {
@@ -917,7 +917,7 @@ export default function AdminPage() {
           }
           const pendingRows = body.pending?.results || [];
           setPendingQuestions(pendingRows);
-          setAllQuestions(body.questions?.results || []);
+          setAllQuestions((body.questions?.results || []).filter((q: FeedQuestion) => (q.status as string) !== "draft"));
           setPendingInitialYes((prev) => {
             const next = { ...prev };
             for (const row of pendingRows) {
@@ -951,7 +951,7 @@ export default function AdminPage() {
       });
       if (res.ok) {
         const body = await res.json();
-        setAllQuestions(body.results || []);
+        setAllQuestions((body.results || []).filter((q: FeedQuestion) => (q.status as string) !== "draft"));
       }
     } finally {
       setQuestionsLoading(false);
