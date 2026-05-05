@@ -416,7 +416,7 @@ export default function AdminPage() {
   const [aiDraftValidationError, setAiDraftValidationError] = useState<string | null>(null);
   const [aiDraftSaving, setAiDraftSaving] = useState(false);
   const [aiDraftMsg, setAiDraftMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [creatorResolverTab, setCreatorResolverTab] = useState<"open" | "closed" | "resolved" | "all" | "pending">("all");
+  const [creatorResolverTab, setCreatorResolverTab] = useState<"draft" | "open" | "closed" | "resolved" | "all" | "pending">("all");
   const [selectedQuestion, setSelectedQuestion] = useState<FeedQuestion | null>(null);
   const [resolving, setResolving] = useState<string>(""); // "yes"|"no"|"close"|"cancel"|"delete"|""
   const [resolveMsg, setResolveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -861,7 +861,10 @@ export default function AdminPage() {
             // Resolvers also need the full question list to resolve questions
             await refreshQuestions();
           }
-          await refreshLogoAssets(result.user.role as "question_creator" | "question_creator_resolver", token);
+          await Promise.all([
+            refreshLogoAssets(result.user.role as "question_creator" | "question_creator_resolver", token),
+            refreshDraftQuestions(),
+          ]);
           return;
         }
 
@@ -1523,6 +1526,7 @@ export default function AdminPage() {
 
     // Resolver question list based on tab
     const crFilteredQs =
+      creatorResolverTab === "draft"   ? (draftQuestions as unknown as FeedQuestion[]) :
       creatorResolverTab === "open"    ? crOpen    :
       creatorResolverTab === "closed"  ? crClosed  :
       creatorResolverTab === "resolved"? crResolved:
@@ -1607,11 +1611,11 @@ export default function AdminPage() {
           {/* Resolver: full tabs; Creator: pending only */}
           {isResolver ? (
             <>
-              <div className="mb-4 grid gap-2 sm:grid-cols-5">
-                {(["open","closed","resolved","all","pending"] as const).map((tab) => {
-                  const counts: Record<string, number> = { open: crOpen.length, closed: crClosed.length, resolved: crResolved.length, all: allQuestions.length, pending: myPendingQs.length };
-                  const labels: Record<string, string> = { open: "Open", closed: "Closed", resolved: "Resolved", all: "All", pending: "My Pending" };
-                  const colors: Record<string, string> = { open: "text-emerald-400", closed: "text-amber-400", resolved: "text-blue-400", all: "text-[var(--brand)]", pending: "text-amber-300" };
+              <div className="mb-4 grid gap-2 sm:grid-cols-6">
+                {(["draft","open","closed","resolved","all","pending"] as const).map((tab) => {
+                  const counts: Record<string, number> = { draft: draftQuestions.length, open: crOpen.length, closed: crClosed.length, resolved: crResolved.length, all: allQuestions.length, pending: myPendingQs.length };
+                  const labels: Record<string, string> = { draft: "Drafts", open: "Open", closed: "Closed", resolved: "Resolved", all: "All", pending: "My Pending" };
+                  const colors: Record<string, string> = { draft: "text-purple-400", open: "text-emerald-400", closed: "text-amber-400", resolved: "text-blue-400", all: "text-[var(--brand)]", pending: "text-amber-300" };
                   const isActive = creatorResolverTab === tab;
                   return (
                     <button
@@ -1630,10 +1634,13 @@ export default function AdminPage() {
                 {/* Question list */}
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${creatorResolverTab === "open" ? "bg-emerald-400" : creatorResolverTab === "closed" ? "bg-amber-400" : creatorResolverTab === "resolved" ? "bg-blue-400" : creatorResolverTab === "pending" ? "bg-amber-300" : "bg-[var(--brand)]"}`} />
+                    <span className={`h-2 w-2 rounded-full ${creatorResolverTab === "draft" ? "bg-purple-400" : creatorResolverTab === "open" ? "bg-emerald-400" : creatorResolverTab === "closed" ? "bg-amber-400" : creatorResolverTab === "resolved" ? "bg-blue-400" : creatorResolverTab === "pending" ? "bg-amber-300" : "bg-[var(--brand)]"}`} />
                     <p className="text-sm font-medium text-slate-300">
-                      {creatorResolverTab === "open" ? `Open (${crOpen.length})` : creatorResolverTab === "closed" ? `Closed (${crClosed.length})` : creatorResolverTab === "resolved" ? `Resolved (${crResolved.length})` : creatorResolverTab === "pending" ? `My Pending (${myPendingQs.length})` : `All (${allQuestions.length})`}
+                      {creatorResolverTab === "draft" ? `My Drafts (${draftQuestions.length})` : creatorResolverTab === "open" ? `Open (${crOpen.length})` : creatorResolverTab === "closed" ? `Closed (${crClosed.length})` : creatorResolverTab === "resolved" ? `Resolved (${crResolved.length})` : creatorResolverTab === "pending" ? `My Pending (${myPendingQs.length})` : `All (${allQuestions.length})`}
                     </p>
+                    <button onClick={creatorResolverTab === "draft" ? refreshDraftQuestions : refreshQuestions} className="admin-section-muted ml-auto text-xs hover:text-slate-300">
+                      {(creatorResolverTab === "draft" ? draftsLoading : questionsLoading) ? "..." : "↻"}
+                    </button>
                   </div>
                   <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
                     {crFilteredQs.length === 0 && <p className="text-xs text-slate-500">No questions in this view.</p>}
@@ -1676,7 +1683,37 @@ export default function AdminPage() {
                       <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-blue-400"}>{selectedQuestion.status}</span></p>
                       {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
                     </div>
-                    {selectedQuestion.status !== "resolved" && selectedQuestion.status !== "pending_approval" && selectedQuestion.closed_reason !== "cancelled" && !confirmResolve && (
+                    {/* Draft actions for creator — edit and delete only, no approve */}
+                    {(selectedQuestion.status as string) === "draft" && (
+                      <div className="space-y-2">
+                        {draftMsg && (
+                          <div className={`rounded-lg border px-3 py-2 text-xs ${draftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{draftMsg.text}</div>
+                        )}
+                        <p className="text-[11px] text-slate-500 rounded bg-purple-500/10 px-2 py-1 text-purple-300">Draft — awaiting admin approval to publish</p>
+                        <button
+                          disabled={!!resolving}
+                          onClick={async () => {
+                            if (!window.confirm("Delete this draft permanently?")) return;
+                            setResolving("delete_draft");
+                            setDraftMsg(null);
+                            try {
+                              const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                                credentials: "include",
+                                body: JSON.stringify({ question_id: selectedQuestion._id }),
+                              });
+                              const body = await safeJson(res);
+                              if (body.success) { setSelectedQuestion(null); await refreshDraftQuestions(); }
+                              else setDraftMsg({ type: "error", text: String(body.detail || "Failed to delete draft.") });
+                            } catch { setDraftMsg({ type: "error", text: "Network error." }); }
+                            finally { setResolving(""); }
+                          }}
+                          className="w-full rounded-lg border border-red-500/40 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                        >{resolving === "delete_draft" ? "Deleting…" : "Delete Draft"}</button>
+                      </div>
+                    )}
+                    {(selectedQuestion.status as string) !== "draft" && selectedQuestion.status !== "resolved" && selectedQuestion.status !== "pending_approval" && selectedQuestion.closed_reason !== "cancelled" && !confirmResolve && (
                       <div className="space-y-2">
                         <button onClick={() => setConfirmResolve({ answer: "yes" })} disabled={!!resolving} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">✓ Resolve YES</button>
                         <button onClick={() => setConfirmResolve({ answer: "no" })} disabled={!!resolving} className="w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">✗ Resolve NO</button>
@@ -1699,26 +1736,167 @@ export default function AdminPage() {
               </div>
             </>
           ) : (
-            /* Creator: pending approvals only */
-            <div className="space-y-3">
-              {myPendingQs.length === 0 ? (
-                <p className="text-sm text-slate-400">No questions pending review. Submit a new question to get started.</p>
-              ) : myPendingQs.map((q) => (
-                <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
-                  <div className="mb-2 flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium text-white">{q.title}</p>
-                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-300">Pending Review</span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-[11px] text-slate-400">
-                    <span>Category: {q.category}</span>
-                    <span>Entry: {q.entry_cost} pts</span>
-                    {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
-                    {q.created_at && <span>Submitted: {new Date(q.created_at).toLocaleDateString()}</span>}
-                  </div>
+            /* Creator: pending + drafts */
+            <>
+              <div className="mb-4 flex gap-2">
+                {(["pending", "draft"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setCreatorResolverTab(tab)}
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${creatorResolverTab === tab ? "admin-status-tab-active" : "admin-status-tab"}`}
+                  >
+                    <span className={tab === "draft" ? "text-purple-400" : "text-amber-300"}>
+                      {tab === "draft" ? `My Drafts (${draftQuestions.length})` : `My Pending (${myPendingQs.length})`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {creatorResolverTab === "draft" ? (
+                <div className="space-y-3">
+                  {draftsLoading && <p className="text-xs text-slate-500">Loading…</p>}
+                  {!draftsLoading && draftQuestions.length === 0 && (
+                    <p className="text-sm text-slate-400">No drafts yet. Use AI Draft Import below to create some.</p>
+                  )}
+                  {draftQuestions.map((q) => (
+                    <div key={q._id} className="rounded-xl border border-purple-500/20 bg-[#0b1528] p-4">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium text-white">{q.title}</p>
+                        <span className="shrink-0 rounded-full bg-purple-500/15 px-2.5 py-0.5 text-[11px] font-medium text-purple-300">Draft</span>
+                      </div>
+                      <div className="mb-3 flex flex-wrap gap-4 text-[11px] text-slate-400">
+                        <span>Category: {q.category}</span>
+                        <span>Entry: {q.entry_cost} pts</span>
+                        {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
+                      </div>
+                      <p className="mb-2 text-[11px] text-slate-500 italic">Awaiting admin approval to publish</p>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm("Delete this draft permanently?")) return;
+                          try {
+                            const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                              credentials: "include",
+                              body: JSON.stringify({ question_id: q._id }),
+                            });
+                            const body = await safeJson(res);
+                            if (body.success) await refreshDraftQuestions();
+                          } catch { /* silent */ }
+                        }}
+                        className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+                      >Delete Draft</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {myPendingQs.length === 0 ? (
+                    <p className="text-sm text-slate-400">No questions pending review. Submit a new question to get started.</p>
+                  ) : myPendingQs.map((q) => (
+                    <div key={q._id} className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium text-white">{q.title}</p>
+                        <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-300">Pending Review</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-[11px] text-slate-400">
+                        <span>Category: {q.category}</span>
+                        <span>Entry: {q.entry_cost} pts</span>
+                        {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
+                        {q.created_at && <span>Submitted: {new Date(q.created_at).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* AI Draft Import — same as admin, but approve is admin-only */}
+        <section className="mb-8 rounded-2xl border border-purple-500/30 bg-[var(--surface)] p-5">
+          <div className="mb-3">
+            <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Paste JSON from ChatGPT / Claude. Drafts are saved and sent to admin for approval — they are <span className="text-purple-300">not published</span> until an admin approves them.
+            </p>
+          </div>
+          <textarea
+            value={aiDraftJson}
+            onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
+            rows={8}
+            placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD >= $100,000 on Binance on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png"\n  }\n]'}
+            className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
+          />
+          {aiDraftValidationError && (
+            <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{aiDraftValidationError}</div>
+          )}
+          {aiDraftValidated && (
+            <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
+              <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated:</p>
+              <ul className="space-y-0.5 text-slate-400">
+                {aiDraftValidated.map((q, i) => {
+                  const qr = q as Record<string, unknown>;
+                  return <li key={i} className="truncate">{i + 1}. [{String(qr.category ?? "—")}] {String(qr.question_text ?? "").slice(0, 80)}</li>;
+                })}
+              </ul>
             </div>
           )}
+          {aiDraftMsg && (
+            <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${aiDraftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{aiDraftMsg.text}</div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null);
+                if (!aiDraftJson.trim()) { setAiDraftValidationError("Paste some JSON first."); return; }
+                try {
+                  let parsed = JSON.parse(aiDraftJson.trim());
+                  if (!Array.isArray(parsed)) parsed = [parsed];
+                  if (parsed.length === 0) { setAiDraftValidationError("No questions found."); return; }
+                  if (parsed.length > 50) { setAiDraftValidationError("Maximum 50 questions."); return; }
+                  const errs: string[] = [];
+                  for (let i = 0; i < parsed.length; i++) {
+                    const q = parsed[i] as Record<string, unknown>;
+                    if (!q.question_text) errs.push(`Item ${i + 1}: missing question_text`);
+                    if (!q.category) errs.push(`Item ${i + 1}: missing category`);
+                    if (!q.closing_time) errs.push(`Item ${i + 1}: missing closing_time`);
+                  }
+                  if (errs.length > 0) { setAiDraftValidationError(errs.join(" · ")); return; }
+                  setAiDraftValidated(parsed as Record<string, unknown>[]);
+                } catch (e) { setAiDraftValidationError(`Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`); }
+              }}
+              className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
+            >Validate JSON</button>
+            <button
+              disabled={!aiDraftValidated || aiDraftSaving}
+              onClick={async () => {
+                if (!aiDraftValidated) return;
+                setAiDraftSaving(true); setAiDraftMsg(null);
+                try {
+                  const res = await timedFetch("admin/import_drafts", `${API_BASE}/admin/import_drafts`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                    credentials: "include",
+                    body: JSON.stringify({ questions: aiDraftValidated, source: "manual_ai_import" }),
+                  });
+                  const body = await safeJson(res);
+                  if (body.success) {
+                    setAiDraftMsg({ type: "success", text: `Saved ${body.created_count ?? 0} draft(s). An admin will review and publish them.` });
+                    setAiDraftJson(""); setAiDraftValidated(null);
+                    setCreatorResolverTab("draft");
+                    await refreshDraftQuestions();
+                  } else {
+                    setAiDraftMsg({ type: "error", text: String(body.detail || "Import failed.") });
+                  }
+                } catch { setAiDraftMsg({ type: "error", text: "Network error." }); }
+                finally { setAiDraftSaving(false); }
+              }}
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40"
+            >{aiDraftSaving ? "Saving…" : "Save as Drafts"}</button>
+            {(aiDraftJson || aiDraftValidated) && (
+              <button onClick={() => { setAiDraftJson(""); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }} className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-400 hover:text-slate-200">Clear</button>
+            )}
+          </div>
         </section>
 
         {/* Quick Links */}
