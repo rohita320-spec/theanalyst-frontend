@@ -1829,11 +1829,11 @@ export default function AdminPage() {
             </div>
             <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
 
-Focus on things happening RIGHT NOW this week (May 5–16, 2026). Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
+Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
 Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
 
-Use closing_time between 2026-05-09T23:59:00Z and 2026-05-17T23:59:00Z (end of this week or next week).
+Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
 Return a JSON array where every object has these exact fields:
 {
@@ -2816,11 +2816,11 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           </div>
           <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
 
-Focus on things happening RIGHT NOW this week (May 5–16, 2026). Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
+Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
 Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
 
-Use closing_time between 2026-05-09T23:59:00Z and 2026-05-17T23:59:00Z (end of this week or next week).
+Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
 Return a JSON array where every object has these exact fields:
 {
