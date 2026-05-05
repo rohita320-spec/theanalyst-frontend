@@ -552,7 +552,8 @@ export default function AdminPage() {
   // Safely parse JSON — if Railway returns an HTML gateway error (502/504),
   // res.json() throws, which would land in the outer catch as "Network error."
   // This returns a synthetic error object instead so the normal error path handles it.
-  const safeJson = async (res: Response): Promise<Record<string, unknown>> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const safeJson = async (res: Response): Promise<Record<string, any>> => {
     try {
       return await res.json();
     } catch {
@@ -1339,7 +1340,7 @@ export default function AdminPage() {
       });
       const body = await safeJson(res);
       if (res.ok && body.success) {
-        setSmokeResult(body);
+        setSmokeResult(body as SmokeTestResult);
         setSmokeMsg({
           type: body.smoke_test_passed ? "success" : "error",
           text: body.smoke_test_passed
