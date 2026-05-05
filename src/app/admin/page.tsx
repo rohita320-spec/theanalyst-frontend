@@ -2495,18 +2495,54 @@ export default function AdminPage() {
           </p>
         </div>
 
-        <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1">
-          <p className="font-medium text-slate-300">Required fields per question:</p>
-          <p><code className="text-purple-300">question_text</code> · <code className="text-purple-300">category</code> (Crypto / Markets / Economy / Sports / Entertainment / Global Events / General) · <code className="text-purple-300">closing_time</code> (ISO 8601)</p>
-          <p className="text-slate-500">Optional: <code>entry_cost</code> (100 / 200 / 500 / 800, default 500) · <code>initial_probability</code> (0–1, default 0.5) · <code>resolution_rules</code> · <code>chart_symbol</code> (e.g. <code>"BTCUSDT"</code>) · <code>logo_url</code> (direct image URL) · <code>reference_links</code> (array of <code>{"{label, url}"}</code>)</p>
-          <p className="mt-1 text-slate-500 italic">Prompt for ChatGPT / Claude: "Generate 5 prediction market questions as a JSON array. Fields: question_text, category, closing_time (ISO 8601), entry_cost, initial_probability (0–1), resolution_rules, chart_symbol (optional ticker), logo_url (optional image URL), reference_links (optional array of {"{label, url}"})."</p>
+        {/* Field reference */}
+        <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1.5">
+          <p className="font-medium text-slate-300">Fields per question (same structure as New Question form):</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <p><code className="text-purple-300">question_text</code> <span className="text-red-400">*</span> — clear YES/NO question</p>
+            <p><code className="text-purple-300">category</code> <span className="text-red-400">*</span> — Crypto / Markets / Economy / Sports / Entertainment / Global Events / General</p>
+            <p><code className="text-purple-300">closing_time</code> <span className="text-red-400">*</span> — ISO 8601 (e.g. 2026-12-31T00:00:00Z)</p>
+            <p><code className="text-purple-300">initial_probability</code> — <strong className="text-white">0–100</strong> (e.g. 65 = 65% YES, default 50)</p>
+            <p><code className="text-purple-300">entry_cost</code> — 100 / 200 / 500 / 800 (default 500)</p>
+            <p><code className="text-purple-300">resolution_rules</code> — exact YES/NO criteria</p>
+            <p><code className="text-purple-300">chart_symbol</code> — TradingView ticker (e.g. BTCUSDT, AAPL)</p>
+            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL for subject</p>
+          </div>
+          <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
+          <p className="text-amber-400/80 text-[11px]">Sports questions: write as "Will [Team A] beat [Team B] in [Tournament/Event]?" — logo_url = Wikipedia image of the home team or tournament.</p>
+        </div>
+
+        {/* Copy-paste prompt */}
+        <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-slate-400 space-y-2">
+          <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
+          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 3 questions per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (21 questions total, 3 per category).
+
+Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
+
+Return a JSON array where every object has these exact fields:
+{
+  "question_text": "...",
+  "category": "...",
+  "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
+  "entry_cost": 100 | 200 | 500 | 800,
+  "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
+  "resolution_rules": "Exact YES/NO resolution criteria",
+  "chart_symbol": "TradingView ticker if applicable, else null",
+  "logo_url": "Wikipedia image URL for the main subject (https://upload.wikimedia.org/...), else null",
+  "reference_links": [
+    { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
+    { "label": "Source name", "url": "https://..." }
+  ]
+}
+
+Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
         </div>
 
         <textarea
           value={aiDraftJson}
           onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
-          rows={10}
-          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 0.55,\n    "resolution_rules": "YES if BTC/USD closing price >= $100,000 on Binance on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://example.com/btc-logo.png",\n    "reference_links": [\n      { "label": "CoinGecko BTC", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  }\n]'}
+          rows={12}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Will Real Madrid beat Manchester City in the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final match against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
           className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
         />
 
