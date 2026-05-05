@@ -1694,13 +1694,62 @@ export default function AdminPage() {
                       <p>Status: <span className={selectedQuestion.status === "open" ? "text-emerald-400" : selectedQuestion.status === "closed" ? "text-amber-400" : "text-blue-400"}>{selectedQuestion.status}</span></p>
                       {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
                     </div>
-                    {/* Draft actions for creator — edit and delete only, no approve */}
+                    {/* Draft imported metadata card */}
+                    {(selectedQuestion.status as string) === "draft" && (() => {
+                      const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                      const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
+                      const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
+                      const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
+                      const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
+                      const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
+                      if (!hasAny) return null;
+                      return (
+                        <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
+                          {(importedLogoUrl || importedLogoUrlB) && (
+                            <div>
+                              <p className="text-[11px] text-slate-400 mb-1.5">{importedLogoUrlB ? "Team Logos" : "Logo URL"}</p>
+                              <div className="flex gap-3">
+                                {[{ url: importedLogoUrl, label: "Team A / Home" }, { url: importedLogoUrlB, label: "Team B / Away" }].filter(l => l.url).map(({ url, label }) => (
+                                  <div key={url} className="flex items-start gap-2 min-w-0">
+                                    <img src={url!} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] text-slate-500">{label}</p>
+                                      <a href={url!} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="mt-1.5 text-[10px] text-slate-500">Upload via Logo Library then select in edit form.</p>
+                            </div>
+                          )}
+                          {importedChart && (
+                            <div className="flex items-center gap-2">
+                              <p className="text-[11px] text-slate-400">Chart:</p>
+                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(importedChart)}`} target="_blank" rel="noreferrer" className="text-[11px] font-mono text-purple-300 hover:underline">{importedChart} ↗</a>
+                            </div>
+                          )}
+                          {importedLinks.length > 0 && (
+                            <div>
+                              <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
+                              <div className="space-y-0.5">
+                                {importedLinks.map((lnk, i) => lnk.url ? (
+                                  <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
+                                ) : null)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Draft actions — delete only (no approve for creators) */}
                     {(selectedQuestion.status as string) === "draft" && (
                       <div className="space-y-2">
                         {draftMsg && (
                           <div className={`rounded-lg border px-3 py-2 text-xs ${draftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{draftMsg.text}</div>
                         )}
-                        <p className="text-[11px] text-slate-500 rounded bg-purple-500/10 px-2 py-1 text-purple-300">Draft — awaiting admin approval to publish</p>
+                        <p className="text-[11px] rounded bg-purple-500/10 px-2 py-1 text-purple-300">Draft — awaiting admin approval to publish</p>
                         <button
                           disabled={!!resolving}
                           onClick={async () => {
@@ -1722,6 +1771,150 @@ export default function AdminPage() {
                           }}
                           className="w-full rounded-lg border border-red-500/40 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                         >{resolving === "delete_draft" ? "Deleting…" : "Delete Draft"}</button>
+                      </div>
+                    )}
+
+                    {/* Edit form — own drafts */}
+                    {(selectedQuestion.status as string) === "draft" && (
+                      <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                        {!editQuestionMode ? (
+                          <div>
+                            <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
+                            <button
+                              onClick={() => {
+                                setEditQuestionMode(true);
+                                setEditQuestionText(selectedQuestion.title);
+                                setEditQuestionCategory(selectedQuestion.category);
+                                setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
+                                const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
+                                setEditQuestionClosingTime(closingTimeFormatted);
+                                setEditQuestionClosingTimeSeed(closingTimeFormatted);
+                                setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                                setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
+                                const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
+                                setEditQuestionMetadata(metadataText);
+                                setEditQuestionMetadataSeed(metadataText);
+                                const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                                setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
+                                setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
+                                const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
+                                const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
+                                setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
+                                setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
+                                setEditQuestionMsg(null);
+                              }}
+                              className="text-xs text-[var(--brand)] hover:underline"
+                            >✏ Full Edit Question</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-300">Question Text</label>
+                            <textarea value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="Enter question text..." />
+                            <label className="text-xs font-medium text-slate-300">Category</label>
+                            <select value={editQuestionCategory} onChange={(e) => setEditQuestionCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none">
+                              <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                            </select>
+                            <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
+                            <input type="number" min={50} step={1} value={editQuestionEntryCost} onChange={(e) => setEditQuestionEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="text-xs font-medium text-slate-300">Initial YES %</label>
+                            <input type="number" min={1} max={99} step={0.1} value={editQuestionInitialYes} onChange={(e) => setEditQuestionInitialYes(e.target.value)} className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
+                            <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
+                            <input type="datetime-local" value={editQuestionClosingTime} onChange={(e) => setEditQuestionClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data</p>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
+                                <div className="flex gap-2">
+                                  <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. BTCUSDT, RELIANCE, NIFTY50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                  {editChartSymbol && <button type="button" onClick={() => { setEditChartSymbol(""); setEditChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
+                                <div className="space-y-2">
+                                  {editReferenceLinks.map((link, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                      <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                      <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">✕</button>
+                                    </div>
+                                  ))}
+                                  <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Link</button>
+                                </div>
+                              </div>
+                            </div>
+                            <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                            <textarea value={editQuestionRules} onChange={(e) => setEditQuestionRules(e.target.value)} rows={3} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="Describe YES and NO conditions..." />
+                            <LogoLibraryPicker
+                              title="Question logos"
+                              category={editQuestionCategory}
+                              activeAssets={activeLogoAssets}
+                              pendingAssets={pendingLogoAssets}
+                              selectedLogoKeys={editSelectedLogoKeys}
+                              selectedPendingLogoIds={editSelectedPendingLogoIds}
+                              onSelectedLogoKeysChange={setEditSelectedLogoKeys}
+                              onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
+                              onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
+                              uploading={editLogoUploading}
+                              role={userRole}
+                            />
+                            {editQuestionMsg && (
+                              <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
+                            )}
+                            <div className="flex gap-2">
+                              <button onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
+                              <button
+                                disabled={editQuestionSubmitting}
+                                onClick={async () => {
+                                  if (!editQuestionText.trim()) { setEditQuestionMsg({ type: "error", text: "Question text required" }); return; }
+                                  const entryCost = Number(editQuestionEntryCost);
+                                  if (!Number.isFinite(entryCost) || entryCost < 50) { setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" }); return; }
+                                  const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
+                                  if (closingTimeChanged && !editQuestionClosingTime) { setEditQuestionMsg({ type: "error", text: "Closing time required" }); return; }
+                                  const initialYes = Number(editQuestionInitialYes);
+                                  if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) { setEditQuestionMsg({ type: "error", text: "Initial YES % must be 1–99" }); return; }
+                                  const builtMetadata: Record<string, unknown> = {};
+                                  if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
+                                  const validLinks = editReferenceLinks.filter((l) => l.url.trim());
+                                  if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
+                                  setEditQuestionSubmitting(true);
+                                  setEditQuestionMsg(null);
+                                  try {
+                                    const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                                      credentials: "include",
+                                      body: JSON.stringify({
+                                        question_id: selectedQuestion._id,
+                                        question_text: editQuestionText.trim(),
+                                        category: editQuestionCategory.trim(),
+                                        entry_cost: entryCost,
+                                        ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
+                                        resolution_rules: editQuestionRules.trim(),
+                                        initial_yes_percent: initialYes,
+                                        logo_keys: editSelectedLogoKeys,
+                                        pending_logo_ids: editSelectedPendingLogoIds,
+                                        metadata: Object.keys(builtMetadata).length > 0 ? builtMetadata : {},
+                                      }),
+                                    });
+                                    const body = await safeJson(res);
+                                    if (body.success) {
+                                      setEditQuestionMsg({ type: "success", text: "Question updated." });
+                                      await Promise.all([refreshQuestions(), refreshDraftQuestions()]);
+                                      if (body.question) setSelectedQuestion(body.question);
+                                      setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
+                                    } else {
+                                      setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
+                                    }
+                                  } catch { setEditQuestionMsg({ type: "error", text: "Network error." }); }
+                                  finally { setEditQuestionSubmitting(false); }
+                                }}
+                                className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                              >{editQuestionSubmitting ? "Saving…" : "Save"}</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {(selectedQuestion.status as string) !== "draft" && selectedQuestion.status !== "resolved" && selectedQuestion.status !== "pending_approval" && selectedQuestion.closed_reason !== "cancelled" && !confirmResolve && (
@@ -1763,41 +1956,208 @@ export default function AdminPage() {
                 ))}
               </div>
               {creatorResolverTab === "draft" ? (
-                <div className="space-y-3">
-                  {draftsLoading && <p className="text-xs text-slate-500">Loading…</p>}
-                  {!draftsLoading && draftQuestions.length === 0 && (
-                    <p className="text-sm text-slate-400">No drafts yet. Use AI Draft Import below to create some.</p>
-                  )}
-                  {draftQuestions.map((q) => (
-                    <div key={q._id} className="rounded-xl border border-purple-500/20 bg-[#0b1528] p-4">
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <p className="text-sm font-medium text-white">{q.title}</p>
-                        <span className="shrink-0 rounded-full bg-purple-500/15 px-2.5 py-0.5 text-[11px] font-medium text-purple-300">Draft</span>
-                      </div>
-                      <div className="mb-3 flex flex-wrap gap-4 text-[11px] text-slate-400">
-                        <span>Category: {q.category}</span>
-                        <span>Entry: {q.entry_cost} pts</span>
-                        {q.closing_time && <span>Closes: {new Date(q.closing_time).toLocaleDateString()}</span>}
-                      </div>
-                      <p className="mb-2 text-[11px] text-slate-500 italic">Awaiting admin approval to publish</p>
+                <div className="flex flex-col gap-4 lg:flex-row">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {draftsLoading && <p className="text-xs text-slate-500">Loading…</p>}
+                    {!draftsLoading && draftQuestions.length === 0 && (
+                      <p className="text-sm text-slate-400">No drafts yet. Use AI Draft Import below to create some.</p>
+                    )}
+                    {draftQuestions.map((q) => (
                       <button
-                        onClick={async () => {
-                          if (!window.confirm("Delete this draft permanently?")) return;
-                          try {
-                            const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                              credentials: "include",
-                              body: JSON.stringify({ question_id: q._id }),
-                            });
-                            const body = await safeJson(res);
-                            if (body.success) await refreshDraftQuestions();
-                          } catch { /* silent */ }
-                        }}
-                        className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
-                      >Delete Draft</button>
+                        key={q._id}
+                        onClick={() => { setSelectedQuestion(q as unknown as FeedQuestion); setEditQuestionMode(false); setEditQuestionMsg(null); setDraftMsg(null); }}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${selectedQuestion?._id === q._id ? "border-purple-500/50 bg-purple-500/10" : "border-purple-500/20 bg-[#0b1528] hover:border-purple-400/40"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="line-clamp-2 text-sm font-medium text-white">{q.title}</p>
+                          <span className="shrink-0 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-300">Draft</span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-slate-500">{q.category} · {q.entry_cost} pts{q.closing_time ? ` · Closes ${new Date(q.closing_time).toLocaleDateString()}` : ""}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedQuestion && (selectedQuestion.status as string) === "draft" && (
+                    <div className="w-full rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-4 lg:sticky lg:top-24 lg:w-72 lg:flex-none">
+                      <div className="mb-1 flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-white">Draft Detail</h3>
+                        <button onClick={() => { setSelectedQuestion(null); setEditQuestionMode(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
+                      </div>
+                      <p className="mb-3 text-sm font-medium text-slate-200">{selectedQuestion.title}</p>
+                      <div className="mb-4 space-y-1 text-xs text-slate-400">
+                        <p>Category: <span className="text-slate-200">{selectedQuestion.category}</span></p>
+                        <p>Entry: <span className="text-slate-200">{selectedQuestion.entry_cost} pts</span></p>
+                        {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
+                      </div>
+                      {(() => {
+                        const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                        const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
+                        const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
+                        const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
+                        const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
+                        const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
+                        if (!hasAny) return null;
+                        return (
+                          <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
+                            {(importedLogoUrl || importedLogoUrlB) && (
+                              <div className="flex gap-3">
+                                {[{ url: importedLogoUrl, label: "Team A" }, { url: importedLogoUrlB, label: "Team B" }].filter(l => l.url).map(({ url, label }) => (
+                                  <div key={url} className="flex items-start gap-2 min-w-0">
+                                    <img src={url!} alt={label} className="h-8 w-8 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                    <p className="text-[10px] text-slate-500">{label}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {importedChart && <p className="text-[11px] text-slate-400">Chart: <span className="font-mono text-purple-300">{importedChart}</span></p>}
+                            {importedLinks.length > 0 && (
+                              <div className="space-y-0.5">
+                                {importedLinks.map((lnk, i) => lnk.url ? (
+                                  <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
+                                ) : null)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <div className="space-y-2">
+                        {draftMsg && <div className={`rounded-lg border px-3 py-2 text-xs ${draftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{draftMsg.text}</div>}
+                        <p className="text-[11px] rounded bg-purple-500/10 px-2 py-1 text-purple-300">Awaiting admin approval to publish</p>
+                        <button
+                          disabled={!!resolving}
+                          onClick={async () => {
+                            if (!window.confirm("Delete this draft permanently?")) return;
+                            setResolving("delete_draft");
+                            setDraftMsg(null);
+                            try {
+                              const res = await timedFetch("admin/delete_question", `${API_BASE}/admin/delete_question`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                                credentials: "include",
+                                body: JSON.stringify({ question_id: selectedQuestion._id }),
+                              });
+                              const body = await safeJson(res);
+                              if (body.success) { setSelectedQuestion(null); await refreshDraftQuestions(); }
+                              else setDraftMsg({ type: "error", text: String(body.detail || "Failed to delete.") });
+                            } catch { setDraftMsg({ type: "error", text: "Network error." }); }
+                            finally { setResolving(""); }
+                          }}
+                          className="w-full rounded-lg border border-red-500/40 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                        >{resolving === "delete_draft" ? "Deleting…" : "Delete Draft"}</button>
+                      </div>
+                      <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                        {!editQuestionMode ? (
+                          <button
+                            onClick={() => {
+                              setEditQuestionMode(true);
+                              setEditQuestionText(selectedQuestion.title);
+                              setEditQuestionCategory(selectedQuestion.category);
+                              setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
+                              const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
+                              setEditQuestionClosingTime(closingTimeFormatted);
+                              setEditQuestionClosingTimeSeed(closingTimeFormatted);
+                              setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                              setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
+                              const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
+                              setEditQuestionMetadata(metadataText);
+                              setEditQuestionMetadataSeed(metadataText);
+                              const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                              setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
+                              setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
+                              const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
+                              const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
+                              setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
+                              setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
+                              setEditQuestionMsg(null);
+                            }}
+                            className="text-xs text-[var(--brand)] hover:underline"
+                          >✏ Full Edit Question</button>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-300">Question Text</label>
+                            <textarea value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="text-xs font-medium text-slate-300">Category</label>
+                            <select value={editQuestionCategory} onChange={(e) => setEditQuestionCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none">
+                              <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                            </select>
+                            <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
+                            <input type="number" min={50} step={1} value={editQuestionEntryCost} onChange={(e) => setEditQuestionEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="text-xs font-medium text-slate-300">Initial YES %</label>
+                            <input type="number" min={1} max={99} step={0.1} value={editQuestionInitialYes} onChange={(e) => setEditQuestionInitialYes(e.target.value)} className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <p className="text-[11px] text-slate-500">NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
+                            <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
+                            <input type="datetime-local" value={editQuestionClosingTime} onChange={(e) => setEditQuestionClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
+                            <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                            <textarea value={editQuestionRules} onChange={(e) => setEditQuestionRules(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="YES/NO conditions..." />
+                            <LogoLibraryPicker
+                              title="Question logos"
+                              category={editQuestionCategory}
+                              activeAssets={activeLogoAssets}
+                              pendingAssets={pendingLogoAssets}
+                              selectedLogoKeys={editSelectedLogoKeys}
+                              selectedPendingLogoIds={editSelectedPendingLogoIds}
+                              onSelectedLogoKeysChange={setEditSelectedLogoKeys}
+                              onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
+                              onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
+                              uploading={editLogoUploading}
+                              role={userRole}
+                            />
+                            {editQuestionMsg && <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>}
+                            <div className="flex gap-2">
+                              <button onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
+                              <button
+                                disabled={editQuestionSubmitting}
+                                onClick={async () => {
+                                  if (!editQuestionText.trim()) { setEditQuestionMsg({ type: "error", text: "Question text required" }); return; }
+                                  const entryCost = Number(editQuestionEntryCost);
+                                  if (!Number.isFinite(entryCost) || entryCost < 50) { setEditQuestionMsg({ type: "error", text: "Entry cost ≥ 50" }); return; }
+                                  const initialYes = Number(editQuestionInitialYes);
+                                  if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) { setEditQuestionMsg({ type: "error", text: "Initial YES % must be 1–99" }); return; }
+                                  const builtMetadata: Record<string, unknown> = {};
+                                  if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
+                                  const validLinks = editReferenceLinks.filter((l) => l.url.trim());
+                                  if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
+                                  setEditQuestionSubmitting(true);
+                                  setEditQuestionMsg(null);
+                                  try {
+                                    const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
+                                    const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                                      credentials: "include",
+                                      body: JSON.stringify({
+                                        question_id: selectedQuestion._id,
+                                        question_text: editQuestionText.trim(),
+                                        category: editQuestionCategory.trim(),
+                                        entry_cost: entryCost,
+                                        ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
+                                        resolution_rules: editQuestionRules.trim(),
+                                        initial_yes_percent: initialYes,
+                                        logo_keys: editSelectedLogoKeys,
+                                        pending_logo_ids: editSelectedPendingLogoIds,
+                                        metadata: Object.keys(builtMetadata).length > 0 ? builtMetadata : {},
+                                      }),
+                                    });
+                                    const body = await safeJson(res);
+                                    if (body.success) {
+                                      setEditQuestionMsg({ type: "success", text: "Saved." });
+                                      await Promise.all([refreshQuestions(), refreshDraftQuestions()]);
+                                      if (body.question) setSelectedQuestion(body.question);
+                                      setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
+                                    } else {
+                                      setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
+                                    }
+                                  } catch { setEditQuestionMsg({ type: "error", text: "Network error." }); }
+                                  finally { setEditQuestionSubmitting(false); }
+                                }}
+                                className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                              >{editQuestionSubmitting ? "Saving…" : "Save"}</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1842,7 +2202,7 @@ export default function AdminPage() {
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
+Each question must be a clear YES/NO question. For Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — always use "vs" in the question text to make it a head-to-head matchup.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
@@ -2818,7 +3178,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports questions: write as "Will [Team A] beat [Team B] in [Tournament/Event]?" — logo_url = Wikipedia image of the home team or tournament.</p>
+          <p className="text-amber-400/80 text-[11px]">Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — logo_url = Wikipedia image of Team A, logo_url_b = Team B.</p>
         </div>
 
         {/* Copy-paste prompt */}
@@ -2831,7 +3191,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
+Each question must be a clear YES/NO question. For Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — always use "vs" in the question text to make it a head-to-head matchup.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
