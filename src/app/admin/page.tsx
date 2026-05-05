@@ -1328,6 +1328,7 @@ export default function AdminPage() {
             refreshMyQuestions();
           } else {
             refreshQuestions();
+            setQuestionViewTab("open");
           }
         }, 1500);
       } else {
@@ -2753,6 +2754,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                           setDraftMsg({ type: "success", text: "Draft approved and published as Open." });
                           setSelectedQuestion(null);
                           await Promise.all([refreshDraftQuestions(), refreshQuestions()]);
+                          setQuestionViewTab("open");
                         } else {
                           setDraftMsg({ type: "error", text: String(body.detail || "Failed to approve draft.") });
                         }
