@@ -2202,7 +2202,7 @@ export default function AdminPage() {
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — always use "vs" in the question text to make it a head-to-head matchup.
+Each question must be a clear YES/NO question. For Sports: if it is a head-to-head matchup, write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" and set both logo_url (Team A) and logo_url_b (Team B). If it is an individual question (player or team winning a tournament), write as "Will [Player/Team] win [Event]?" and set only logo_url, with logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
@@ -3178,7 +3178,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — logo_url = Wikipedia image of Team A, logo_url_b = Team B.</p>
+          <p className="text-amber-400/80 text-[11px]">Sports: VS matchup → "[Team A] vs [Team B]: Will [Team A] win [Event]?" (logo_url = Team A, logo_url_b = Team B). Individual → "Will [Player/Team] win [Event]?" (logo_url = subject, logo_url_b = null).</p>
         </div>
 
         {/* Copy-paste prompt */}
@@ -3191,7 +3191,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" — always use "vs" in the question text to make it a head-to-head matchup.
+Each question must be a clear YES/NO question. For Sports: if it is a head-to-head matchup, write as "[Team A] vs [Team B]: Will [Team A] win [Event]?" and set both logo_url (Team A) and logo_url_b (Team B). If it is an individual question (player or team winning a tournament), write as "Will [Player/Team] win [Event]?" and set only logo_url, with logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
