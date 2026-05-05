@@ -2063,6 +2063,49 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* Draft imported metadata — logo, chart, links */}
+              {(selectedQuestion.status as string) === "draft" && (() => {
+                const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
+                const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
+                const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
+                const hasAny = importedLogoUrl || importedChart || importedLinks.length > 0;
+                if (!hasAny) return null;
+                return (
+                  <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
+                    {importedLogoUrl && (
+                      <div className="flex items-start gap-3">
+                        <img src={importedLogoUrl} alt="logo preview" className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-slate-400 mb-0.5">Logo URL</p>
+                          <a href={importedLogoUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] text-purple-300 hover:underline">{importedLogoUrl}</a>
+                          <p className="mt-0.5 text-[10px] text-slate-500">To use this logo, upload it via the logo library using this URL.</p>
+                        </div>
+                      </div>
+                    )}
+                    {importedChart && (
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] text-slate-400">Chart:</p>
+                        <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(importedChart)}`} target="_blank" rel="noreferrer" className="text-[11px] font-mono text-purple-300 hover:underline">{importedChart} ↗</a>
+                      </div>
+                    )}
+                    {importedLinks.length > 0 && (
+                      <div>
+                        <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
+                        <div className="space-y-0.5">
+                          {importedLinks.map((lnk, i) => lnk.url ? (
+                            <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">
+                              {lnk.label || lnk.url}
+                            </a>
+                          ) : null)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Draft actions — approve or delete */}
               {(selectedQuestion.status as string) === "draft" && (
                 <div className="space-y-2">
