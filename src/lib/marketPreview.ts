@@ -132,11 +132,12 @@ export function getQuestionSideLabels(question: FeedQuestion): QuestionSideLabel
   if (question.category === "Sports") {
     const title = String(question.title || "").trim();
 
-    // Match "TEAM1 vs TEAM2" anywhere — capture at most 3 words on each side
-    // This handles "who will win in today's IPL match RCB vs GT" → ["RCB", "GT"]
-    const vsMatch = title.match(
-      /([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+vs\.?\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})(?:\s*\?)?$/i,
-    );
+    // Match "TEAM1 vs TEAM2" — handles both:
+    //   "Mumbai Indians vs RCB: Who will win?" (vs at start, followed by colon or nothing)
+    //   "Who will win in today's IPL match RCB vs GT?" (vs at end)
+    const vsMatch =
+      title.match(/^([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+vs\.?\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s*[:|?]/i) ||
+      title.match(/([\w&.'-]+(?:\s+[\w&.'-]+){0,2})\s+vs\.?\s+([\w&.'-]+(?:\s+[\w&.'-]+){0,2})(?:\s*\?)?$/i);
     if (vsMatch) {
       const yesLabel = normalizeLabel(vsMatch[1]);
       const noLabel = normalizeLabel(vsMatch[2]);
