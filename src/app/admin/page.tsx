@@ -2235,8 +2235,8 @@ export default function AdminPage() {
                 </p>
               )}
 
-              {/* Full question edit — available for open and pending-closed questions */}
-              {(selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
+              {/* Full question edit — available for open, pending-closed, and draft questions */}
+              {((selectedQuestion.status as string) === "draft" || selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
                 <div className="mt-4 border-t border-[var(--stroke)] pt-4">
                   {!editQuestionMode ? (
                     <div>
@@ -2446,7 +2446,8 @@ export default function AdminPage() {
                               const body = await safeJson(res);
                               if (body.success) {
                                 setEditQuestionMsg({ type: "success", text: "Question updated." });
-                                await refreshQuestions();
+                                const isDraft = (selectedQuestion?.status as string) === "draft";
+                                await Promise.all([refreshQuestions(), ...(isDraft ? [refreshDraftQuestions()] : [])]);
                                 if (body.question) {
                                   setSelectedQuestion(body.question);
                                 } else {
