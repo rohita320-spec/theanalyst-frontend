@@ -1817,14 +1817,50 @@ export default function AdminPage() {
           <div className="mb-3">
             <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
             <p className="mt-1 text-xs text-slate-400">
-              Paste JSON from ChatGPT / Claude. Drafts are saved and sent to admin for approval — they are <span className="text-purple-300">not published</span> until an admin approves them.
+              Use the prompt below in ChatGPT or Claude, then paste the JSON output here. Drafts go to admin for approval — <span className="text-purple-300">not published</span> until approved.
             </p>
           </div>
+
+          {/* Copy-paste prompt for creators */}
+          <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
+              <span className="text-[10px] text-slate-500">Click inside to select all</span>
+            </div>
+            <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
+
+Focus on things happening RIGHT NOW this week (May 5–16, 2026). Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
+
+Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
+
+Use closing_time between 2026-05-09T23:59:00Z and 2026-05-17T23:59:00Z (end of this week or next week).
+
+Return a JSON array where every object has these exact fields:
+{
+  "question_text": "...",
+  "category": "...",
+  "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
+  "entry_cost": 100 | 200 | 500 | 800,
+  "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
+  "resolution_rules": "Exact YES/NO resolution criteria",
+  "chart_symbol": "TradingView ticker if applicable, else null",
+  "logo_url": "Wikipedia direct image URL for main subject — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null. Note: logo may not always load; it can be changed later.",
+  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS questions only), else null",
+  "reference_links": [
+    { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
+    { "label": "Source name", "url": "https://..." }
+  ]
+}
+
+Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
+            <p className="text-[10px] text-amber-400/70">⚠ Logo URLs from Wikipedia may not always display — you can update logos later using the Edit button on any draft.</p>
+          </div>
+
           <textarea
             value={aiDraftJson}
             onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
             rows={8}
-            placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD >= $100,000 on Binance on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png"\n  }\n]'}
+            placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by May 17, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-05-17T23:59:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD >= $100,000 on Binance at 23:59 UTC on May 17, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png"\n  }\n]'}
             className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
           />
           {aiDraftValidationError && (
@@ -2774,10 +2810,17 @@ export default function AdminPage() {
 
         {/* Copy-paste prompt */}
         <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-slate-400 space-y-2">
-          <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
-          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 3 questions per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (21 questions total, 3 per category).
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
+            <span className="text-[10px] text-slate-500">Click inside to select all</span>
+          </div>
+          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
+
+Focus on things happening RIGHT NOW this week (May 5–16, 2026). Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
 Each question must be a clear YES/NO question. For Sports: write as "Will [Team A] beat [Team B] in [Event]?".
+
+Use closing_time between 2026-05-09T23:59:00Z and 2026-05-17T23:59:00Z (end of this week or next week).
 
 Return a JSON array where every object has these exact fields:
 {
@@ -2788,7 +2831,7 @@ Return a JSON array where every object has these exact fields:
   "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
   "resolution_rules": "Exact YES/NO resolution criteria",
   "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL for Team A / main subject — use the format https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url": "Wikipedia direct image URL for main subject — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null. Note: logo may not always load; it can be changed later.",
   "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS questions only), else null",
   "reference_links": [
     { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
@@ -2797,6 +2840,7 @@ Return a JSON array where every object has these exact fields:
 }
 
 Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
+          <p className="text-[10px] text-amber-400/70">⚠ Logo URLs from Wikipedia may not always display — you can update logos later using the Edit button on any draft.</p>
         </div>
 
         <textarea
