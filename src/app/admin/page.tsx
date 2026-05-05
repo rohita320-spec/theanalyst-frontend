@@ -2497,15 +2497,15 @@ export default function AdminPage() {
         <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">Required fields per question:</p>
           <p><code className="text-purple-300">question_text</code> · <code className="text-purple-300">category</code> (Crypto / Markets / Economy / Sports / Entertainment / Global Events / General) · <code className="text-purple-300">closing_time</code> (ISO 8601)</p>
-          <p className="text-slate-500">Optional: <code>entry_cost</code> (default 500) · <code>initial_probability</code> (0–1, default 0.5) · <code>resolution_rules</code></p>
-          <p className="mt-1 text-slate-500 italic">Example prompt for ChatGPT / Claude: "Generate 5 prediction market questions in JSON array format about [topic]. Use fields: question_text, category, closing_time (ISO), entry_cost, initial_probability, resolution_rules."</p>
+          <p className="text-slate-500">Optional: <code>entry_cost</code> (100 / 200 / 500 / 800, default 500) · <code>initial_probability</code> (0–1, default 0.5) · <code>resolution_rules</code> · <code>chart_symbol</code> (e.g. <code>"BTCUSDT"</code>) · <code>logo_url</code> (direct image URL) · <code>reference_links</code> (array of <code>{"{label, url}"}</code>)</p>
+          <p className="mt-1 text-slate-500 italic">Prompt for ChatGPT / Claude: "Generate 5 prediction market questions as a JSON array. Fields: question_text, category, closing_time (ISO 8601), entry_cost, initial_probability (0–1), resolution_rules, chart_symbol (optional ticker), logo_url (optional image URL), reference_links (optional array of {"{label, url}"})."</p>
         </div>
 
         <textarea
           value={aiDraftJson}
           onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
-          rows={8}
-          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 0.55,\n    "resolution_rules": "YES if BTC/USD closing price >= $100,000 on Binance on Dec 31, 2026."\n  }\n]'}
+          rows={10}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 0.55,\n    "resolution_rules": "YES if BTC/USD closing price >= $100,000 on Binance on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://example.com/btc-logo.png",\n    "reference_links": [\n      { "label": "CoinGecko BTC", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  }\n]'}
           className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
         />
 
@@ -2518,12 +2518,21 @@ export default function AdminPage() {
         {aiDraftValidated && (
           <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
             <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated — ready to save as drafts:</p>
-            <ul className="space-y-0.5 text-slate-400">
-              {aiDraftValidated.map((q, i) => (
-                <li key={i} className="truncate">
-                  {i + 1}. [{String((q as Record<string,unknown>).category ?? "—")}] {String((q as Record<string,unknown>).question_text ?? "").slice(0, 80)}
-                </li>
-              ))}
+            <ul className="space-y-1 text-slate-400">
+              {aiDraftValidated.map((q, i) => {
+                const qr = q as Record<string, unknown>;
+                const extras: string[] = [];
+                if (qr.chart_symbol) extras.push(`chart: ${String(qr.chart_symbol)}`);
+                if (qr.logo_url) extras.push("logo ✓");
+                const links = Array.isArray(qr.reference_links) ? qr.reference_links.length : 0;
+                if (links > 0) extras.push(`${links} link${links > 1 ? "s" : ""}`);
+                return (
+                  <li key={i}>
+                    <span className="truncate">{i + 1}. [{String(qr.category ?? "—")}] {String(qr.question_text ?? "").slice(0, 80)}</span>
+                    {extras.length > 0 && <span className="ml-2 text-purple-400/70">[{extras.join(", ")}]</span>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
