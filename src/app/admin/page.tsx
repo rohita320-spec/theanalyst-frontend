@@ -2203,7 +2203,7 @@ export default function AdminPage() {
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports: if it is a head-to-head matchup, write as "Who will win: [Team A] vs [Team B] in [Match/Event]?" — set both logo_url (Team A) and logo_url_b (Team B), and resolution_rules as "YES if [Team A] wins. NO if [Team B] wins." If it is an individual question (player or team winning a tournament), write as "Will [Player/Team] win [Event]?" — set only logo_url, logo_url_b as null, and resolution_rules as "YES if [Player/Team] wins [Event]. NO otherwise."
+Each question must be a clear YES/NO question. For Sports VS matchups: set both logo_url (Team A) and logo_url_b (Team B). Write the question naturally, e.g. "Who will win the IPL match — Mumbai Indians or RCB?" or "Will Mumbai Indians beat RCB in the IPL?" — whatever sounds engaging. For individual sports questions (player or team winning a tournament): write as "Will [Player/Team] win [Event]?" and set only logo_url, logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
@@ -2371,24 +2371,21 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                           {createVsMode ? (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <input type="text" value={createVsTeamA} onChange={(e) => { const a = e.target.value; setCreateVsTeamA(a); const q = a && createVsTeamB ? `Who will win: ${a} vs ${createVsTeamB}${createVsEvent ? ` in ${createVsEvent}` : ""}?` : ""; setCreateQuestion(q); if (a && createVsTeamB) setCreateResolutionRules(`YES if ${a} wins. NO if ${createVsTeamB} wins.`); }} placeholder="Team A (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                                 <span className="text-xs font-bold text-slate-500">vs</span>
-                                <input type="text" value={createVsTeamB} onChange={(e) => { const b = e.target.value; setCreateVsTeamB(b); const q = createVsTeamA && b ? `Who will win: ${createVsTeamA} vs ${b}${createVsEvent ? ` in ${createVsEvent}` : ""}?` : ""; setCreateQuestion(q); if (createVsTeamA && b) setCreateResolutionRules(`YES if ${createVsTeamA} wins. NO if ${b} wins.`); }} placeholder="Team B (e.g. GT)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
                               </div>
-                              <input type="text" value={createVsEvent} onChange={(e) => { const ev = e.target.value; setCreateVsEvent(ev); if (createVsTeamA && createVsTeamB) setCreateQuestion(`Who will win: ${createVsTeamA} vs ${createVsTeamB}${ev ? ` in ${ev}` : ""}?`); }} placeholder="Match / Event / Tournament (e.g. IPL 2026)" className="w-full rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                              {createQuestion && <p className="text-[11px] text-slate-500">Title: <span className="text-slate-300">{createQuestion}</span></p>}
+                              <p className="text-[11px] text-slate-500">Team names are used to match logos. Write your question text below.</p>
                             </div>
                           ) : (
                             <p className="text-[11px] text-slate-500">For individual outcomes — e.g. "Will India win the T20 World Cup?"</p>
                           )}
                         </div>
                       )}
-                      {(!createVsMode || createCategory !== "Sports") && (
-                        <div>
-                          <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                          <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g., Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                        </div>
-                      )}
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
+                        <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                      </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
                         <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
@@ -3180,7 +3177,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports VS: "Who will win: [Team A] vs [Team B] in [Event]?" · resolution_rules: "YES if [Team A] wins. NO if [Team B] wins." · logo_url = Team A, logo_url_b = Team B. Individual: "Will [Player/Team] win [Event]?" · logo_url_b = null.</p>
+          <p className="text-amber-400/80 text-[11px]">Sports VS: write question naturally, e.g. "Who will win the IPL match?" · logo_url = Team A, logo_url_b = Team B. Individual: "Will [Player/Team] win [Event]?" · logo_url_b = null.</p>
         </div>
 
         {/* Copy-paste prompt */}
@@ -3193,7 +3190,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
 
-Each question must be a clear YES/NO question. For Sports: if it is a head-to-head matchup, write as "Who will win: [Team A] vs [Team B] in [Match/Event]?" — set both logo_url (Team A) and logo_url_b (Team B), and resolution_rules as "YES if [Team A] wins. NO if [Team B] wins." If it is an individual question (player or team winning a tournament), write as "Will [Player/Team] win [Event]?" — set only logo_url, logo_url_b as null, and resolution_rules as "YES if [Player/Team] wins [Event]. NO otherwise."
+Each question must be a clear YES/NO question. For Sports VS matchups: set both logo_url (Team A) and logo_url_b (Team B). Write the question naturally, e.g. "Who will win the IPL match — Mumbai Indians or RCB?" or "Will Mumbai Indians beat RCB in the IPL?" — whatever sounds engaging. For individual sports questions (player or team winning a tournament): write as "Will [Player/Team] win [Event]?" and set only logo_url, logo_url_b as null.
 
 Use closing_time at the end of this week or next week (within the next 7–14 days from today).
 
