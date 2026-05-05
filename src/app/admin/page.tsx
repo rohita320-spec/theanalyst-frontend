@@ -2199,13 +2199,27 @@ export default function AdminPage() {
               <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
               <span className="text-[10px] text-slate-500">Click inside to select all</span>
             </div>
-            <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
+            <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`STEP 1 — SEARCH FIRST (mandatory): Before writing any questions, use your web search / browsing tool to look up today's date and fetch live data for each category:
+• Crypto: current BTC price, ETH price, any major moves or news today
+• Markets: S&P 500, Nasdaq, major stock movers, earnings this week
+• Economy: upcoming Fed decisions, latest CPI/GDP/jobs data, central bank news
+• Sports: IPL fixtures this week, Champions League / football matches, NBA playoffs, tennis tournaments, cricket schedules — get ACTUAL team names and match dates
+• Entertainment: box office top film this weekend, award shows, major releases
+• Global Events: elections, geopolitical news, summits, major decisions due this week
+• General: major tech launches, science news, viral stories
 
-Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
+STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
 
-Each question must be a clear YES/NO question. For Sports VS matchups (two teams/players facing each other): use question_text format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports questions (one team/player in a tournament or event): write freely, e.g. "Will India win the T20 World Cup?" or "Will Novak Djokovic win the French Open?" — set logo_url for that team/player, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups: use format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
 
-Use closing_time at the end of this week or next week (within the next 7–14 days from today).
+Use closing_time within the next 7–14 days from today.
+
+STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
+✓ Is this event actually happening this week or next week? (not past, not too far future)
+✓ Does the price/value mentioned match today's real data?
+✓ Is the resolution rule specific and unambiguous?
+✓ Are team names / player names correct and spelled right?
+Fix any issues before returning.
 
 Return a JSON array where every object has these exact fields:
 {
@@ -2213,11 +2227,11 @@ Return a JSON array where every object has these exact fields:
   "category": "...",
   "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
   "entry_cost": 100 | 200 | 500 | 800,
-  "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
-  "resolution_rules": "Exact YES/NO resolution criteria",
+  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
+  "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
   "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL for main subject — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null. Note: logo may not always load; it can be changed later.",
-  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS questions only), else null",
+  "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS only), else null",
   "reference_links": [
     { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
     { "label": "Source name", "url": "https://..." }
@@ -3189,13 +3203,27 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
             <span className="text-[10px] text-slate-500">Click inside to select all</span>
           </div>
-          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`Generate 1 question per category for The Analyst platform as a JSON array. Categories: Crypto, Markets, Economy, Sports, Entertainment, Global Events, General (7 questions total, 1 per category).
+          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`STEP 1 — SEARCH FIRST (mandatory): Before writing any questions, use your web search / browsing tool to look up today's date and fetch live data for each category:
+• Crypto: current BTC price, ETH price, any major moves or news today
+• Markets: S&P 500, Nasdaq, major stock movers, earnings this week
+• Economy: upcoming Fed decisions, latest CPI/GDP/jobs data, central bank news
+• Sports: IPL fixtures this week, Champions League / football matches, NBA playoffs, tennis tournaments, cricket schedules — get ACTUAL team names and match dates
+• Entertainment: box office top film this weekend, award shows, major releases
+• Global Events: elections, geopolitical news, summits, major decisions due this week
+• General: major tech launches, science news, viral stories
 
-Focus on things happening RIGHT NOW — this week or next week. Pick attention-grabbing YES/NO questions about current events, ongoing tournaments, live market moves, recent news, or upcoming decisions. The question must feel relevant and timely — not generic.
+STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
 
-Each question must be a clear YES/NO question. For Sports VS matchups (two teams/players facing each other): use question_text format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports questions (one team/player in a tournament or event): write freely, e.g. "Will India win the T20 World Cup?" or "Will Novak Djokovic win the French Open?" — set logo_url for that team/player, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups: use format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
 
-Use closing_time at the end of this week or next week (within the next 7–14 days from today).
+Use closing_time within the next 7–14 days from today.
+
+STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
+✓ Is this event actually happening this week or next week? (not past, not too far future)
+✓ Does the price/value mentioned match today's real data?
+✓ Is the resolution rule specific and unambiguous?
+✓ Are team names / player names correct and spelled right?
+Fix any issues before returning.
 
 Return a JSON array where every object has these exact fields:
 {
@@ -3203,11 +3231,11 @@ Return a JSON array where every object has these exact fields:
   "category": "...",
   "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
   "entry_cost": 100 | 200 | 500 | 800,
-  "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
-  "resolution_rules": "Exact YES/NO resolution criteria",
+  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
+  "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
   "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL for main subject — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null. Note: logo may not always load; it can be changed later.",
-  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS questions only), else null",
+  "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS only), else null",
   "reference_links": [
     { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
     { "label": "Source name", "url": "https://..." }
