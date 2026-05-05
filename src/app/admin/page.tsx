@@ -1806,8 +1806,15 @@ export default function AdminPage() {
                         <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
                         <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
                       </div>
+                      {createVsMode && createCategory === "Sports" && (
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
+                          VS question: select <strong>2 logos</strong> from the library — one for <span className="font-semibold">{createVsTeamA || "Team A"}</span> and one for <span className="font-semibold">{createVsTeamB || "Team B"}</span>. First selected = left/home team.
+                          {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length === 2 && <span className="ml-2 text-emerald-400">✓ 2 logos selected</span>}
+                          {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length > 2 && <span className="ml-2 text-red-400">⚠ More than 2 selected — VS questions should have exactly 2</span>}
+                        </div>
+                      )}
                       <LogoLibraryPicker
-                        title="Question logos"
+                        title={createVsMode && createCategory === "Sports" ? `Team Logos (${createSelectedLogoKeys.length + createSelectedPendingLogoIds.length}/2 selected)` : "Question logos"}
                         category={createCategory}
                         activeAssets={activeLogoAssets}
                         pendingAssets={pendingLogoAssets}
@@ -2089,21 +2096,29 @@ export default function AdminPage() {
               {(selectedQuestion.status as string) === "draft" && (() => {
                 const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
                 const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
+                const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
                 const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
                 const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
-                const hasAny = importedLogoUrl || importedChart || importedLinks.length > 0;
+                const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
                 if (!hasAny) return null;
                 return (
                   <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
                     <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
-                    {importedLogoUrl && (
-                      <div className="flex items-start gap-3">
-                        <img src={importedLogoUrl} alt="logo preview" className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-slate-400 mb-0.5">Logo URL</p>
-                          <a href={importedLogoUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] text-purple-300 hover:underline">{importedLogoUrl}</a>
-                          <p className="mt-0.5 text-[10px] text-slate-500">To use this logo, upload it via the logo library using this URL.</p>
+                    {(importedLogoUrl || importedLogoUrlB) && (
+                      <div>
+                        <p className="text-[11px] text-slate-400 mb-1.5">{importedLogoUrlB ? "Team Logos" : "Logo URL"}</p>
+                        <div className="flex gap-3">
+                          {[{ url: importedLogoUrl, label: "Team A / Home" }, { url: importedLogoUrlB, label: "Team B / Away" }].filter(l => l.url).map(({ url, label }) => (
+                            <div key={url} className="flex items-start gap-2 min-w-0">
+                              <img src={url!} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                              <div className="min-w-0">
+                                <p className="text-[10px] text-slate-500">{label}</p>
+                                <a href={url!} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
+                              </div>
+                            </div>
+                          ))}
                         </div>
+                        <p className="mt-1.5 text-[10px] text-slate-500">Upload each via Logo Library (paste URL) then select them in the edit form.</p>
                       </div>
                     )}
                     {importedChart && (
@@ -2572,7 +2587,8 @@ export default function AdminPage() {
             <p><code className="text-purple-300">entry_cost</code> — 100 / 200 / 500 / 800 (default 500)</p>
             <p><code className="text-purple-300">resolution_rules</code> — exact YES/NO criteria</p>
             <p><code className="text-purple-300">chart_symbol</code> — TradingView ticker (e.g. BTCUSDT, AAPL)</p>
-            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL, e.g. <code className="text-slate-400 text-[10px]">https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png</code></p>
+            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL (Team A / main subject), e.g. <code className="text-slate-400 text-[10px]">https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png</code></p>
+            <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
           <p className="text-amber-400/80 text-[11px]">Sports questions: write as "Will [Team A] beat [Team B] in [Tournament/Event]?" — logo_url = Wikipedia image of the home team or tournament.</p>
@@ -2594,7 +2610,8 @@ Return a JSON array where every object has these exact fields:
   "initial_probability": 0-100 (integer, e.g. 65 means 65% chance of YES),
   "resolution_rules": "Exact YES/NO resolution criteria",
   "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL for the main subject — use the format https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url": "Wikipedia direct image URL for Team A / main subject — use the format https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS questions only), else null",
   "reference_links": [
     { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
     { "label": "Source name", "url": "https://..." }
@@ -2608,7 +2625,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           value={aiDraftJson}
           onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
           rows={12}
-          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Will Real Madrid beat Manchester City in the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final match against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Will Real Madrid beat Manchester City in the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final match against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "logo_url_b": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
           className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
         />
 
@@ -3489,8 +3506,15 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                     <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
                     <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
                   </div>
+                  {createVsMode && createCategory === "Sports" && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
+                      VS question: select <strong>2 logos</strong> — one for <span className="font-semibold">{createVsTeamA || "Team A"}</span> and one for <span className="font-semibold">{createVsTeamB || "Team B"}</span>.
+                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length === 2 && <span className="ml-2 text-emerald-400">✓ 2 logos selected</span>}
+                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length > 2 && <span className="ml-2 text-red-400">⚠ More than 2 selected</span>}
+                    </div>
+                  )}
                   <LogoLibraryPicker
-                    title="Question logos"
+                    title={createVsMode && createCategory === "Sports" ? `Team Logos (${createSelectedLogoKeys.length + createSelectedPendingLogoIds.length}/2 selected)` : "Question logos"}
                     category={createCategory}
                     activeAssets={activeLogoAssets}
                     pendingAssets={pendingLogoAssets}
