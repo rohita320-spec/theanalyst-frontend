@@ -2210,7 +2210,7 @@ export default function AdminPage() {
 
 STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: use format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups: the question MUST be neutral between both teams — use format "[Team A] vs [Team B]: Who will win [event/date]?" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?". Never write "Will [specific team] win..." — both team logos appear as equal YES/NO buttons, so the question must not favor either side. Set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
 
 Use closing_time within the next 7–14 days from today.
 
@@ -2219,6 +2219,7 @@ STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
 ✓ Does the price/value mentioned match today's real data?
 ✓ Is the resolution rule specific and unambiguous?
 ✓ Are team names / player names correct and spelled right?
+✓ For Sports VS matchups: is the phrasing "Who will win"? (never "Will [specific team] win")
 Fix any issues before returning.
 
 Return a JSON array where every object has these exact fields:
@@ -3194,7 +3195,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
           </div>
           <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports VS: format "[Team A] vs [Team B]: [question]" · logo_url = Team A, logo_url_b = Team B. Individual sports: free-form question text · logo_url = team/player, logo_url_b = null.</p>
+          <p className="text-amber-400/80 text-[11px]">Sports VS: format "[Team A] vs [Team B]: Who will win [event/date]?" (neutral phrasing — never "Will [Team] win") · logo_url = Team A, logo_url_b = Team B. Individual sports: free-form question text · logo_url = team/player, logo_url_b = null.</p>
         </div>
 
         {/* Copy-paste prompt */}
@@ -3214,7 +3215,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
 
-Each question must be a clear YES/NO question. For Sports VS matchups: use format "[Team A] vs [Team B]: [question]" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?" — set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
+Each question must be a clear YES/NO question. For Sports VS matchups: the question MUST be neutral between both teams — use format "[Team A] vs [Team B]: Who will win [event/date]?" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?". Never write "Will [specific team] win..." — both team logos appear as equal YES/NO buttons, so the question must not favor either side. Set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
 
 Use closing_time within the next 7–14 days from today.
 
@@ -3223,6 +3224,7 @@ STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
 ✓ Does the price/value mentioned match today's real data?
 ✓ Is the resolution rule specific and unambiguous?
 ✓ Are team names / player names correct and spelled right?
+✓ For Sports VS matchups: is the phrasing "Who will win"? (never "Will [specific team] win")
 Fix any issues before returning.
 
 Return a JSON array where every object has these exact fields:
