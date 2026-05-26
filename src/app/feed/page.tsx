@@ -126,7 +126,10 @@ export default function FeedPage() {
       fetchFeedQuestions(category, "all"),
       token ? fetchMeProfileSummary(token) : Promise.resolve(null),
     ]);
-    if (questionsData.status === "fulfilled") setQuestions(questionsData.value);
+    if (questionsData.status === "fulfilled") {
+      // Hide test-sandbox questions ([TEST] prefix) from the public feed
+      setQuestions(questionsData.value.filter((q) => !q.title.startsWith("[TEST]")));
+    }
     if (profileData.status === "fulfilled") {
       setProfile(profileData.value?.profile ?? null);
     } else {

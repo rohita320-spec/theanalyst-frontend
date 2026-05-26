@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset } from "../../lib/api";
+import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset, type LeaderboardRow, type UserPrediction } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -511,6 +511,16 @@ export default function AdminPage() {
   const [logoLibrarySearch, setLogoLibrarySearch] = useState("");
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [apiTimings, setApiTimings] = useState<Record<string, ApiTimingRow>>({});
+  // Test sandbox panel
+  const [testSandboxOpen, setTestSandboxOpen] = useState(false);
+  const [testSandboxLoading, setTestSandboxLoading] = useState(false);
+  const [testSandboxQuestions, setTestSandboxQuestions] = useState<FeedQuestion[]>([]);
+  const [testSandboxUsers, setTestSandboxUsers] = useState<AuthUserRow[]>([]);
+  const [testSandboxLeaderboard, setTestSandboxLeaderboard] = useState<LeaderboardRow[]>([]);
+  const [testSandboxProfiles, setTestSandboxProfiles] = useState<Record<string, { predictions: UserPrediction[]; points_balance: number; net_points: number; correct: number; incorrect: number }>>({});
+  const [testSandboxExpandedUser, setTestSandboxExpandedUser] = useState<string | null>(null);
+  const [testSandboxProfileLoading, setTestSandboxProfileLoading] = useState<string | null>(null);
+  const [testSandboxTab, setTestSandboxTab] = useState<"questions" | "leaderboard" | "users">("questions");
 
   const recordApiTiming = (
     endpoint: string,
@@ -1340,6 +1350,92 @@ export default function AdminPage() {
       setCreateStep("form");
     } finally {
       setCreateSubmitting(false);
+    }
+  };
+
+  const loadTestSandbox = async () => {
+    setTestSandboxLoading(true);
+    try {
+      // 1. All questions — filter to [TEST] ones
+      const qRes = await timedFetch(
+        "feed_questions_all",
+        `${API_BASE}/feed_questions?limit=200&status=all`,
+        { headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined },
+      );
+      const qBody = await safeJson(qRes) as { results?: FeedQuestion[] };
+      const allQ: FeedQuestion[] = qBody.results || allQuestions;
+      setTestSandboxQuestions(allQ.filter((q) => q.title?.startsWith("[TEST]")));
+
+      // 2. Sandbox users from already-loaded authUsers
+      const sandboxUsers = authUsers.filter((u) => u.email?.endsWith("@sandbox.test"));
+      setTestSandboxUsers(sandboxUsers);
+
+      // 3. Leaderboard — fetch all-time, filter to sandbox_user* usernames or matching IDs
+      const sandboxUserIds = new Set(sandboxUsers.map((u) => u.id));
+      // Try multiple timeframes to maximise chance of getting period_* data
+      const lbRes = await timedFetch(
+        "leaderboard_sandbox",
+        `${API_BASE}/leaderboard?limit=500&timeframe=all`,
+        { headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined },
+      );
+      const lbBody = await safeJson(lbRes) as { results?: LeaderboardRow[] };
+      const allRows: LeaderboardRow[] = lbBody.results || [];
+      const sandboxRows = allRows.filter(
+        (r) => r.username?.startsWith("sandbox_user") || sandboxUserIds.has(r._id),
+      );
+      // Sort by net points (all-time) or leaderboard_score, assign rank
+      sandboxRows.sort(
+        (a, b) =>
+          Number(b.period_net_points ?? b.leaderboard_score ?? 0) -
+          Number(a.period_net_points ?? a.leaderboard_score ?? 0),
+      );
+      sandboxRows.forEach((r, i) => { r.rank = i + 1; });
+      setTestSandboxLeaderboard(sandboxRows);
+    } finally {
+      setTestSandboxLoading(false);
+    }
+  };
+
+  const loadTestUserProfile = async (userId: string) => {
+    if (testSandboxProfiles[userId]) {
+      // Toggle expand/collapse if already loaded
+      setTestSandboxExpandedUser((prev) => (prev === userId ? null : userId));
+      return;
+    }
+    setTestSandboxProfileLoading(userId);
+    try {
+      const res = await fetch(`${API_BASE}/user_predictions/${userId}`, {
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
+      const body = await safeJson(res) as {
+        success?: boolean;
+        open?: UserPrediction[];
+        closed?: UserPrediction[];
+      };
+      const profileRes = await fetch(`${API_BASE}/profile/${userId}`, {
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined,
+      });
+      const profileBody = await safeJson(profileRes) as {
+        points_balance?: number;
+        net_points?: number;
+        correct_predictions?: number;
+        incorrect_predictions?: number;
+      };
+      setTestSandboxProfiles((prev) => ({
+        ...prev,
+        [userId]: {
+          predictions: [...(body.open || []), ...(body.closed || [])].filter(
+            (p) => p.question_title?.startsWith("[TEST]"),
+          ),
+          points_balance: profileBody.points_balance ?? 0,
+          net_points: profileBody.net_points ?? 0,
+          correct: profileBody.correct_predictions ?? 0,
+          incorrect: profileBody.incorrect_predictions ?? 0,
+        },
+      }));
+      setTestSandboxExpandedUser(userId);
+    } finally {
+      setTestSandboxProfileLoading(null);
     }
   };
 
@@ -4097,6 +4193,320 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p className="text-slate-400">Open → (optional time-close) → Resolve YES/NO with rule-based outcome points; or Open/Closed → Cancel (Refund) which returns all participants&apos; points; or Delete for full cleanup.</p>
           </div>
         </div>
+      </section>
+
+      {/* Test Sandbox */}
+      <section className="rounded-2xl border border-amber-500/30 bg-[var(--surface)] p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-white">Test Sandbox</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              10 synthetic users · 7 seeded questions · admin-only · invisible on live platform
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !testSandboxOpen;
+              setTestSandboxOpen(next);
+              if (next) await loadTestSandbox();
+            }}
+            className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-300 hover:bg-amber-500/20"
+          >
+            {testSandboxOpen ? "Hide" : "View Demo Platform"}
+          </button>
+        </div>
+
+        {testSandboxOpen && (
+          <div className="mt-5 space-y-5">
+            {/* Isolation notice */}
+            <div className="flex flex-wrap gap-3 text-[11px]">
+              {[
+                { label: "Feed", note: "[TEST] questions hidden from public" },
+                { label: "Leaderboard", note: "sandbox_user* excluded from rankings" },
+                { label: "Profiles", note: "own-profile only — no cross-user exposure" },
+              ].map(({ label, note }) => (
+                <div key={label} className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/8 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="font-semibold text-emerald-400">{label}</span>
+                  <span className="text-slate-500">{note}</span>
+                </div>
+              ))}
+            </div>
+
+            {testSandboxLoading ? (
+              <p className="text-sm text-slate-400">Loading test sandbox data…</p>
+            ) : (
+              <>
+                {/* Tabs */}
+                <div className="flex gap-1 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-1">
+                  {(["questions", "leaderboard", "users"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setTestSandboxTab(tab)}
+                      className={`flex-1 rounded-lg py-1.5 text-xs font-semibold capitalize transition-colors ${
+                        testSandboxTab === tab
+                          ? "bg-amber-500/20 text-amber-300"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {tab === "questions" ? `Questions (${testSandboxQuestions.length})` : tab === "leaderboard" ? `Leaderboard (${testSandboxLeaderboard.length})` : `User Profiles (${testSandboxUsers.length})`}
+                    </button>
+                  ))}
+                  <button onClick={loadTestSandbox} className="rounded-lg px-3 py-1.5 text-xs text-slate-500 hover:text-slate-300">↻</button>
+                </div>
+
+                {/* Tab: Questions */}
+                {testSandboxTab === "questions" && (
+                  testSandboxQuestions.length === 0 ? (
+                    <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm text-slate-400">
+                      No [TEST] questions found. Run the seed script first:
+                      <pre className="mt-2 overflow-x-auto rounded bg-[#060e1a] p-3 text-xs text-amber-300">
+{`ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=yourpass node seed-test-data.js`}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-[var(--stroke)]">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[var(--stroke)] bg-[#0b1528]">
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400">#</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400">Question</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400">Cat</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">YES%</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">NO%</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">Total Pool</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testSandboxQuestions.map((q, i) => (
+                            <tr key={q._id} className="border-b border-[var(--stroke)]/50 last:border-0 hover:bg-[#0b1528]/60">
+                              <td className="px-3 py-2 text-xs text-slate-500">{i + 1}</td>
+                              <td className="max-w-xs px-3 py-2 text-xs text-slate-200">
+                                {q.title.replace(/^\[TEST\]\s*/, "")}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-slate-400">{q.category}</td>
+                              <td className="px-3 py-2 text-right text-xs font-semibold text-emerald-400">
+                                {Number(q.yes_percent || 0).toFixed(1)}%
+                              </td>
+                              <td className="px-3 py-2 text-right text-xs font-semibold text-red-400">
+                                {Number(q.no_percent || 0).toFixed(1)}%
+                              </td>
+                              <td className="px-3 py-2 text-right text-xs text-slate-300">
+                                {(Number(q.yes_pool || 0) + Number(q.no_pool || 0)).toLocaleString()} pts
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                  q.status === "open" ? "bg-emerald-500/15 text-emerald-400"
+                                    : q.status === "closed" ? "bg-slate-500/20 text-slate-400"
+                                    : "bg-amber-500/15 text-amber-400"
+                                }`}>
+                                  {q.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+
+                {/* Tab: Leaderboard */}
+                {testSandboxTab === "leaderboard" && (
+                  testSandboxLeaderboard.length === 0 ? (
+                    <p className="text-sm text-slate-400">
+                      No sandbox leaderboard data yet. Run the seed script and wait for predictions to be indexed.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-[var(--stroke)]">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[var(--stroke)] bg-[#0b1528]">
+                            <th className="w-10 px-3 py-2 text-center text-xs font-semibold text-slate-400">Rank</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400">User</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">Balance</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">Spent</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">Earned</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">Net</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-400">ROI%</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400">✓/✗</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testSandboxLeaderboard.map((row) => {
+                            const net = Number(row.period_net_points ?? 0);
+                            const spent = Number(row.period_points_spent ?? 0);
+                            const earned = Number(row.period_points_earned ?? row.points_earned_total ?? 0);
+                            const roi = Number(row.period_roi_percent ?? 0);
+                            const correct = Number(row.period_correct_predictions ?? 0);
+                            const incorrect = Number(row.period_incorrect_predictions ?? 0);
+                            return (
+                              <tr key={row._id} className="border-b border-[var(--stroke)]/50 last:border-0 hover:bg-[#0b1528]/60">
+                                <td className="px-3 py-2 text-center text-xs font-bold text-amber-400">{row.rank}</td>
+                                <td className="px-3 py-2 text-xs font-medium text-slate-200">
+                                  {row.username || row._id?.slice(0, 8)}
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs text-slate-300">
+                                  {Number(row.points_balance || 0).toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs text-slate-400">
+                                  {spent.toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs text-emerald-400">
+                                  +{earned.toLocaleString()}
+                                </td>
+                                <td className={`px-3 py-2 text-right text-xs font-semibold ${net >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  {net >= 0 ? "+" : ""}{net.toLocaleString()}
+                                </td>
+                                <td className={`px-3 py-2 text-right text-xs ${roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  {roi.toFixed(1)}%
+                                </td>
+                                <td className="px-3 py-2 text-center text-xs">
+                                  <span className="text-emerald-400">{correct}</span>
+                                  <span className="text-slate-600">/</span>
+                                  <span className="text-red-400">{incorrect}</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+
+                {/* Tab: User Profiles */}
+                {testSandboxTab === "users" && (
+                  testSandboxUsers.length === 0 ? (
+                    <p className="text-sm text-slate-400">
+                      No sandbox users found (@sandbox.test). Run the seed script first.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {testSandboxUsers.map((u) => {
+                        const profile = testSandboxProfiles[u.id];
+                        const isExpanded = testSandboxExpandedUser === u.id;
+                        const isLoading = testSandboxProfileLoading === u.id;
+                        // Find leaderboard row for this user
+                        const lbRow = testSandboxLeaderboard.find((r) => r._id === u.id || r.username?.replace("sandbox_user", "testuser")?.trim() === u.email?.split("@")[0]);
+                        return (
+                          <div key={u.id} className="rounded-xl border border-[var(--stroke)] overflow-hidden">
+                            {/* User header row */}
+                            <button
+                              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#0b1528]/60"
+                              onClick={() => loadTestUserProfile(u.id)}
+                            >
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-300">
+                                {u.email?.slice(8, 10)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-medium text-slate-200">{u.email}</p>
+                                <p className="text-[10px] text-slate-500">{u.role} · {u.prediction_count ?? 0} predictions</p>
+                              </div>
+                              {lbRow && (
+                                <div className="flex shrink-0 gap-4 text-right text-xs">
+                                  <div>
+                                    <p className="text-[10px] text-slate-500">Balance</p>
+                                    <p className="font-semibold text-slate-200">{Number(lbRow.points_balance || 0).toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] text-slate-500">Net</p>
+                                    <p className={`font-semibold ${Number(lbRow.period_net_points || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                      {Number(lbRow.period_net_points || 0) >= 0 ? "+" : ""}{Number(lbRow.period_net_points || 0).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] text-slate-500">Rank</p>
+                                    <p className="font-semibold text-amber-400">#{lbRow.rank}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <span className="ml-2 shrink-0 text-xs text-slate-500">
+                                {isLoading ? "…" : isExpanded ? "▲" : "▼"}
+                              </span>
+                            </button>
+
+                            {/* Expanded predictions */}
+                            {isExpanded && profile && (
+                              <div className="border-t border-[var(--stroke)] bg-[#070f1c] px-4 py-3">
+                                <div className="mb-3 flex flex-wrap gap-4 text-xs">
+                                  <div><p className="text-[10px] text-slate-500">Points Balance</p><p className="font-semibold text-white">{Number(profile.points_balance).toLocaleString()}</p></div>
+                                  <div><p className="text-[10px] text-slate-500">Net P&amp;L</p><p className={`font-semibold ${profile.net_points >= 0 ? "text-emerald-400" : "text-red-400"}`}>{profile.net_points >= 0 ? "+" : ""}{Number(profile.net_points).toLocaleString()}</p></div>
+                                  <div><p className="text-[10px] text-slate-500">Correct</p><p className="font-semibold text-emerald-400">{profile.correct}</p></div>
+                                  <div><p className="text-[10px] text-slate-500">Incorrect</p><p className="font-semibold text-red-400">{profile.incorrect}</p></div>
+                                  <div><p className="text-[10px] text-slate-500">Test Predictions</p><p className="font-semibold text-white">{profile.predictions.length}</p></div>
+                                </div>
+                                {profile.predictions.length === 0 ? (
+                                  <p className="text-xs text-slate-500">No test predictions found for this user.</p>
+                                ) : (
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-[10px] text-slate-500">
+                                        <th className="pb-1 text-left font-medium">Question</th>
+                                        <th className="pb-1 text-center font-medium">Side</th>
+                                        <th className="pb-1 text-right font-medium">Spent</th>
+                                        <th className="pb-1 text-right font-medium">P&amp;L</th>
+                                        <th className="pb-1 text-center font-medium">Analysis</th>
+                                        <th className="pb-1 text-center font-medium">Result</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {profile.predictions.map((p) => (
+                                        <tr key={p._id} className="border-t border-[var(--stroke)]/30">
+                                          <td className="max-w-[200px] truncate py-1.5 pr-2 text-slate-300">
+                                            {(p.question_title || "").replace(/^\[TEST\]\s*/, "")}
+                                          </td>
+                                          <td className="py-1.5 text-center">
+                                            <span className={`rounded px-1.5 py-0.5 font-bold ${p.answer === "yes" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+                                              {p.answer.toUpperCase()}
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 text-right text-slate-400">{Number(p.points_used || 0).toLocaleString()}</td>
+                                          <td className={`py-1.5 text-right font-semibold ${Number(p.unrealized_pnl || p.points_earned || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                            {Number(p.unrealized_pnl ?? p.points_earned ?? 0) >= 0 ? "+" : ""}{Number(p.unrealized_pnl ?? p.points_earned ?? 0).toLocaleString()}
+                                          </td>
+                                          <td className="py-1.5 text-center text-slate-500">{p.analysis_type || "—"}</td>
+                                          <td className="py-1.5 text-center">
+                                            {p.is_resolved ? (
+                                              <span className={p.is_correct ? "text-emerald-400" : "text-red-400"}>
+                                                {p.is_correct ? "✓" : "✗"}
+                                              </span>
+                                            ) : (
+                                              <span className="text-slate-600">open</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+
+                {/* Seed instructions */}
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <p className="mb-1.5 text-xs font-semibold text-amber-400">Run / Re-run the seed script</p>
+                  <p className="mb-2 text-xs text-slate-400">
+                    Safe to run multiple times — existing test users log in instead of re-registering. Predictions accumulate.
+                  </p>
+                  <pre className="overflow-x-auto rounded bg-[#060e1a] p-3 text-xs text-amber-200">
+{`ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=yourpass node seed-test-data.js`}
+                  </pre>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Add <code className="text-amber-300">DRY_RUN=true</code> to preview without API calls.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Quick nav */}

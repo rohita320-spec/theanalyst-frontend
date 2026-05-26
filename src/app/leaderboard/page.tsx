@@ -35,6 +35,8 @@ export default function LeaderboardPage() {
 
   const eligibleRows = useMemo(() => {
     return rows.filter((row) => {
+      // Exclude test-sandbox users from the public leaderboard
+      if (row.username?.startsWith("sandbox_user")) return false;
       const resolved = Number(row.period_correct_predictions || 0) + Number(row.period_incorrect_predictions || 0);
       const spend = Number(row.period_points_spent || 0);
       const earned = Number(row.period_points_earned || 0);
