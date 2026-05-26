@@ -9,6 +9,180 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const MARKET_CATS = new Set(["Crypto", "Economy", "Markets"]);
 type RefLink = { label: string; url: string };
+type DraftImportQuestion = Record<string, unknown>;
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validateAiDraftJson(rawJson: string): { parsed: DraftImportQuestion[] | null; errors: string[] } {
+  if (!rawJson.trim()) {
+    return { parsed: null, errors: ["Paste some JSON first."] };
+  }
+
+  try {
+    const parsed = JSON.parse(rawJson.trim()) as unknown;
+    const questions = Array.isArray(parsed) ? parsed : [parsed];
+    if (questions.length === 0) {
+      return { parsed: null, errors: ["No questions found in JSON."] };
+    }
+    if (questions.length > 50) {
+      return { parsed: null, errors: ["Maximum 50 questions per import."] };
+    }
+
+    const errors: string[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i] as DraftImportQuestion;
+      const questionText = typeof q.question_text === "string" ? q.question_text.trim() : "";
+      const category = typeof q.category === "string" ? q.category.trim() : "";
+      const closingTime = typeof q.closing_time === "string" ? q.closing_time.trim() : "";
+      const chartSymbol = q.chart_symbol;
+      const resolutionRules = q.resolution_rules;
+      const logoFields = [
+        ["logo_url", q.logo_url],
+        ["logo_url_b", q.logo_url_b],
+      ] as const;
+
+      if (!questionText) errors.push(`Item ${i + 1}: missing question_text`);
+      if (!category) errors.push(`Item ${i + 1}: missing category`);
+
+      if (!closingTime) {
+        errors.push(`Item ${i + 1}: missing closing_time`);
+      } else if (Number.isNaN(new Date(closingTime).getTime())) {
+        errors.push(`Item ${i + 1}: closing_time must be a valid ISO date`);
+      }
+
+      if (q.entry_cost === undefined || q.entry_cost === null || q.entry_cost === "") {
+        errors.push(`Item ${i + 1}: missing entry_cost`);
+      } else {
+        const entryCost = Number(q.entry_cost);
+        if (!Number.isFinite(entryCost) || entryCost < 50) {
+          errors.push(`Item ${i + 1}: entry_cost must be a number >= 50`);
+        }
+      }
+
+      if (q.initial_probability === undefined || q.initial_probability === null || q.initial_probability === "") {
+        errors.push(`Item ${i + 1}: missing initial_probability`);
+      } else {
+        const initialProbability = Number(q.initial_probability);
+        if (!Number.isFinite(initialProbability) || initialProbability < 1 || initialProbability > 99) {
+          errors.push(`Item ${i + 1}: initial_probability must be a number between 1 and 99`);
+        }
+      }
+
+      if (chartSymbol !== undefined && chartSymbol !== null) {
+        if (typeof chartSymbol !== "string" || !chartSymbol.trim()) {
+          errors.push(`Item ${i + 1}: chart_symbol must be a non-empty string or null`);
+        }
+      }
+
+      if (resolutionRules !== undefined && resolutionRules !== null) {
+        if (typeof resolutionRules !== "string" || !resolutionRules.trim()) {
+          errors.push(`Item ${i + 1}: resolution_rules must be a non-empty string or null`);
+        }
+      }
+
+      for (const [field, rawValue] of logoFields) {
+        if (rawValue === undefined || rawValue === null) continue;
+        if (typeof rawValue !== "string" || !rawValue.trim()) {
+          errors.push(`Item ${i + 1}: ${field} must be a non-empty URL string or null`);
+          continue;
+        }
+        if (!isValidHttpUrl(rawValue.trim())) {
+          errors.push(`Item ${i + 1}: ${field} must be a valid http(s) URL`);
+        }
+      }
+
+      if (q.reference_links !== undefined && q.reference_links !== null) {
+        if (!Array.isArray(q.reference_links)) {
+          errors.push(`Item ${i + 1}: reference_links must be an array`);
+        } else {
+          q.reference_links.forEach((link, linkIndex) => {
+            if (!link || typeof link !== "object") {
+              errors.push(`Item ${i + 1}: reference_links[${linkIndex + 1}] must be an object`);
+              return;
+            }
+            const label = typeof (link as { label?: unknown }).label === "string"
+              ? (link as { label: string }).label.trim()
+              : "";
+            const url = typeof (link as { url?: unknown }).url === "string"
+              ? (link as { url: string }).url.trim()
+              : "";
+            if (!label) errors.push(`Item ${i + 1}: reference_links[${linkIndex + 1}] missing label`);
+            if (!url) {
+              errors.push(`Item ${i + 1}: reference_links[${linkIndex + 1}] missing url`);
+            } else if (!isValidHttpUrl(url)) {
+              errors.push(`Item ${i + 1}: reference_links[${linkIndex + 1}] url must be a valid http(s) URL`);
+            }
+          });
+        }
+      }
+    }
+
+    return errors.length > 0 ? { parsed: null, errors } : { parsed: questions as DraftImportQuestion[], errors: [] };
+  } catch (e) {
+    return { parsed: null, errors: [`Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`] };
+  }
+}
+
+function validateCreateQuestionInput(input: {
+  questionText: string;
+  closingTime: string;
+  entryCost: string;
+  initialProbability: string;
+  createVsMode: boolean;
+  category: string;
+  teamA: string;
+  teamB: string;
+  chartSymbol: string;
+  referenceLinks: RefLink[];
+}): string[] {
+  const errors: string[] = [];
+
+  if (input.createVsMode && input.category === "Sports" && (!input.teamA.trim() || !input.teamB.trim())) {
+    errors.push("Enter both team names for a VS match question.");
+  }
+  if (!input.questionText.trim()) errors.push("Question text is required.");
+
+  if (!input.closingTime) {
+    errors.push("Closing time is required.");
+  } else if (Number.isNaN(new Date(input.closingTime).getTime())) {
+    errors.push("Closing time must be a valid date.");
+  }
+
+  const cost = Number(input.entryCost);
+  if (!Number.isFinite(cost) || cost < 50) {
+    errors.push("Entry cost must be at least 50.");
+  }
+
+  const probability = Number(input.initialProbability);
+  if (!Number.isFinite(probability) || probability < 1 || probability > 99) {
+    errors.push("Initial YES probability must be between 1 and 99.");
+  }
+
+  if (input.chartSymbol && !input.chartSymbol.trim()) {
+    errors.push("Chart symbol must be a non-empty string.");
+  }
+
+  input.referenceLinks.forEach((link, index) => {
+    const label = link.label.trim();
+    const url = link.url.trim();
+    if (!label && !url) return;
+    if (!label) errors.push(`Research link ${index + 1}: label is required.`);
+    if (!url) {
+      errors.push(`Research link ${index + 1}: URL is required.`);
+    } else if (!isValidHttpUrl(url)) {
+      errors.push(`Research link ${index + 1}: URL must be a valid http(s) URL.`);
+    }
+  });
+
+  return errors;
+}
 
 
 type AuthUserRow = {
@@ -1206,6 +1380,22 @@ export default function AdminPage() {
     return () => clearTimeout(t);
   }, [editChartSymbol, adminToken]);
 
+  const aiDraftValidationItems = aiDraftValidationError ? aiDraftValidationError.split("\n").filter(Boolean) : [];
+
+  const handleValidateAiDraftJson = () => {
+    setAiDraftValidated(null);
+    setAiDraftValidationError(null);
+    setAiDraftMsg(null);
+
+    const result = validateAiDraftJson(aiDraftJson);
+    if (result.errors.length > 0) {
+      setAiDraftValidationError(result.errors.join("\n"));
+      return;
+    }
+
+    setAiDraftValidated(result.parsed);
+  };
+
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
     setConfirmResolve(null);
     setResolving(answer);
@@ -1277,24 +1467,44 @@ export default function AdminPage() {
   };
 
   const handleCreateQuestion = async () => {
-    if (createVsMode && createCategory === "Sports" && (!createVsTeamA.trim() || !createVsTeamB.trim())) {
-      setCreateMsg({ type: "error", text: "Enter both team names for a VS match question." }); return;
-    }
-    if (!createQuestion.trim()) { setCreateMsg({ type: "error", text: "Question text is required." }); return; }
-    if (!createClosingTime) { setCreateMsg({ type: "error", text: "Closing time is required." }); return; }
-    if (userRole === "admin") {
-      const cost = parseFloat(createEntryCost);
-      if (isNaN(cost) || cost < 50) { setCreateMsg({ type: "error", text: "Entry cost must be at least 50." }); return; }
-      const probability = parseFloat(createInitialProbability);
-      if (isNaN(probability) || probability < 1 || probability > 99) {
-        setCreateMsg({ type: "error", text: "Initial YES probability must be between 1 and 99." }); return;
-      }
+    const validationErrors = validateCreateQuestionInput({
+      questionText: createQuestion,
+      closingTime: createClosingTime,
+      entryCost: createEntryCost,
+      initialProbability: createInitialProbability,
+      createVsMode,
+      category: createCategory,
+      teamA: createVsTeamA,
+      teamB: createVsTeamB,
+      chartSymbol: createChartSymbol,
+      referenceLinks: createReferenceLinks,
+    });
+    if (validationErrors.length > 0) {
+      setCreateMsg({ type: "error", text: validationErrors.join("\n") });
+      return;
     }
     setCreateMsg(null);
     setCreateStep("confirm");
   };
 
   const handleCreateSubmit = async () => {
+    const validationErrors = validateCreateQuestionInput({
+      questionText: createQuestion,
+      closingTime: createClosingTime,
+      entryCost: createEntryCost,
+      initialProbability: createInitialProbability,
+      createVsMode,
+      category: createCategory,
+      teamA: createVsTeamA,
+      teamB: createVsTeamB,
+      chartSymbol: createChartSymbol,
+      referenceLinks: createReferenceLinks,
+    });
+    if (validationErrors.length > 0) {
+      setCreateMsg({ type: "error", text: validationErrors.join("\n") });
+      setCreateStep("form");
+      return;
+    }
     const cost = parseFloat(createEntryCost);
     const probability = parseFloat(createInitialProbability);
     setCreateSubmitting(true);
@@ -2347,7 +2557,20 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
           />
           {aiDraftValidationError && (
-            <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{aiDraftValidationError}</div>
+            <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+              {aiDraftValidationItems.length <= 1 ? (
+                <p>{aiDraftValidationItems[0] || aiDraftValidationError}</p>
+              ) : (
+                <>
+                  <p className="mb-1 font-medium text-red-200">{aiDraftValidationItems.length} validation issue(s) found:</p>
+                  <ul className="list-disc space-y-1 pl-4">
+                    {aiDraftValidationItems.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
           )}
           {aiDraftValidated && (
             <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
@@ -2365,25 +2588,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           )}
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null);
-                if (!aiDraftJson.trim()) { setAiDraftValidationError("Paste some JSON first."); return; }
-                try {
-                  let parsed = JSON.parse(aiDraftJson.trim());
-                  if (!Array.isArray(parsed)) parsed = [parsed];
-                  if (parsed.length === 0) { setAiDraftValidationError("No questions found."); return; }
-                  if (parsed.length > 50) { setAiDraftValidationError("Maximum 50 questions."); return; }
-                  const errs: string[] = [];
-                  for (let i = 0; i < parsed.length; i++) {
-                    const q = parsed[i] as Record<string, unknown>;
-                    if (!q.question_text) errs.push(`Item ${i + 1}: missing question_text`);
-                    if (!q.category) errs.push(`Item ${i + 1}: missing category`);
-                    if (!q.closing_time) errs.push(`Item ${i + 1}: missing closing_time`);
-                  }
-                  if (errs.length > 0) { setAiDraftValidationError(errs.join(" · ")); return; }
-                  setAiDraftValidated(parsed as Record<string, unknown>[]);
-                } catch (e) { setAiDraftValidationError(`Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`); }
-              }}
+              onClick={handleValidateAiDraftJson}
               className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
             >Validate JSON</button>
             <button
@@ -2460,7 +2665,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                     </div>
                     {createMsg && (
                       <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                        {createMsg.text}
+                        <div className="whitespace-pre-line">{createMsg.text}</div>
                       </div>
                     )}
                     <div className="space-y-4">
@@ -2598,7 +2803,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                   </div>
                   {createMsg && (
                     <div className={`mx-5 mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                      {createMsg.text}
+                      <div className="whitespace-pre-line">{createMsg.text}</div>
                     </div>
                   )}
                   <div className="flex gap-3 px-5 pb-5">
@@ -3354,7 +3559,18 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
         {aiDraftValidationError && (
           <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-            {aiDraftValidationError}
+            {aiDraftValidationItems.length <= 1 ? (
+              <p>{aiDraftValidationItems[0] || aiDraftValidationError}</p>
+            ) : (
+              <>
+                <p className="mb-1 font-medium text-red-200">{aiDraftValidationItems.length} validation issue(s) found:</p>
+                <ul className="list-disc space-y-1 pl-4">
+                  {aiDraftValidationItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         )}
 
@@ -3388,29 +3604,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
         <div className="flex gap-3">
           <button
-            onClick={() => {
-              setAiDraftValidated(null);
-              setAiDraftValidationError(null);
-              setAiDraftMsg(null);
-              if (!aiDraftJson.trim()) { setAiDraftValidationError("Paste some JSON first."); return; }
-              try {
-                let parsed = JSON.parse(aiDraftJson.trim());
-                if (!Array.isArray(parsed)) parsed = [parsed];
-                if (parsed.length === 0) { setAiDraftValidationError("No questions found in JSON."); return; }
-                if (parsed.length > 50) { setAiDraftValidationError("Maximum 50 questions per import."); return; }
-                const errors: string[] = [];
-                for (let i = 0; i < parsed.length; i++) {
-                  const q = parsed[i] as Record<string, unknown>;
-                  if (!q.question_text) errors.push(`Item ${i + 1}: missing question_text`);
-                  if (!q.category) errors.push(`Item ${i + 1}: missing category`);
-                  if (!q.closing_time) errors.push(`Item ${i + 1}: missing closing_time`);
-                }
-                if (errors.length > 0) { setAiDraftValidationError(errors.join(" · ")); return; }
-                setAiDraftValidated(parsed as Record<string, unknown>[]);
-              } catch (e) {
-                setAiDraftValidationError(`Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`);
-              }
-            }}
+            onClick={handleValidateAiDraftJson}
             className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
           >
             Validate JSON
@@ -4541,7 +4735,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
                 {createMsg && (
                   <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                    {createMsg.text}
+                    <div className="whitespace-pre-line">{createMsg.text}</div>
                   </div>
                 )}
                 <div className="space-y-4">
@@ -4700,7 +4894,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                 </div>
                 {createMsg && (
                   <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                    {createMsg.text}
+                    <div className="whitespace-pre-line">{createMsg.text}</div>
                   </div>
                 )}
                 <div className="flex gap-3">
