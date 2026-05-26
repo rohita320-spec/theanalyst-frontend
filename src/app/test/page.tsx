@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { login, me } from "@/lib/api";
+import { me } from "@/lib/api";
 import {
   createTestUser,
   createTestQuestion,
@@ -14,8 +14,6 @@ import {
 } from "@/lib/test-setup";
 
 export default function TestPage() {
-  const testAdminEmail = process.env.NEXT_PUBLIC_TEST_ADMIN_EMAIL || "admin@test.local";
-  const testAdminPassword = process.env.NEXT_PUBLIC_TEST_ADMIN_PASSWORD || "AdminTestPass123!";
   const [status, setStatus] = useState<string>("");
   const [testUser, setTestUser] = useState<TestUser | null>(null);
   const [creatorUser, setCreatorUser] = useState<TestUser | null>(null);
@@ -53,11 +51,8 @@ export default function TestPage() {
       }
 
       if (!adminToken) {
-        log("📝 Step 0: Logging in as local admin...");
-        const auth = await login({ email: testAdminEmail, password: testAdminPassword });
-        adminToken = auth.token;
-        localStorage.setItem("auth_token", adminToken);
-        log(`✅ Admin session ready: ${auth.user.email}`);
+        log("❌ No admin session found. Please log in as an admin at /auth/login first.");
+        return;
       }
 
       // Step 1: Create test users

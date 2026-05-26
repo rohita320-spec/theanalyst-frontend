@@ -20,6 +20,12 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+/** Returns the URL only if it is a safe http(s) URL; otherwise returns "#" to prevent javascript: injection. */
+function safeHref(value: string | null | undefined): string {
+  const trimmed = String(value || "").trim();
+  return isValidHttpUrl(trimmed) ? trimmed : "#";
+}
+
 function validateAiDraftJson(rawJson: string): { parsed: DraftImportQuestion[] | null; errors: string[] } {
   if (!rawJson.trim()) {
     return { parsed: null, errors: ["Paste some JSON first."] };
@@ -2022,7 +2028,7 @@ export default function AdminPage() {
                                     <img src={url!} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     <div className="min-w-0">
                                       <p className="text-[10px] text-slate-500">{label}</p>
-                                      <a href={url!} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
+                                      <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
                                     </div>
                                   </div>
                                 ))}
@@ -2041,7 +2047,7 @@ export default function AdminPage() {
                               <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
                               <div className="space-y-0.5">
                                 {importedLinks.map((lnk, i) => lnk.url ? (
-                                  <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
+                                  <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
                                 ) : null)}
                               </div>
                             </div>
@@ -2320,7 +2326,7 @@ export default function AdminPage() {
                             {importedLinks.length > 0 && (
                               <div className="space-y-0.5">
                                 {importedLinks.map((lnk, i) => lnk.url ? (
-                                  <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
+                                  <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
                                 ) : null)}
                               </div>
                             )}
@@ -3012,10 +3018,10 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                         <div className="flex gap-3">
                           {[{ url: importedLogoUrl, label: "Team A / Home" }, { url: importedLogoUrlB, label: "Team B / Away" }].filter(l => l.url).map(({ url, label }) => (
                             <div key={url} className="flex items-start gap-2 min-w-0">
-                              <img src={url!} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                              <img src={safeHref(url)} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                               <div className="min-w-0">
                                 <p className="text-[10px] text-slate-500">{label}</p>
-                                <a href={url!} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
+                                <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
                               </div>
                             </div>
                           ))}
@@ -3034,7 +3040,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                         <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
                         <div className="space-y-0.5">
                           {importedLinks.map((lnk, i) => lnk.url ? (
-                            <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">
+                            <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">
                               {lnk.label || lnk.url}
                             </a>
                           ) : null)}

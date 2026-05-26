@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 
 type ResearchLink = { label: string; url: string };
 
+/** Returns the URL only if it is a safe http(s) URL; prevents javascript: injection. */
+function safeHref(value: string | null | undefined): string {
+  const trimmed = String(value || "").trim();
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? trimmed : "#";
+  } catch {
+    return "#";
+  }
+}
+
 const MARKET_CATEGORIES = new Set(["Crypto", "Economy", "Markets"]);
 
 const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
@@ -125,9 +136,9 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                     {savedResearchLinks.map((link) => (
                       <a
                         key={link.url}
-                        href={link.url}
+                        href={safeHref(link.url)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-300 transition-colors hover:border-emerald-400/50 hover:text-emerald-200"
                       >
                         {link.label} ↗
