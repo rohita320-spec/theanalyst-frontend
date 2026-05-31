@@ -111,6 +111,26 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
   const authEmail = authState.email;
   const authRole = authState.role;
 
+  // Theme is an app-wide preference, so it lives in the header (every page), not on Profile.
+  const [theme, setTheme] = useState<"dark" | "bright">("dark");
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("app_theme") === "bright" ? "bright" : "dark";
+      setTheme(t);
+      document.documentElement.setAttribute("data-theme", t);
+    } catch { /* ignore */ }
+  }, []);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "bright" : "dark";
+      try {
+        localStorage.setItem("app_theme", next);
+        document.documentElement.setAttribute("data-theme", next);
+      } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   const handleLogout = async () => {
     const token = localStorage.getItem("auth_token") || "";
     try {
@@ -183,6 +203,15 @@ export default function AppHeader({ active, pointsBalance = 0, showPointsBalance
         </nav>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            title="Toggle theme"
+            aria-label="Toggle theme"
+            className="flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-xs text-slate-300 hover:border-[var(--brand)]"
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${theme === "dark" ? "bg-slate-300" : "bg-amber-300"}`} />
+            <span className="hidden sm:inline">{theme === "dark" ? "Dark" : "Bright"}</span>
+          </button>
           {showPointsBalance && (
             <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-left sm:text-right">
               <p className="text-[11px] uppercase tracking-wide text-slate-400">Points Balance</p>

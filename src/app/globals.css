@@ -19,6 +19,10 @@
   --bg-grad-bottom: #0a1222;
   --status-open-text: #6ee7b7;
   --status-open-bg: rgba(52, 211, 153, 0.16);
+  --status-closed-text: #fdba74;
+  --status-closed-bg: rgba(251, 146, 60, 0.16);
+  --status-resolved-text: #93c5fd;
+  --status-resolved-bg: rgba(96, 165, 250, 0.16);
   --admin-visibility-text: #dbe7f7;
   --admin-visibility-muted: #9fb3d1;
   --admin-chip-bg: rgba(15, 23, 42, 0.42);
@@ -42,6 +46,10 @@
   --bg-grad-bottom: #0a1222;
   --status-open-text: #6ee7b7;
   --status-open-bg: rgba(52, 211, 153, 0.16);
+  --status-closed-text: #fdba74;
+  --status-closed-bg: rgba(251, 146, 60, 0.16);
+  --status-resolved-text: #93c5fd;
+  --status-resolved-bg: rgba(96, 165, 250, 0.16);
   --admin-visibility-text: #dbe7f7;
   --admin-visibility-muted: #9fb3d1;
   --admin-chip-bg: rgba(15, 23, 42, 0.42);
@@ -67,6 +75,10 @@
   --bg-grad-bottom: #dde8fb;
   --status-open-text: #0b7a52;
   --status-open-bg: rgba(11, 122, 82, 0.14);
+  --status-closed-text: #c75c16;
+  --status-closed-bg: rgba(234, 122, 47, 0.14);
+  --status-resolved-text: #2457c5;
+  --status-resolved-bg: rgba(37, 99, 235, 0.14);
   --admin-visibility-text: #18314f;
   --admin-visibility-muted: #35506f;
   --admin-chip-bg: rgba(37, 99, 235, 0.1);
@@ -87,13 +99,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   color: var(--foreground);
   background:
@@ -101,6 +106,21 @@ body {
     radial-gradient(50% 60% at -10% 20%, var(--bg-radial-b), transparent 60%),
     linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-mid) 35%, var(--bg-grad-bottom) 100%);
   font-family: var(--font-geist-sans), "Avenir Next", "Segoe UI", sans-serif;
+}
+
+/* App-wide background grid: subtle, top-biased, sits behind all content (every page). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(90% 55% at 50% 0%, #000, transparent 78%);
+  mask-image: radial-gradient(90% 55% at 50% 0%, #000, transparent 78%);
 }
 
 a,
@@ -118,13 +138,13 @@ button {
 }
 
 .status-closed {
-  background-color: rgba(234, 122, 47, 0.14) !important;
-  color: #c75c16 !important;
+  background-color: var(--status-closed-bg) !important;
+  color: var(--status-closed-text) !important;
 }
 
 .status-resolved {
-  background-color: rgba(37, 99, 235, 0.14) !important;
-  color: #2457c5 !important;
+  background-color: var(--status-resolved-bg) !important;
+  color: var(--status-resolved-text) !important;
 }
 
 .feed-status-tab {
@@ -332,4 +352,94 @@ button {
 
 :root[data-theme="bright"] .placeholder\:text-slate-600::placeholder {
   color: #94a3b8 !important;
+}
+
+/* Feed test: cursor-follow glow overlay for YES/NO buttons only. */
+.cursor-glow-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.cursor-glow-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
+      rgba(255, 255, 255, 0.26),
+      rgba(255, 255, 255, 0.08) 26%,
+      transparent 52%
+    );
+  opacity: 0;
+  transition: opacity 180ms ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cursor-glow-button:hover::before {
+  opacity: 1;
+}
+
+.cursor-glow-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
+      rgba(255, 255, 255, 0.2),
+      transparent 36%
+    );
+  opacity: 0;
+  transition: opacity 180ms ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cursor-glow-button:hover .cursor-glow-layer {
+  opacity: 1;
+}
+
+.cursor-shimmer-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      120deg,
+      transparent 18%,
+      rgba(255, 255, 255, 0.11) 35%,
+      transparent 54%
+    );
+  transform: translateX(-100%);
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cursor-glow-button:hover .cursor-shimmer-layer {
+  opacity: 1;
+  animation: feed-soft-internal-float 1.8s ease-in-out infinite;
+}
+
+.cursor-glow-content {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes feed-soft-internal-float {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  50% {
+    transform: translateX(40%);
+  }
+
+  100% {
+    transform: translateX(140%);
+  }
 }

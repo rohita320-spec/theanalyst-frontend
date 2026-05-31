@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { FeedQuestion, HistoryPoint } from "../lib/api";
 import { getQuestionSideLabels } from "../lib/marketPreview";
 import AnalystDesk from "./AnalystDesk";
@@ -23,6 +24,9 @@ type Props = {
   timeframe: "hourly" | "daily" | "all";
   onChangeTimeframe: (value: "hourly" | "daily" | "all") => void;
   onClose: () => void;
+  onAnalyze?: (question: FeedQuestion, answer: "yes" | "no") => void;
+  placing?: string;
+  closeOnEsc?: boolean;
 };
 
 function formatDateLabel(ts: string, mode: "hourly" | "daily" | "all"): string {
@@ -58,10 +62,34 @@ export default function TrendModal({
   timeframe,
   onChangeTimeframe,
   onClose,
+  onAnalyze,
+  placing = "",
+  closeOnEsc = true,
 }: Props) {
+  useEffect(() => {
+    if (!question || !closeOnEsc) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [question, closeOnEsc, onClose]);
+
   if (!question) return null;
 
   const sideLabels = getQuestionSideLabels(question);
+  const isVsQuestion = sideLabels.yesLabel !== "YES";
+  const isOpen = question.status === "open";
+  const isPlacingYes = placing === `${question._id}:yes`;
+  const isPlacingNo = placing === `${question._id}:no`;
+  const isAnyPlacing = isPlacingYes || isPlacingNo;
+
+  function actionLabel(side: "yes" | "no") {
+    if (side === "yes" && isPlacingYes) return "Submitting…";
+    if (side === "no" && isPlacingNo) return "Submitting…";
+    if (isVsQuestion) return side === "yes" ? sideLabels.yesLabel : sideLabels.noLabel;
+    return side === "yes" ? "YES" : "NO";
+  }
 
   const chartData = points.map((point, idx) => ({
     idx,
@@ -77,13 +105,13 @@ export default function TrendModal({
   const firstPoint = points[0];
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:max-w-4xl sm:rounded-2xl sm:p-6">
+    <div onClick={onClose} className="fixed inset-0 z-30 flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-4">
+      <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:max-w-4xl sm:rounded-2xl sm:p-6">
         {/* Header */}
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-slate-400">Question Trend</p>
-            <h3 className="truncate text-base font-semibold text-white sm:text-xl">{question.title}</h3>
+            <h3 className="line-clamp-2 text-base font-semibold text-white sm:text-xl">{question.title}</h3>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <div className="flex rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-1 text-xs sm:text-sm">
@@ -106,6 +134,27 @@ export default function TrendModal({
           </div>
         </div>
 
+        {/* Place position — act in-context right after studying the desk */}
+        {isOpen && onAnalyze && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-2">
+            <span className="px-1 text-xs font-medium text-slate-300">Your call:</span>
+            <button
+              onClick={() => onAnalyze(question, "yes")}
+              disabled={isAnyPlacing}
+              className="flex-1 rounded-md bg-[var(--yes)] py-2 text-xs font-semibold text-slate-950 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionLabel("yes")}
+            </button>
+            <button
+              onClick={() => onAnalyze(question, "no")}
+              disabled={isAnyPlacing}
+              className="flex-1 rounded-md bg-[var(--no)] py-2 text-xs font-semibold text-slate-950 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionLabel("no")}
+            </button>
+          </div>
+        )}
+
         {/* Latest stats row */}
         {!loading && lastPoint && (
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -118,8 +167,13 @@ export default function TrendModal({
               <p className="mt-1 text-lg font-semibold text-[var(--no)]">{formatPct(lastPoint.no_percent)}</p>
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-              <p className="text-xs text-slate-400">Start {sideLabels.yesLabel}</p>
-              <p className="mt-1 text-lg font-semibold text-slate-300">{formatPct(firstPoint?.yes_percent || 0)}</p>
+              <p className="text-xs text-slate-400">{sideLabels.yesLabel} since start</p>
+              {(() => {
+                const delta = Number(lastPoint.yes_percent || 0) - Number(firstPoint?.yes_percent || 0);
+                const sign = delta > 0 ? "+" : "";
+                const cls = delta > 0 ? "text-[var(--yes)]" : delta < 0 ? "text-[var(--no)]" : "text-slate-300";
+                return <p className={`mt-1 text-lg font-semibold ${cls}`}>{sign}{delta.toFixed(1)}%</p>;
+              })()}
             </div>
             <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
               <p className="text-xs text-slate-400">Total Points</p>
@@ -146,7 +200,7 @@ export default function TrendModal({
                 {sideLabels.noLabel} %
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                <span className="inline-block h-2.5 w-5 rounded-sm bg-[#3b82f6] opacity-50" />
+                <span className="inline-block h-2.5 w-5 rounded-sm bg-[#58a6ff] opacity-50" />
                 Volume
               </span>
             </div>
@@ -205,7 +259,7 @@ export default function TrendModal({
                               {yes && <p style={{ color: "#34d399" }}>{sideLabels.yesLabel} : {formatPct(yesVal)}</p>}
                             </>
                           )}
-                          {vol && <p style={{ color: "#3b82f6" }}>Volume : {new Intl.NumberFormat("en-US").format(Number(vol.value ?? 0))} pts</p>}
+                          {vol && <p style={{ color: "#58a6ff" }}>Volume : {new Intl.NumberFormat("en-US").format(Number(vol.value ?? 0))} pts</p>}
                         </div>
                       );
                     }}
@@ -213,7 +267,7 @@ export default function TrendModal({
                   <Bar
                     yAxisId="vol"
                     dataKey="totalPool"
-                    fill="#3b82f6"
+                    fill="#58a6ff"
                     opacity={0.25}
                     radius={[2, 2, 0, 0]}
                     maxBarSize={24}
@@ -304,7 +358,7 @@ export default function TrendModal({
                     <div key={type}>
                       <div className="mb-1 flex items-center justify-between text-xs">
                         <span className="text-slate-300">{type}</span>
-                        <span className="text-slate-500">{count > 0 ? `${count} · ${pct}%` : "—"}</span>
+                        <span className="text-slate-400">{count > 0 ? `${count} · ${pct}%` : "—"}</span>
                       </div>
                       <div className="h-1 overflow-hidden rounded-full bg-slate-800">
                         <div className="h-full rounded-full bg-[var(--brand)] transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -313,7 +367,7 @@ export default function TrendModal({
                   );
                 })}
               </div>
-              <p className="mt-3 text-[11px] text-slate-600">
+              <p className="mt-3 text-[11px] text-slate-400">
                 {total > 0 ? `${total} analyst${total !== 1 ? "s" : ""} tagged their approach` : "No analysis tags yet — be the first"}
               </p>
             </div>

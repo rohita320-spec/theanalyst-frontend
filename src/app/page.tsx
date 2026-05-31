@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theanalyst-frontend-production.up.railway.app";
 
 type FeedQuestion = {
   _id: string;
@@ -119,6 +118,16 @@ const DEMO_RULES = [
   "Outcome is determined at close using publicly verifiable data.",
   "YES resolves true when the stated condition is satisfied.",
   "NO resolves true when the stated condition is not satisfied.",
+];
+
+// Representative top-analyst sample for the landing teaser (mirrors the real leaderboard:
+// rank · @username · accuracy % · net points). Live leaderboard lives at /leaderboard.
+const TOP_ANALYSTS = [
+  { rank: 1, name: "marketmind", accuracy: 78, net: 4820 },
+  { rank: 2, name: "deltahedge", accuracy: 74, net: 3910 },
+  { rank: 3, name: "signalrunner", accuracy: 71, net: 3240 },
+  { rank: 4, name: "macro_maya", accuracy: 69, net: 2880 },
+  { rank: 5, name: "theta_theo", accuracy: 67, net: 2510 },
 ];
 
 function formatDate(iso?: string) {
@@ -317,6 +326,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (!demoQuestions.length) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const intervalId = setInterval(() => {
       demoTickRef.current += 1;
       const tick = demoTickRef.current;
@@ -353,6 +363,7 @@ export default function LandingPage() {
       if (animRef.current) clearInterval(animRef.current);
       return;
     }
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     animRef.current = setInterval(() => {
       setTrendPoints((prev) => {
         const last = prev[prev.length - 1];
@@ -363,6 +374,13 @@ export default function LandingPage() {
     }, 1400);
     return () => { if (animRef.current) clearInterval(animRef.current); };
   }, [demoVote]);
+
+  function handleCursorGlowMove(event: MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    button.style.setProperty("--cursor-x", `${event.clientX - rect.left}px`);
+    button.style.setProperty("--cursor-y", `${event.clientY - rect.top}px`);
+  }
 
   const handleDemoVote = (side: "yes" | "no") => {
     if (demoVote) return;
@@ -449,14 +467,13 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="min-h-screen text-white">
+    <main className="min-h-screen overflow-x-hidden text-white">
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[#0a1120]/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">The Analyst</p>
-            <h1 className="text-xl font-semibold text-white sm:text-2xl">High-Signal Analysis Feed</h1>
-          </div>
+          <Link href="/" className="text-lg font-bold tracking-tight text-white">
+            The Analyst<span className="text-[var(--brand)]">.</span>
+          </Link>
           <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-1 sm:grid-cols-4 md:w-auto md:items-center">
             <Link href="/feed" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Feed</Link>
             <Link href="/leaderboard" className="rounded-lg px-3 py-2 text-center text-sm text-slate-300 hover:text-white">Leaderboard</Link>
@@ -466,39 +483,59 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero + How it works ── */}
-      <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 pb-4 pt-5 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5 sm:p-6">
-          <p className="mb-1.5 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-3 py-0.5 text-[11px] font-medium tracking-wide text-[var(--brand)]">
-            Analysis-Based Participation
+      {/* ── Hero (bold brand-color) ── */}
+      <section className="relative overflow-hidden">
+        {/* brand glow */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(60% 55% at 50% -5%, rgba(88,166,255,0.45), rgba(88,166,255,0.10) 38%, transparent 64%), radial-gradient(40% 40% at 85% 25%, rgba(124,196,255,0.18), transparent 60%)",
+          }}
+        />
+        {/* grid: now app-wide via body::before in globals.css */}
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 pt-20 text-center sm:px-6 sm:pt-28">
+          <p className="mb-5 inline-block rounded-full border border-[var(--brand)]/30 bg-[var(--brand)]/10 px-3.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--brand)]">
+            Analysis, on the record
           </p>
-          <h1 className="mb-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-            Submit Your Analysis
+          <h1 className="mx-auto max-w-[16ch] text-[2rem] font-extrabold leading-[1.08] tracking-tight text-white break-words sm:text-7xl sm:leading-[1.0]">
+            Read the market.
+            <br />
+            <span className="text-[var(--brand)]">Prove it.</span>
           </h1>
-          <p className="mb-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            Explore curated questions across markets, sports, and global events. Contribute your view with points, select the outcome you support, and classify your reasoning with an analysis type so participation remains educational, structured, and professionally framed.
+          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+            Form a view on real questions across markets, crypto, and sports, and build a track record that proves it.
           </p>
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-            <Link href="/auth/signup" className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-center text-sm font-semibold text-slate-950 hover:brightness-110">Sign up free</Link>
-            <Link href="/feed" className="rounded-lg border border-[var(--stroke)] px-5 py-2.5 text-center text-sm font-medium text-slate-300 hover:border-slate-400 hover:text-white">Browse questions</Link>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/auth/signup" className="rounded-xl bg-[var(--brand)] px-7 py-3.5 text-center text-sm font-semibold text-slate-950 shadow-[0_8px_30px_rgba(88,166,255,0.45)] transition-all hover:brightness-110">Start analyzing</Link>
+            <Link href="/feed" className="rounded-xl border border-[var(--stroke)] bg-white/[0.03] px-7 py-3.5 text-center text-sm font-medium text-slate-200 transition-colors hover:border-slate-400 hover:text-white">Browse questions</Link>
           </div>
-          <p className="text-xs text-slate-500">For informational and educational use only. See <Link href="/rules" className="underline hover:text-slate-300">Rules</Link>, <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link>, and <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
-        </div>
+          <p className="mt-5 text-xs text-slate-500">For informational and educational use only. <Link href="/rules" className="underline hover:text-slate-300">Rules</Link>, <Link href="/disclaimer" className="underline hover:text-slate-300">Disclaimer</Link>, <Link href="/terms" className="underline hover:text-slate-300">Terms</Link>.</p>
 
-        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">How it works</p>
-          <div className="grid gap-2">
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">01. Browse curated questions</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">02. Submit your analysis using points and select an analysis type</div>
-            <div className="rounded-lg border border-[var(--stroke)] bg-[var(--surface-2)] px-3 py-2 text-xs text-slate-300">03. Track outcomes and your standing</div>
+          {/* How it works */}
+          <div className="mx-auto mt-16 grid max-w-4xl gap-6 border-t border-[var(--stroke)] pt-8 text-left sm:grid-cols-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--brand)]">01 / Browse</p>
+              <p className="mt-1 text-sm text-slate-400">Curated questions across markets, sports, and global events.</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--brand)]">02 / Form a view</p>
+              <p className="mt-1 text-sm text-slate-400">Choose YES or NO and tag the reasoning behind your analysis.</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--brand)]">03 / Build a record</p>
+              <p className="mt-1 text-sm text-slate-400">Track how your calls resolve and climb the leaderboard.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Live questions ── */}
+      {/* ── Live questions (hidden when none are open) ── */}
+      {(questionsLoading || questions.length > 0) && (
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Live questions</h2>
+          <h2 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-white"><span className="inline-block h-6 w-1 rounded-full bg-[var(--brand)]" />Live questions</h2>
           <Link href="/feed" className="text-xs text-[var(--brand)] hover:underline">View all</Link>
         </div>
         {questionsLoading ? (
@@ -558,12 +595,14 @@ export default function LandingPage() {
           </div>
         )}
       </section>
+      )}
 
       {/* ── Interactive demo ── */}
       <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
-        <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-4 sm:p-5">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--brand)]">Interactive demo — category mix preview</p>
-          <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <h2 className="mb-1 flex items-center gap-2.5 text-2xl font-bold tracking-tight text-white"><span className="inline-block h-6 w-1 rounded-full bg-[var(--brand)]" />See it in motion</h2>
+          <p className="mb-4 max-w-xl text-sm text-slate-400">Form a view and watch the market respond, then see how it resolves. No account needed.</p>
+          <div className="mx-auto max-w-2xl">
             {/* Full-detail demo cards — one per question */}
             <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface-2)] p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -574,10 +613,10 @@ export default function LandingPage() {
                 <span className="status-open rounded-full px-2.5 py-0.5 text-[11px] font-medium">Open</span>
               </div>
 
-              <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+              <div className="mt-3">
                 <div className="mb-2 flex justify-between text-[11px] text-slate-400">
-                  <span>Entry: {DEMO_QUESTION.entry_cost} pts</span>
-                  <span>Pool: 21,400 pts</span>
+                  <span>Your points: {DEMO_QUESTION.entry_cost}</span>
+                  <span>Total points: 21,400</span>
                 </div>
                 <ProbBar yes={demoYes} no={demoNo} />
                 <div className="mt-1.5 flex justify-between text-xs">
@@ -586,7 +625,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+              <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
                   {demoShiftLabel && (
@@ -605,24 +644,30 @@ export default function LandingPage() {
               </div>
 
               {!demoResolved ? (
-                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
                   <p className="mb-2 text-xs text-slate-400">
-                    {demoVote ? "Analysis submitted — watching sentiment shift..." : "Back your analysis to see the market react:"}
+                    {demoVote ? "Analysis submitted — watching sentiment shift..." : "Submit your analysis and watch the market respond:"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleDemoVote("yes")}
+                      onMouseMove={handleCursorGlowMove}
                       disabled={!!demoVote}
-                      className="rounded-lg bg-[var(--yes)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
+                      className="cursor-glow-button rounded-lg bg-[var(--yes)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
                     >
-                      YES {demoYes.toFixed(0)}%
+                      <span className="cursor-glow-layer" />
+                      <span className="cursor-shimmer-layer" />
+                      <span className="cursor-glow-content">YES {demoYes.toFixed(0)}%</span>
                     </button>
                     <button
                       onClick={() => handleDemoVote("no")}
+                      onMouseMove={handleCursorGlowMove}
                       disabled={!!demoVote}
-                      className="rounded-lg bg-[var(--no)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
+                      className="cursor-glow-button rounded-lg bg-[var(--no)] py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50"
                     >
-                      NO {demoNo.toFixed(0)}%
+                      <span className="cursor-glow-layer" />
+                      <span className="cursor-shimmer-layer" />
+                      <span className="cursor-glow-content">NO {demoNo.toFixed(0)}%</span>
                     </button>
                   </div>
                   {demoVote && (
@@ -631,28 +676,28 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <div className={`mt-3 rounded-lg border p-3 text-center ${demoResolvedOutcome === "win" ? "border-emerald-500/40 bg-emerald-500/10" : "border-orange-500/40 bg-orange-500/10"}`}>
-                  <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Settlement</p>
+                  <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Result</p>
                   <p className={`text-base font-bold ${demoResolvedOutcome === "win" ? "text-emerald-400" : "text-orange-400"}`}>
                     {demoResolvedOutcome === "win" ? "Result aligned with your submitted view" : "Result did not align with your submitted view"}
                   </p>
                   <div className="mt-3 grid gap-2 text-left sm:grid-cols-3">
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Spent</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Points used</p>
                       <p className="text-sm font-semibold text-white">{demoStake} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Points earned</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Points returned</p>
                       <p className="text-sm font-semibold text-white">{demoPayout} pts</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Net</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Change</p>
                       <p className={`text-sm font-semibold ${demoNetPoints >= 0 ? "text-emerald-300" : "text-orange-300"}`}>{demoNetPoints >= 0 ? `+${demoNetPoints}` : demoNetPoints} pts</p>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-300">
                     {demoResolvedOutcome === "win"
-                      ? "Points were credited based on the resolved outcome."
-                      : "Points were debited based on the resolved outcome."}
+                      ? "Your points were updated to reflect the resolved outcome."
+                      : "Your points were updated to reflect the resolved outcome."}
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button onClick={resetDemo} className="flex-1 rounded-lg border border-[var(--stroke)] py-2 text-xs text-slate-300 hover:border-slate-400">Try again</button>
@@ -661,7 +706,7 @@ export default function LandingPage() {
                 </div>
               )}
 
-              <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+              <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
                 <ul className="space-y-1 text-xs text-slate-300">
                   {DEMO_RULES.map((rule, idx) => (
@@ -671,7 +716,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {demoQuestions.slice(0, 4).map((demo) => {
+            {demoQuestions.slice(0, 0).map((demo) => {
               const chartData = demo.chart_points || [];
               const chartYesValues = chartData.length > 0 ? chartData.map((p) => p.yes_percent) : [];
               return (
@@ -699,10 +744,10 @@ export default function LandingPage() {
                   <span className="status-open rounded-full px-2.5 py-0.5 text-[11px] font-medium">Open</span>
                 </div>
 
-                <div className="mb-2 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mt-3">
                   <div className="mb-2 flex justify-between text-[11px] text-slate-400">
-                    <span>Entry: {demo.entry_cost ?? 220} pts</span>
-                    <span>Pool: {(demo.total_pool ?? demo.pool_points ?? 14800).toLocaleString()} pts</span>
+                    <span>Your points: {demo.entry_cost ?? 220}</span>
+                    <span>Total points: {(demo.total_pool ?? demo.pool_points ?? 14800).toLocaleString()}</span>
                   </div>
                   <ProbBar yes={yesNow} no={noNow} />
                   <div className="mt-1.5 flex justify-between text-xs">
@@ -711,7 +756,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
                   <p className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Question Trend</p>
                   <DemoTrendChart points={chartPoints} />
                   <div className="mt-2 flex items-center gap-4 px-1">
@@ -720,8 +765,8 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
-                  <p className="mb-2 text-xs text-slate-400">Back your analysis to see the market react:</p>
+                <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
+                  <p className="mb-2 text-xs text-slate-400">Submit your analysis and watch the market respond:</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleCardVote(demo, "yes")}
@@ -748,15 +793,15 @@ export default function LandingPage() {
                     </p>
                     <div className="mt-2 grid gap-2 text-left sm:grid-cols-3">
                       <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Spent</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Points used</p>
                         <p className="text-sm font-semibold text-white">{spent} pts</p>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Points earned</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Points returned</p>
                         <p className="text-sm font-semibold text-white">{outcomePoints} pts</p>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Net</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Change</p>
                         <p className={`text-sm font-semibold ${net >= 0 ? "text-emerald-300" : "text-orange-300"}`}>{net >= 0 ? `+${net}` : net} pts</p>
                       </div>
                     </div>
@@ -764,7 +809,7 @@ export default function LandingPage() {
                   </div>
                 )}
 
-                <div className="mt-3 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
+                <div className="mt-4 border-t border-[var(--stroke)]/60 pt-4">
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Resolution Rules</h4>
                   <ul className="space-y-1 text-xs text-slate-300">
                     {DEMO_RULES.map((rule, idx) => <li key={idx}>• {rule}</li>)}
@@ -777,28 +822,69 @@ export default function LandingPage() {
             );
             })}
           </div>
+        </div>
+      </section>
 
-          <div className="mt-4 rounded-lg border border-[var(--stroke)] bg-[#0b1528] p-3">
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">Rules & Legal</p>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <Link href="/rules" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Rules & Guidelines</Link>
-              <Link href="/terms" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Terms</Link>
-              <Link href="/disclaimer" className="rounded-md border border-[var(--stroke)] px-2.5 py-1 text-slate-300 hover:border-slate-400 hover:text-white">Disclaimer</Link>
+      {/* ── Top analysts (track-record teaser) ── */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-white"><span className="inline-block h-6 w-1 rounded-full bg-[var(--brand)]" />Top analysts</h2>
+          <Link href="/leaderboard" className="text-xs text-[var(--brand)] hover:underline">View leaderboard &rarr;</Link>
+        </div>
+        <p className="mb-4 max-w-xl text-sm text-slate-400">Every position resolves against real outcomes. Accuracy is the reputation you build.</p>
+        <div className="overflow-hidden rounded-2xl border border-[var(--stroke)] bg-[var(--surface)]">
+          <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 border-b border-[var(--stroke)] px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+            <span>#</span><span>Analyst</span><span className="text-right">Accuracy</span><span className="text-right">Net points</span>
+          </div>
+          {TOP_ANALYSTS.map((a) => (
+            <div key={a.rank} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-x-4 border-b border-[var(--stroke)]/60 px-4 py-3 last:border-0">
+              <span className="w-6 text-sm font-bold text-slate-500">{a.rank}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand)]/15 text-xs font-semibold text-[var(--brand)]">{a.name.charAt(0).toUpperCase()}</span>
+                <span className="text-sm font-medium text-white">@{a.name}</span>
+              </div>
+              <span className="text-right text-sm font-semibold text-white">{a.accuracy}%</span>
+              <span className="text-right text-sm font-semibold text-emerald-300">+{a.net.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Closing CTA ── */}
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--brand)]/25 px-6 py-14 text-center">
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 90% at 50% 0%, rgba(88,166,255,0.18), transparent 70%)" }} />
+          <div className="relative">
+            <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Ready to put your analysis on the record?</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm text-slate-300">Form a view on real questions and build a track record that proves your judgment.</p>
+            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/auth/signup" className="rounded-xl bg-[var(--brand)] px-7 py-3.5 text-center text-sm font-semibold text-slate-950 shadow-[0_8px_30px_rgba(88,166,255,0.45)] transition-all hover:brightness-110">Start analyzing</Link>
+              <Link href="/feed" className="rounded-xl border border-[var(--stroke)] bg-white/[0.03] px-7 py-3.5 text-center text-sm font-medium text-slate-200 transition-colors hover:border-slate-400 hover:text-white">Browse questions</Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-[var(--stroke)] py-4 text-center text-xs text-slate-500">
-        <div className="flex flex-wrap justify-center gap-4">
-          <a href={PUBLIC_SITE_URL} target="_blank" rel="noreferrer" className="hover:text-slate-300">Public Landing Page ↗</a>
-          <Link href="/feed" className="hover:text-slate-300">Feed</Link>
-          <Link href="/leaderboard" className="hover:text-slate-300">Leaderboard</Link>
-          <Link href="/rules" className="hover:text-slate-300">Rules & Guidelines</Link>
-          <Link href="/terms" className="hover:text-slate-300">Terms & Conditions</Link>
-          <Link href="/disclaimer" className="hover:text-slate-300">Disclaimer</Link>
-          <Link href="/auth/signup" className="hover:text-slate-300">Sign up</Link>
+      <footer className="border-t border-[var(--stroke)] py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-lg font-bold tracking-tight text-white">The Analyst<span className="text-[var(--brand)]">.</span></p>
+              <p className="mt-1 max-w-xs text-sm text-slate-400">Where your market analysis goes on the record.</p>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400">
+              <Link href="/feed" className="hover:text-white">Feed</Link>
+              <Link href="/leaderboard" className="hover:text-white">Leaderboard</Link>
+              <Link href="/rules" className="hover:text-white">Rules</Link>
+              <Link href="/terms" className="hover:text-white">Terms</Link>
+              <Link href="/disclaimer" className="hover:text-white">Disclaimer</Link>
+              <Link href="/auth/signup" className="hover:text-white">Sign up</Link>
+            </div>
+          </div>
+          <div className="mt-8 border-t border-[var(--stroke)] pt-5 text-xs text-slate-500">
+            <p>&copy; 2026 The Analyst. For informational and educational use only. Not financial advice.</p>
+          </div>
         </div>
       </footer>
     </main>

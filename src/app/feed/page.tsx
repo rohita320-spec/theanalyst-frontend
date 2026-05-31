@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import AppHeader from "../../components/AppHeader";
 import QuestionCard from "../../components/QuestionCard";
@@ -257,6 +257,30 @@ export default function FeedPage() {
   const selectedSideLabel = confirmModal ? getAnswerDisplayLabel(confirmModal.question, confirmModal.answer) : "";
   const confirmSideLabels = confirmModal ? getQuestionSideLabels(confirmModal.question) : null;
 
+  const closeConfirmModal = () => {
+    setConfirmModal(null);
+    setModalError("");
+    setSelectedAnalysisType(null);
+  };
+
+  useEffect(() => {
+    if (!confirmModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeConfirmModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmModal]);
+
+  function handleCursorGlowMove(event: MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    button.style.setProperty("--cursor-x", `${x}px`);
+    button.style.setProperty("--cursor-y", `${y}px`);
+  }
+
   return (
     <div className="min-h-screen text-slate-100">
       <AppHeader active="feed" pointsBalance={profile?.points_balance || 0} />
@@ -289,17 +313,21 @@ export default function FeedPage() {
         )}
 
         <section className="mb-5 grid gap-3 grid-cols-2 md:grid-cols-3">
-          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 transition-colors hover:border-slate-500/60">
             <p className="text-sm text-slate-400">Open Questions</p>
-            <p className="mt-1.5 text-2xl font-semibold text-white">{openQuestions}</p>
+            <p className="mt-1.5 text-2xl font-semibold text-emerald-300">{openQuestions}</p>
           </div>
-          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5">
+          <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 transition-colors hover:border-slate-500/60">
             <p className="text-sm text-slate-400">Active Points</p>
-            <p className="mt-1.5 text-2xl font-semibold text-white">{formatNumber(totalPool)}</p>
+            <p className="mt-1.5 text-2xl font-semibold text-[var(--brand)]">{formatNumber(totalPool)}</p>
           </div>
-          <div className="col-span-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 md:col-span-1">
+          <div className="col-span-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3.5 transition-colors hover:border-slate-500/60 md:col-span-1">
             <p className="text-sm text-slate-400">Closed / Resolved</p>
-            <p className="mt-1.5 text-2xl font-semibold text-white">{closedQuestions} / {resolvedQuestions}</p>
+            <p className="mt-1.5 text-2xl font-semibold">
+              <span className="text-slate-200">{closedQuestions}</span>
+              <span className="text-slate-600"> / </span>
+              <span className="text-purple-300">{resolvedQuestions}</span>
+            </p>
           </div>
         </section>
 
@@ -310,13 +338,16 @@ export default function FeedPage() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition-colors sm:px-4 ${
+                onMouseMove={handleCursorGlowMove}
+                className={`cursor-glow-button rounded-full border px-3 py-1.5 text-sm transition-colors sm:px-4 ${
                   selectedCategory === category
                     ? "border-[var(--brand)] bg-[var(--brand)]/15 text-[var(--brand)]"
                     : "border-[var(--stroke)] bg-[var(--surface)] text-slate-300 hover:border-slate-500"
                 }`}
               >
-                {category}
+                <span className="cursor-glow-layer" />
+                <span className="cursor-shimmer-layer" />
+                <span className="cursor-glow-content">{category}</span>
               </button>
             ))}
           </div>
@@ -350,11 +381,41 @@ export default function FeedPage() {
           </div>
 
           {loading ? (
-            <p className="text-sm text-slate-400">Loading feed...</p>
+            <div className="grid gap-5 lg:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3">
+                  <div className="mb-3 flex items-start gap-2.5">
+                    <div className="h-10 w-10 rounded-lg bg-slate-700/40" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <div className="h-3.5 w-3/4 rounded bg-slate-700/40" />
+                      <div className="h-2.5 w-1/2 rounded bg-slate-700/30" />
+                    </div>
+                  </div>
+                  <div className="mb-3 h-1.5 w-full rounded-full bg-slate-700/30" />
+                  <div className="flex gap-1.5">
+                    <div className="h-7 flex-1 rounded-md bg-slate-700/30" />
+                    <div className="h-7 flex-1 rounded-md bg-slate-700/30" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filteredQuestions.length === 0 ? (
-            <p className="text-sm text-slate-400">No {selectedStatus !== "all" ? selectedStatus : ""} questions{selectedCategory !== "All" ? ` in ${selectedCategory}` : ""} right now.</p>
+            <div className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-6 py-10 text-center">
+              <p className="text-sm font-medium text-slate-200">
+                No {selectedStatus !== "all" ? selectedStatus : ""} questions{selectedCategory !== "All" ? ` in ${selectedCategory}` : ""} right now.
+              </p>
+              <p className="mt-1 text-xs text-slate-400">Try a different category or status filter.</p>
+              {(selectedCategory !== "All" || selectedStatus !== "open") && (
+                <button
+                  onClick={() => { setSelectedCategory("All"); setSelectedStatus("open"); }}
+                  className="mt-4 rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-xs font-semibold text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/20"
+                >
+                  Reset filters
+                </button>
+              )}
+            </div>
           ) : (
-            <div className="max-h-[76vh] overflow-y-auto pr-1">
+            <div>
               <div className="grid gap-5 lg:grid-cols-2">
                 {filteredQuestions.map((question) => {
                   const isPastClose = question.closing_time && new Date(question.closing_time) < new Date();
@@ -384,8 +445,8 @@ export default function FeedPage() {
 
       {/* ── Confirm Prediction Modal ───────────────────────── */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-sm">
-          <div className="mx-auto w-full max-w-md rounded-2xl border border-[var(--stroke)] bg-[#0d1b2e] p-6 shadow-2xl">
+        <div onClick={closeConfirmModal} className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-sm">
+          <div onClick={(e) => e.stopPropagation()} className="mx-auto w-full max-w-md rounded-2xl border border-[var(--stroke)] bg-[#0d1b2e] p-6 shadow-2xl">
             {/* Header */}
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
@@ -528,10 +589,8 @@ export default function FeedPage() {
               <button
                 onClick={onConfirmSubmit}
                 disabled={modalSubmitting}
-                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
-                  confirmModal.answer === "yes"
-                    ? "bg-emerald-600 hover:bg-emerald-500"
-                    : "bg-[var(--no)] text-slate-950 hover:brightness-110"
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-slate-950 transition-all hover:brightness-110 disabled:opacity-50 ${
+                  confirmModal.answer === "yes" ? "bg-[var(--yes)]" : "bg-[var(--no)]"
                 }`}
               >
                 {modalSubmitting ? "Submitting..." : "Submit Position"}
@@ -546,6 +605,9 @@ export default function FeedPage() {
         points={history}
         loading={historyLoading}
         error={historyError}
+        onAnalyze={onAnalyze}
+        placing={placing}
+        closeOnEsc={!confirmModal}
         timeframe={timeframe}
         onChangeTimeframe={(value) => {
           setTimeframe(value);
