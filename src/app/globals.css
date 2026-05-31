@@ -314,6 +314,77 @@ button {
   color: var(--foreground) !important;
 }
 
+/* ── Admin Tier-1: align with the app's design language ───────────────────── */
+/* Accent-bar section headings (matches leaderboard/profile), one rule for all */
+.admin-shell h2.text-base {
+  position: relative;
+  padding-left: 15px;
+}
+.admin-shell h2.text-base::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--brand);
+}
+
+/* Tab pills: consistent hover + selected feel, with a soft glow like the app's pills */
+.admin-status-tab,
+.admin-status-tab-active {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+/* keep label + count above the glow layer */
+.admin-status-tab > span,
+.admin-status-tab-active > span {
+  position: relative;
+  z-index: 1;
+}
+.admin-status-tab::before,
+.admin-status-tab-active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.12), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.admin-status-tab:hover::before,
+.admin-status-tab-active:hover::before {
+  opacity: 1;
+}
+.admin-status-tab:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--stroke));
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+}
+
+/* Question list items: subtle brand hover (no layout shift) */
+.admin-shell .admin-question-item:hover {
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--stroke)) !important;
+}
+
+/* New Question modal: collapsible "research & rules" disclosure chevron */
+.optblock > summary { list-style: none; }
+.optblock > summary::-webkit-details-marker { display: none; }
+.optchev { display: inline-block; transition: transform 0.2s ease; }
+.optblock[open] .optchev { transform: rotate(180deg); }
+
+/* Readability floor: raise the many 10–11px labels (centralized, reversible) */
+.admin-shell .text-\[10px\] {
+  font-size: 11.5px !important;
+}
+.admin-shell .text-\[11px\] {
+  font-size: 12px !important;
+}
+
 :root[data-theme="bright"] .bg-\[\#0b1528\] {
   background-color: #edf3ff !important;
 }

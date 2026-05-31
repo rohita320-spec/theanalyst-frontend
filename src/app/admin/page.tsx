@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { ApiError, clearStoredAuthSession, me, resolveLogoImageUrl, type FeedQuestion, type LogoAsset, type LeaderboardRow, type UserPrediction } from "../../lib/api";
 import { getQuestionViewStatus } from "../../lib/questionStatus";
+import DateTimePicker from "../../components/DateTimePicker";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -522,6 +523,88 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-2xl border border-[var(--stroke)] bg-[#0b1528] p-5">
       <p className="text-sm text-slate-400">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+/** Status pill for a question (unified color map, shared by both question lists). */
+function QuestionStatusBadge({ status }: { status: string }) {
+  const cls =
+    status === "open" ? "bg-emerald-500/15 text-emerald-400" :
+    status === "closed" ? "bg-amber-500/15 text-amber-400" :
+    status === "pending_approval" ? "bg-amber-500/15 text-amber-300" :
+    status === "draft" ? "bg-purple-500/15 text-purple-400" :
+    "bg-blue-500/15 text-blue-400";
+  return (
+    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
+      {status === "pending_approval" ? "Pending" : status}
+    </span>
+  );
+}
+
+/**
+ * Renders the "Imported from Draft" metadata card (logos / chart / research links).
+ * Was duplicated 3× inline (resolver detail, admin detail, draft detail). Pure
+ * presentational — no handlers. `compact` = the smaller draft-detail variant.
+ */
+function ImportedFromDraft({ meta, compact = false }: { meta?: Record<string, unknown> | null; compact?: boolean }) {
+  const m = (meta || {}) as Record<string, unknown>;
+  const logoUrl = typeof m.logo_url === "string" ? m.logo_url : null;
+  const logoUrlB = typeof m.logo_url_b === "string" ? m.logo_url_b : null;
+  const chart = typeof m.chart_symbol === "string" ? m.chart_symbol : null;
+  const links = Array.isArray(m.reference_links) ? (m.reference_links as { label?: string; url?: string }[]) : [];
+  if (!(logoUrl || logoUrlB || chart || links.length > 0)) return null;
+  const logos = [
+    { url: logoUrl, label: compact ? "Team A" : "Team A / Home" },
+    { url: logoUrlB, label: compact ? "Team B" : "Team B / Away" },
+  ].filter((l) => l.url);
+  return (
+    <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
+      {(logoUrl || logoUrlB) && (compact ? (
+        <div className="flex gap-3">
+          {logos.map(({ url, label }) => (
+            <div key={url} className="flex items-start gap-2 min-w-0">
+              <img src={safeHref(url)} alt={label} className="h-8 w-8 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <p className="text-[10px] text-slate-500">{label}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div>
+          <p className="text-[11px] text-slate-400 mb-1.5">{logoUrlB ? "Team Logos" : "Logo URL"}</p>
+          <div className="flex gap-3">
+            {logos.map(({ url, label }) => (
+              <div key={url} className="flex items-start gap-2 min-w-0">
+                <img src={safeHref(url)} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-slate-500">{label}</p>
+                  <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[10px] text-slate-500">Upload each via Logo Library (paste URL) then select them in the edit form.</p>
+        </div>
+      ))}
+      {chart && (compact ? (
+        <p className="text-[11px] text-slate-400">Chart: <span className="font-mono text-purple-300">{chart}</span></p>
+      ) : (
+        <div className="flex items-center gap-2">
+          <p className="text-[11px] text-slate-400">Chart:</p>
+          <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(chart)}`} target="_blank" rel="noreferrer" className="text-[11px] font-mono text-purple-300 hover:underline">{chart} ↗</a>
+        </div>
+      ))}
+      {links.length > 0 && (
+        <div>
+          {!compact && <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>}
+          <div className="space-y-0.5">
+            {links.map((lnk, i) => lnk.url ? (
+              <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
+            ) : null)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1402,6 +1485,15 @@ export default function AdminPage() {
     setAiDraftValidated(result.parsed);
   };
 
+  // Cursor-following glow for the tab pills (matches the app's pill effect).
+  const handleTabGlow = (e: ReactMouseEvent<HTMLElement>) => {
+    const btn = (e.target as HTMLElement).closest("button");
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    (btn as HTMLElement).style.setProperty("--cursor-x", `${e.clientX - r.left}px`);
+    (btn as HTMLElement).style.setProperty("--cursor-y", `${e.clientY - r.top}px`);
+  };
+
   const handleResolve = async (questionId: string, answer: "yes" | "no" | "close" | "cancel") => {
     setConfirmResolve(null);
     setResolving(answer);
@@ -1778,10 +1870,647 @@ export default function AdminPage() {
     }
   };
 
+  // Unified question edit form (shared by admin + both contributor roles).
+  // Action buttons stay role-gated at each call site; this renders the form only.
+  const renderQuestionEditForm = () => {
+    if (!selectedQuestion) return null;
+    return (
+                <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+                  {!editQuestionMode ? (
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
+                      <button
+                        onClick={() => {
+                          setEditQuestionMode(true);
+                          setEditQuestionText(selectedQuestion.title);
+                          setEditQuestionCategory(selectedQuestion.category);
+                          setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
+                          const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
+                          setEditQuestionClosingTime(closingTimeFormatted);
+                          setEditQuestionClosingTimeSeed(closingTimeFormatted);
+                          setEditQuestionRules(selectedQuestion.resolution_rules || "");
+                          setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
+                          const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
+                          setEditQuestionMetadata(metadataText);
+                          setEditQuestionMetadataSeed(metadataText);
+                          const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
+                          setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
+                          setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
+                          const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
+                          const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
+                          setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
+                          setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
+                          setEditQuestionMsg(null);
+                        }}
+                        className="text-xs text-[var(--brand)] hover:underline"
+                      >
+                        ✏ Full Edit Question
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-300">Question Text</label>
+                      <textarea
+                        value={editQuestionText}
+                        onChange={(e) => setEditQuestionText(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Enter question text..."
+                      />
+                      <label className="text-xs font-medium text-slate-300">Category</label>
+                      <select
+                        value={editQuestionCategory}
+                        onChange={(e) => setEditQuestionCategory(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      >
+                        <option>Crypto</option>
+                        <option>Economy</option>
+                        <option>Entertainment</option>
+                        <option>General</option>
+                        <option>Global events</option>
+                        <option>Markets</option>
+                        <option>Sports</option>
+                      </select>
+                      <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
+                      <input
+                        type="number"
+                        min={50}
+                        step={1}
+                        value={editQuestionEntryCost}
+                        onChange={(e) => setEditQuestionEntryCost(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <label className="text-xs font-medium text-slate-300">Initial Percentage (YES %) <span className="text-slate-500 font-normal">(baseline split)</span></label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={0.1}
+                        value={editQuestionInitialYes}
+                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
+                      />
+                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline</p>
+                      <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
+                      <DateTimePicker value={editQuestionClosingTime} onChange={setEditQuestionClosingTime} />
+                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
+                          <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
+                          <div className="relative">
+                            <div className="flex gap-2">
+                              <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                              {editChartSymbol && <button type="button" onClick={() => { setEditChartSymbol(""); setEditChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                            </div>
+                            {editChartResults.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
+                                {editChartResults.map((r) => (
+                                  <button key={r.symbol} type="button" onClick={() => { setEditChartSymbol(r.symbol); setEditChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
+                                    <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
+                                    <span className="truncate text-slate-400">{r.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {editChartSymbol && editChartSymbol.includes(":") && (
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <p className="text-[10px] text-emerald-400">✓ Chart: {editChartSymbol}</p>
+                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(editChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
+                          <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
+                          <div className="space-y-2">
+                            {editReferenceLinks.map((link, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                                <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
+                          </div>
+                        </div>
+                      </div>
+                      <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
+                      <textarea
+                        value={editQuestionRules}
+                        onChange={(e) => setEditQuestionRules(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
+                        placeholder="Describe YES and NO conditions..."
+                      />
+                      <LogoLibraryPicker
+                        title="Question logos"
+                        category={editQuestionCategory}
+                        activeAssets={activeLogoAssets}
+                        pendingAssets={pendingLogoAssets}
+                        selectedLogoKeys={editSelectedLogoKeys}
+                        selectedPendingLogoIds={editSelectedPendingLogoIds}
+                        onSelectedLogoKeysChange={setEditSelectedLogoKeys}
+                        onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
+                        onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
+                        uploading={editLogoUploading}
+                        role={userRole}
+                      />
+                      {editQuestionMsg && (
+                        <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }}
+                          className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
+                        >Cancel</button>
+                        <button
+                          disabled={editQuestionSubmitting}
+                          onClick={async () => {
+                            if (!editQuestionText.trim()) {
+                              setEditQuestionMsg({ type: "error", text: "Question text required" });
+                              return;
+                            }
+                            const entryCost = Number(editQuestionEntryCost);
+                            if (!Number.isFinite(entryCost) || entryCost < 50) {
+                              setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
+                              return;
+                            }
+                            const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
+                            if (closingTimeChanged && !editQuestionClosingTime) {
+                              setEditQuestionMsg({ type: "error", text: "Closing time is required" });
+                              return;
+                            }
+                            const initialYes = Number(editQuestionInitialYes);
+                            if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) {
+                              setEditQuestionMsg({ type: "error", text: "Initial YES % must be between 1 and 99" });
+                              return;
+                            }
+
+                            const builtMetadata: Record<string, unknown> = {};
+                            if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
+                            const validLinks = editReferenceLinks.filter((l) => l.url.trim());
+                            if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
+                            const parsedMetadata = Object.keys(builtMetadata).length > 0 ? builtMetadata : {};
+                            const metadataChanged = true;
+
+                            setEditQuestionSubmitting(true);
+                            setEditQuestionMsg(null);
+                            try {
+                              const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+                                },
+                                credentials: "include",
+                                body: JSON.stringify({
+                                  question_id: selectedQuestion._id,
+                                  question_text: editQuestionText.trim(),
+                                  category: editQuestionCategory.trim(),
+                                  entry_cost: entryCost,
+                                  ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
+                                  resolution_rules: editQuestionRules.trim(),
+                                  initial_yes_percent: initialYes,
+                                  logo_keys: editSelectedLogoKeys,
+                                  pending_logo_ids: editSelectedPendingLogoIds,
+                                  ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
+                                }),
+                              });
+                              const body = await safeJson(res);
+                              if (body.success) {
+                                setEditQuestionMsg({ type: "success", text: "Question updated." });
+                                const isDraft = (selectedQuestion?.status as string) === "draft";
+                                await Promise.all([refreshQuestions(), ...(isDraft ? [refreshDraftQuestions()] : [])]);
+                                if (body.question) {
+                                  setSelectedQuestion(body.question);
+                                } else {
+                                  setSelectedQuestion((prev) => prev ? {
+                                    ...prev,
+                                    title: editQuestionText.trim(),
+                                    category: editQuestionCategory.trim(),
+                                    entry_cost: entryCost,
+                                    closing_time: new Date(editQuestionClosingTime).toISOString(),
+                                    resolution_rules: editQuestionRules.trim() || null,
+                                    initial_yes_percent: initialYes,
+                                    initial_no_percent: Math.round((100 - initialYes) * 100) / 100,
+                                    ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
+                                  } : prev);
+                                }
+                                setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
+                              } else {
+                                setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
+                              }
+                            } catch {
+                              setEditQuestionMsg({ type: "error", text: "Network error." });
+                            } finally {
+                              setEditQuestionSubmitting(false);
+                            }
+                          }}
+                          className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
+                        >{editQuestionSubmitting ? "Saving..." : "Save"}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+    );
+  };
+
+  // Unified AI Draft Import (shared by admin + both contributor roles).
+  // needsApproval=true appends the 'admin will review' note for contributors.
+  const renderAiDraftImport = ({ needsApproval }: { needsApproval: boolean }) => {
+    return (
+      <section className="mb-8 rounded-2xl border border-purple-500/30 bg-[var(--surface)] p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Paste JSON generated by ChatGPT / Claude chat. Accepts one question object <code className="text-purple-300">{"{...}"}</code> or an array <code className="text-purple-300">{"[{...}]"}</code>.
+            Questions are saved as <span className="text-purple-300">Drafts</span> — not published until you approve them.
+          </p>
+        </div>
+
+        {/* Field reference */}
+        <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1.5">
+          <p className="font-medium text-slate-300">Fields per question (same structure as New Question form):</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <p><code className="text-purple-300">question_text</code> <span className="text-red-400">*</span> — clear YES/NO question</p>
+            <p><code className="text-purple-300">category</code> <span className="text-red-400">*</span> — Crypto / Markets / Economy / Sports / Entertainment / Global Events / General</p>
+            <p><code className="text-purple-300">closing_time</code> <span className="text-red-400">*</span> — ISO 8601 (e.g. 2026-12-31T00:00:00Z)</p>
+            <p><code className="text-purple-300">initial_probability</code> — <strong className="text-white">0–100</strong> (e.g. 65 = 65% YES, default 50)</p>
+            <p><code className="text-purple-300">entry_cost</code> — 100 / 200 / 500 / 800 (default 500)</p>
+            <p><code className="text-purple-300">resolution_rules</code> — exact YES/NO criteria</p>
+            <p><code className="text-purple-300">chart_symbol</code> — TradingView ticker (e.g. BTCUSDT, AAPL)</p>
+            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL (Team A / main subject), e.g. <code className="text-slate-400 text-[10px]">https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png</code></p>
+            <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
+          </div>
+          <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
+          <p className="text-amber-400/80 text-[11px]">Sports VS: format "[Team A] vs [Team B]: Who will win [event/date]?" (neutral phrasing — never "Will [Team] win") · logo_url = Team A, logo_url_b = Team B. Individual sports: free-form question text · logo_url = team/player, logo_url_b = null.</p>
+        </div>
+
+        {/* Copy-paste prompt */}
+        <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-slate-300 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
+            <span className="text-[10px] text-slate-500">Click inside to select all</span>
+          </div>
+          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`STEP 1 — SEARCH FIRST (mandatory): Before writing any questions, use your web search / browsing tool to look up today's date and fetch live data for each category:
+• Crypto: current BTC price, ETH price, any major moves or news today
+• Markets: S&P 500, Nasdaq, major stock movers, earnings this week
+• Economy: upcoming Fed decisions, latest CPI/GDP/jobs data, central bank news
+• Sports: IPL fixtures this week, Champions League / football matches, NBA playoffs, tennis tournaments, cricket schedules — get ACTUAL team names and match dates
+• Entertainment: box office top film this weekend, award shows, major releases
+• Global Events: elections, geopolitical news, summits, major decisions due this week
+• General: major tech launches, science news, viral stories
+
+STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
+
+Each question must be a clear YES/NO question. For Sports VS matchups: the question MUST be neutral between both teams — use format "[Team A] vs [Team B]: Who will win [event/date]?" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?". Never write "Will [specific team] win..." — both team logos appear as equal YES/NO buttons, so the question must not favor either side. Set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
+
+Use closing_time within the next 7–14 days from today.
+
+STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
+✓ Is this event actually happening this week or next week? (not past, not too far future)
+✓ Does the price/value mentioned match today's real data?
+✓ Is the resolution rule specific and unambiguous?
+✓ Are team names / player names correct and spelled right?
+✓ For Sports VS matchups: is the phrasing "Who will win"? (never "Will [specific team] win")
+Fix any issues before returning.
+
+Return a JSON array where every object has these exact fields:
+{
+  "question_text": "...",
+  "category": "...",
+  "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
+  "entry_cost": 100 | 200 | 500 | 800,
+  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
+  "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
+  "chart_symbol": "TradingView ticker if applicable, else null",
+  "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
+  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS only), else null",
+  "reference_links": [
+    { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
+    { "label": "Source name", "url": "https://..." }
+  ]
+}
+
+Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
+          <p className="text-[10px] text-amber-400/70">⚠ Logo URLs from Wikipedia may not always display — you can update logos later using the Edit button on any draft.</p>
+        </div>
+
+        <textarea
+          value={aiDraftJson}
+          onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
+          rows={12}
+          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "logo_url_b": null,\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Real Madrid vs Manchester City: Who will win the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "logo_url_b": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
+          className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
+        />
+
+        {aiDraftValidationError && (
+          <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {aiDraftValidationItems.length <= 1 ? (
+              <p>{aiDraftValidationItems[0] || aiDraftValidationError}</p>
+            ) : (
+              <>
+                <p className="mb-1 font-medium text-red-200">{aiDraftValidationItems.length} validation issue(s) found:</p>
+                <ul className="list-disc space-y-1 pl-4">
+                  {aiDraftValidationItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
+        {aiDraftValidated && (
+          <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
+            <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated — ready to save as drafts:</p>
+            <ul className="space-y-1 text-slate-400">
+              {aiDraftValidated.map((q, i) => {
+                const qr = q as Record<string, unknown>;
+                const extras: string[] = [];
+                if (qr.chart_symbol) extras.push(`chart: ${String(qr.chart_symbol)}`);
+                if (qr.logo_url) extras.push("logo ✓");
+                const links = Array.isArray(qr.reference_links) ? qr.reference_links.length : 0;
+                if (links > 0) extras.push(`${links} link${links > 1 ? "s" : ""}`);
+                return (
+                  <li key={i}>
+                    <span className="truncate">{i + 1}. [{String(qr.category ?? "—")}] {String(qr.question_text ?? "").slice(0, 80)}</span>
+                    {extras.length > 0 && <span className="ml-2 text-purple-400/70">[{extras.join(", ")}]</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {aiDraftMsg && (
+          <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${aiDraftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+            {aiDraftMsg.text}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleValidateAiDraftJson}
+            className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
+          >
+            Validate JSON
+          </button>
+          <button
+            disabled={!aiDraftValidated || aiDraftSaving}
+            onClick={async () => {
+              if (!aiDraftValidated) return;
+              setAiDraftSaving(true);
+              setAiDraftMsg(null);
+              try {
+                const res = await timedFetch("admin/import_drafts", `${API_BASE}/admin/import_drafts`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
+                  credentials: "include",
+                  body: JSON.stringify({ questions: aiDraftValidated, source: "manual_ai_import" }),
+                });
+                const body = await safeJson(res);
+                if (body.success) {
+                  const created = Number(body.created_count ?? 0);
+                  const errCount = Number(body.error_count ?? 0);
+                  setAiDraftMsg({ type: errCount === 0 ? "success" : "error", text: `Saved ${created} draft(s) successfully.${errCount > 0 ? ` ${errCount} failed — check JSON.` : ""}${needsApproval ? " An admin will review and publish them." : ""}` });
+                  setAiDraftJson("");
+                  setAiDraftValidated(null);
+                  setQuestionViewTab("draft");
+                  setCreatorResolverTab("draft");
+                  await refreshDraftQuestions();
+                } else {
+                  setAiDraftMsg({ type: "error", text: String(body.detail || "Import failed.") });
+                }
+              } catch { setAiDraftMsg({ type: "error", text: "Network error." }); }
+              finally { setAiDraftSaving(false); }
+            }}
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40"
+          >
+            {aiDraftSaving ? "Saving…" : "Save as Drafts"}
+          </button>
+          {(aiDraftJson || aiDraftValidated) && (
+            <button
+              onClick={() => { setAiDraftJson(""); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
+              className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </section>
+
+    );
+  };
+
+  // Unified New Question modal (shared by admin 'publish' + contributor 'submit').
+  const renderCreateQuestionModal = ({ mode }: { mode: "submit" | "publish" }) => {
+    const isPublish = mode === "publish";
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
+          <div className="flex w-full max-w-xl flex-col rounded-2xl border border-[var(--stroke)] bg-[var(--surface)]" style={{maxHeight: "90vh"}} onClick={(e) => e.stopPropagation()}>
+            {createStep === "form" ? (
+              <>
+                <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4">
+                  <div><h3 className="text-base font-semibold text-white">{isPublish ? "Publish New Question" : "Submit New Question"}</h3>{!isPublish && <p className="mt-0.5 text-xs text-amber-400">{userRole === "question_creator_resolver" ? "Creator & Resolver" : "Question Creator"} — pending admin review</p>}</div>
+                  <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-300">Your question goes to admin review before going live. Entry cost and starting odds are set by admin on approval.</div>)}
+                {createMsg && (
+                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                    <div className="whitespace-pre-line">{createMsg.text}</div>
+                  </div>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Category <span className="text-red-400">*</span></label>
+                    <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                      <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
+                    </select>
+                  </div>
+                  {createCategory === "Sports" && (
+                    <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-slate-300">Question Type</p>
+                        <div className="flex rounded-lg border border-[var(--stroke)] p-0.5 text-xs">
+                          <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
+                          <button type="button" onClick={() => setCreateVsMode(true)} className={`rounded px-3 py-1 transition-colors ${createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>VS Match</button>
+                        </div>
+                      </div>
+                      {createVsMode && (
+                        <div className="mt-2.5 space-y-2.5">
+                          <div className="flex items-center gap-2">
+                            <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <span className="text-sm font-bold text-slate-400">vs</span>
+                            <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          </div>
+                          <div className="flex items-center gap-4 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e]/40 px-3 py-2 text-[11px]">
+                            <div><span className="text-slate-500">{createVsTeamA || "Team A"} logo: </span><span className={createSelectedLogoKeys[0] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[0] || "not selected"}</span></div>
+                            <span className="text-slate-700">·</span>
+                            <div><span className="text-slate-500">{createVsTeamB || "Team B"} logo: </span><span className={createSelectedLogoKeys[1] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[1] || "not selected"}</span></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text <span className="text-red-400">*</span></label>
+                    <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
+                  {isPublish && (<>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
+                    <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
+                      <optgroup label="Tier 1"><option value="50">50 pts</option><option value="100">100 pts</option><option value="200">200 pts</option></optgroup>
+                      <optgroup label="Tier 2"><option value="300">300 pts</option><option value="400">400 pts</option><option value="500">500 pts</option></optgroup>
+                      <optgroup label="Tier 3"><option value="600">600 pts</option><option value="700">700 pts</option><option value="800">800 pts</option></optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES %</label>
+                    <input type="number" min={1} max={99} step={0.1} value={createInitialProbability} onChange={(e) => setCreateInitialProbability(e.target.value)} placeholder="e.g. 65" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
+                    <p className="mt-1 text-xs text-slate-500">NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
+                  </div>
+                  </>)}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time <span className="text-red-400">*</span></label>
+                    <DateTimePicker value={createClosingTime} onChange={setCreateClosingTime} />
+                  </div>
+                  {createVsMode && createCategory === "Sports" && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
+                      VS question: select <strong>2 logos</strong> — one for <span className="font-semibold">{createVsTeamA || "Team A"}</span> and one for <span className="font-semibold">{createVsTeamB || "Team B"}</span>.
+                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length === 2 && <span className="ml-2 text-emerald-400">✓ 2 logos selected</span>}
+                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length > 2 && <span className="ml-2 text-red-400">⚠ More than 2 selected</span>}
+                    </div>
+                  )}
+                  <LogoLibraryPicker
+                    title={createVsMode && createCategory === "Sports" ? `Team Logos (${createSelectedLogoKeys.length + createSelectedPendingLogoIds.length}/2 selected)` : "Question logos"}
+                    category={createCategory}
+                    activeAssets={activeLogoAssets}
+                    pendingAssets={pendingLogoAssets}
+                    selectedLogoKeys={createSelectedLogoKeys}
+                    selectedPendingLogoIds={createSelectedPendingLogoIds}
+                    onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
+                    onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
+                    onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
+                    uploading={createLogoUploading}
+                    role={userRole}
+                  />
+                  <details className="optblock rounded-xl border border-[var(--stroke)] bg-[#0b1528]">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-slate-300 [&::-webkit-details-marker]:hidden"><span>+ Add research &amp; rules <span className="font-normal text-slate-500">(optional)</span></span><span className="optchev text-[var(--brand)]">▾</span></summary>
+                  <div className="space-y-4 border-t border-[var(--stroke)] px-4 pb-4 pt-3">
+                  <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
+                      <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
+                      <div className="relative">
+                        <div className="flex gap-2">
+                          <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                          {createChartSymbol && <button type="button" onClick={() => { setCreateChartSymbol(""); setCreateChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
+                        </div>
+                        {createChartResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
+                            {createChartResults.map((r) => (
+                              <button key={r.symbol} type="button" onClick={() => { setCreateChartSymbol(r.symbol); setCreateChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
+                                <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
+                                <span className="truncate text-slate-400">{r.description}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {createChartSymbol && createChartSymbol.includes(":") && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <p className="text-[10px] text-emerald-400">✓ Chart: {createChartSymbol}</p>
+                          <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(createChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
+                      <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
+                      <div className="space-y-2">
+                        {createReferenceLinks.map((link, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
+                    <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
+                  </div>
+                  </div>
+                  </details>
+                  <div className="flex gap-3">
+                    <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
+                    <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
+                  </div>
+                </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">{isPublish ? "Confirm & Publish" : "Review & Submit"}</h3>
+                  <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
+                </div>
+                {!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-xs text-amber-300">Admin will review this question and set entry cost + starting odds before it goes live.</div>)}<div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
+                  <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
+                  <div className="flex flex-wrap gap-6">
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
+                    {createVsMode && createCategory === "Sports" && <div><p className="text-xs uppercase tracking-wide text-slate-500">Type</p><p className="mt-1 text-white">{createVsTeamA} vs {createVsTeamB}</p></div>}
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p>{isPublish ? (<p className="mt-1 text-white">{createEntryCost} pts</p>) : (<p className="mt-1 italic text-slate-500">Set by admin</p>)}</div>
+                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
+                    {isPublish && (<div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>)}
+                  </div>
+                  {(createSelectedLogoKeys.length > 0 || createSelectedPendingLogoIds.length > 0) && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Logos</p>
+                      <p className="mt-1 text-slate-200">
+                        {createSelectedLogoKeys.length > 0 ? `Approved: ${createSelectedLogoKeys.join(", ")}` : ""}
+                        {createSelectedLogoKeys.length > 0 && createSelectedPendingLogoIds.length > 0 ? " · " : ""}
+                        {createSelectedPendingLogoIds.length > 0 ? `Pending uploads: ${createSelectedPendingLogoIds.length}` : ""}
+                      </p>
+                    </div>
+                  )}
+                  {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
+                </div>
+                {createMsg && (
+                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
+                    <div className="whitespace-pre-line">{createMsg.text}</div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
+                  <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? (isPublish ? "Publishing..." : "Submitting...") : (isPublish ? "Publish Question" : "Submit for Review")}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+    );
+  };
+
   if (state === "checking") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-4">
-        <p className="text-sm text-slate-400">Checking access...</p>
+      <main className="admin-shell mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-6 h-9 w-56 animate-pulse rounded-lg bg-white/[0.04]" />
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-xl border border-[var(--stroke)] bg-white/[0.03]" />
+          ))}
+        </div>
+        <div className="h-72 animate-pulse rounded-2xl border border-[var(--stroke)] bg-white/[0.03]" />
+        <p className="mt-4 text-center text-xs text-slate-400">Checking access…</p>
       </main>
     );
   }
@@ -1858,7 +2587,7 @@ export default function AdminPage() {
       allQuestions;
 
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      <main className="admin-shell mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         {authNotice && (
           <div className={`mb-5 rounded-xl border px-4 py-2 text-sm ${
             authNotice.tone === "success"
@@ -1872,7 +2601,6 @@ export default function AdminPage() {
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
             <h1 className="text-3xl font-semibold text-white">Contributor Dashboard</h1>
             <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
           </div>
@@ -1935,7 +2663,7 @@ export default function AdminPage() {
           {/* Resolver: full tabs; Creator: pending only */}
           {isResolver ? (
             <>
-              <div className="mb-4 grid gap-2 sm:grid-cols-6">
+              <div className="mb-4 grid gap-2 sm:grid-cols-6" onMouseMove={handleTabGlow}>
                 {(["draft","open","closed","resolved","all","pending"] as const).map((tab) => {
                   const counts: Record<string, number> = { draft: draftQuestions.length, open: crOpen.length, closed: crClosed.length, resolved: crResolved.length, all: allQuestions.length, pending: myPendingQs.length };
                   const labels: Record<string, string> = { draft: "Drafts", open: "Open", closed: "Closed", resolved: "Resolved", all: "All", pending: "My Pending" };
@@ -1976,9 +2704,7 @@ export default function AdminPage() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="line-clamp-1 font-medium">{q.title}</p>
-                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : q.status === "pending_approval" ? "bg-amber-500/15 text-amber-300" : "bg-blue-500/15 text-blue-400"}`}>
-                            {q.status === "pending_approval" ? "Pending" : q.status}
-                          </span>
+                          <QuestionStatusBadge status={q.status} />
                         </div>
                         <p className="mt-0.5 text-[11px] text-slate-500">
                           {q.category} · {formatDate(q.closing_time ?? "")} · {q.entry_cost} pts · YES {Number(q.yes_percent ?? 50).toFixed(2)}%
@@ -2008,53 +2734,9 @@ export default function AdminPage() {
                       {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
                     </div>
                     {/* Draft imported metadata card */}
-                    {(selectedQuestion.status as string) === "draft" && (() => {
-                      const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                      const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
-                      const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
-                      const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
-                      const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
-                      const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
-                      if (!hasAny) return null;
-                      return (
-                        <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
-                          {(importedLogoUrl || importedLogoUrlB) && (
-                            <div>
-                              <p className="text-[11px] text-slate-400 mb-1.5">{importedLogoUrlB ? "Team Logos" : "Logo URL"}</p>
-                              <div className="flex gap-3">
-                                {[{ url: importedLogoUrl, label: "Team A / Home" }, { url: importedLogoUrlB, label: "Team B / Away" }].filter(l => l.url).map(({ url, label }) => (
-                                  <div key={url} className="flex items-start gap-2 min-w-0">
-                                    <img src={url!} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                    <div className="min-w-0">
-                                      <p className="text-[10px] text-slate-500">{label}</p>
-                                      <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <p className="mt-1.5 text-[10px] text-slate-500">Upload via Logo Library then select in edit form.</p>
-                            </div>
-                          )}
-                          {importedChart && (
-                            <div className="flex items-center gap-2">
-                              <p className="text-[11px] text-slate-400">Chart:</p>
-                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(importedChart)}`} target="_blank" rel="noreferrer" className="text-[11px] font-mono text-purple-300 hover:underline">{importedChart} ↗</a>
-                            </div>
-                          )}
-                          {importedLinks.length > 0 && (
-                            <div>
-                              <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
-                              <div className="space-y-0.5">
-                                {importedLinks.map((lnk, i) => lnk.url ? (
-                                  <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
-                                ) : null)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {(selectedQuestion.status as string) === "draft" && (
+                      <ImportedFromDraft meta={selectedQuestion.metadata as Record<string, unknown> | undefined} />
+                    )}
 
                     {/* Draft actions — delete only (no approve for creators) */}
                     {(selectedQuestion.status as string) === "draft" && (
@@ -2089,146 +2771,7 @@ export default function AdminPage() {
 
                     {/* Edit form — own drafts */}
                     {(selectedQuestion.status as string) === "draft" && (
-                      <div className="mt-4 border-t border-[var(--stroke)] pt-4">
-                        {!editQuestionMode ? (
-                          <div>
-                            <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
-                            <button
-                              onClick={() => {
-                                setEditQuestionMode(true);
-                                setEditQuestionText(selectedQuestion.title);
-                                setEditQuestionCategory(selectedQuestion.category);
-                                setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
-                                const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
-                                setEditQuestionClosingTime(closingTimeFormatted);
-                                setEditQuestionClosingTimeSeed(closingTimeFormatted);
-                                setEditQuestionRules(selectedQuestion.resolution_rules || "");
-                                setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
-                                const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
-                                setEditQuestionMetadata(metadataText);
-                                setEditQuestionMetadataSeed(metadataText);
-                                const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                                setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
-                                setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
-                                const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
-                                const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
-                                setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
-                                setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
-                                setEditQuestionMsg(null);
-                              }}
-                              className="text-xs text-[var(--brand)] hover:underline"
-                            >✏ Full Edit Question</button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-300">Question Text</label>
-                            <textarea value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="Enter question text..." />
-                            <label className="text-xs font-medium text-slate-300">Category</label>
-                            <select value={editQuestionCategory} onChange={(e) => setEditQuestionCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none">
-                              <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
-                            </select>
-                            <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
-                            <input type="number" min={50} step={1} value={editQuestionEntryCost} onChange={(e) => setEditQuestionEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <label className="text-xs font-medium text-slate-300">Initial YES %</label>
-                            <input type="number" min={1} max={99} step={0.1} value={editQuestionInitialYes} onChange={(e) => setEditQuestionInitialYes(e.target.value)} className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
-                            <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
-                            <input type="datetime-local" value={editQuestionClosingTime} onChange={(e) => setEditQuestionClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 space-y-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data</p>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                                <div className="flex gap-2">
-                                  <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. BTCUSDT, RELIANCE, NIFTY50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                  {editChartSymbol && <button type="button" onClick={() => { setEditChartSymbol(""); setEditChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
-                                </div>
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
-                                <div className="space-y-2">
-                                  {editReferenceLinks.map((link, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                      <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label" className="w-28 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                      <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                      <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">✕</button>
-                                    </div>
-                                  ))}
-                                  <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Link</button>
-                                </div>
-                              </div>
-                            </div>
-                            <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
-                            <textarea value={editQuestionRules} onChange={(e) => setEditQuestionRules(e.target.value)} rows={3} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="Describe YES and NO conditions..." />
-                            <LogoLibraryPicker
-                              title="Question logos"
-                              category={editQuestionCategory}
-                              activeAssets={activeLogoAssets}
-                              pendingAssets={pendingLogoAssets}
-                              selectedLogoKeys={editSelectedLogoKeys}
-                              selectedPendingLogoIds={editSelectedPendingLogoIds}
-                              onSelectedLogoKeysChange={setEditSelectedLogoKeys}
-                              onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
-                              onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
-                              uploading={editLogoUploading}
-                              role={userRole}
-                            />
-                            {editQuestionMsg && (
-                              <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
-                            )}
-                            <div className="flex gap-2">
-                              <button onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
-                              <button
-                                disabled={editQuestionSubmitting}
-                                onClick={async () => {
-                                  if (!editQuestionText.trim()) { setEditQuestionMsg({ type: "error", text: "Question text required" }); return; }
-                                  const entryCost = Number(editQuestionEntryCost);
-                                  if (!Number.isFinite(entryCost) || entryCost < 50) { setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" }); return; }
-                                  const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
-                                  if (closingTimeChanged && !editQuestionClosingTime) { setEditQuestionMsg({ type: "error", text: "Closing time required" }); return; }
-                                  const initialYes = Number(editQuestionInitialYes);
-                                  if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) { setEditQuestionMsg({ type: "error", text: "Initial YES % must be 1–99" }); return; }
-                                  const builtMetadata: Record<string, unknown> = {};
-                                  if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
-                                  const validLinks = editReferenceLinks.filter((l) => l.url.trim());
-                                  if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
-                                  setEditQuestionSubmitting(true);
-                                  setEditQuestionMsg(null);
-                                  try {
-                                    const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                                      credentials: "include",
-                                      body: JSON.stringify({
-                                        question_id: selectedQuestion._id,
-                                        question_text: editQuestionText.trim(),
-                                        category: editQuestionCategory.trim(),
-                                        entry_cost: entryCost,
-                                        ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
-                                        resolution_rules: editQuestionRules.trim(),
-                                        initial_yes_percent: initialYes,
-                                        logo_keys: editSelectedLogoKeys,
-                                        pending_logo_ids: editSelectedPendingLogoIds,
-                                        metadata: Object.keys(builtMetadata).length > 0 ? builtMetadata : {},
-                                      }),
-                                    });
-                                    const body = await safeJson(res);
-                                    if (body.success) {
-                                      setEditQuestionMsg({ type: "success", text: "Question updated." });
-                                      await Promise.all([refreshQuestions(), refreshDraftQuestions()]);
-                                      if (body.question) setSelectedQuestion(body.question);
-                                      setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
-                                    } else {
-                                      setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
-                                    }
-                                  } catch { setEditQuestionMsg({ type: "error", text: "Network error." }); }
-                                  finally { setEditQuestionSubmitting(false); }
-                                }}
-                                className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
-                              >{editQuestionSubmitting ? "Saving…" : "Save"}</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      renderQuestionEditForm()
                     )}
                     {(selectedQuestion.status as string) !== "draft" && selectedQuestion.status !== "resolved" && selectedQuestion.status !== "pending_approval" && selectedQuestion.closed_reason !== "cancelled" && !confirmResolve && (
                       <div className="space-y-2">
@@ -2255,7 +2798,7 @@ export default function AdminPage() {
           ) : (
             /* Creator: pending + drafts */
             <>
-              <div className="mb-4 flex gap-2">
+              <div className="mb-4 flex gap-2" onMouseMove={handleTabGlow}>
                 {(["pending", "draft"] as const).map((tab) => (
                   <button
                     key={tab}
@@ -2301,38 +2844,7 @@ export default function AdminPage() {
                         <p>Entry: <span className="text-slate-200">{selectedQuestion.entry_cost} pts</span></p>
                         {selectedQuestion.closing_time && <p>Closes: <span className="text-slate-200">{formatDate(selectedQuestion.closing_time)}</span></p>}
                       </div>
-                      {(() => {
-                        const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                        const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
-                        const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
-                        const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
-                        const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
-                        const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
-                        if (!hasAny) return null;
-                        return (
-                          <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
-                            {(importedLogoUrl || importedLogoUrlB) && (
-                              <div className="flex gap-3">
-                                {[{ url: importedLogoUrl, label: "Team A" }, { url: importedLogoUrlB, label: "Team B" }].filter(l => l.url).map(({ url, label }) => (
-                                  <div key={url} className="flex items-start gap-2 min-w-0">
-                                    <img src={url!} alt={label} className="h-8 w-8 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                    <p className="text-[10px] text-slate-500">{label}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {importedChart && <p className="text-[11px] text-slate-400">Chart: <span className="font-mono text-purple-300">{importedChart}</span></p>}
-                            {importedLinks.length > 0 && (
-                              <div className="space-y-0.5">
-                                {importedLinks.map((lnk, i) => lnk.url ? (
-                                  <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">{lnk.label || lnk.url}</a>
-                                ) : null)}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      <ImportedFromDraft meta={selectedQuestion.metadata as Record<string, unknown> | undefined} compact />
                       <div className="space-y-2">
                         {draftMsg && <div className={`rounded-lg border px-3 py-2 text-xs ${draftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{draftMsg.text}</div>}
                         <p className="text-[11px] rounded bg-purple-500/10 px-2 py-1 text-purple-300">Awaiting admin approval to publish</p>
@@ -2358,117 +2870,7 @@ export default function AdminPage() {
                           className="w-full rounded-lg border border-red-500/40 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                         >{resolving === "delete_draft" ? "Deleting…" : "Delete Draft"}</button>
                       </div>
-                      <div className="mt-4 border-t border-[var(--stroke)] pt-4">
-                        {!editQuestionMode ? (
-                          <button
-                            onClick={() => {
-                              setEditQuestionMode(true);
-                              setEditQuestionText(selectedQuestion.title);
-                              setEditQuestionCategory(selectedQuestion.category);
-                              setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
-                              const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
-                              setEditQuestionClosingTime(closingTimeFormatted);
-                              setEditQuestionClosingTimeSeed(closingTimeFormatted);
-                              setEditQuestionRules(selectedQuestion.resolution_rules || "");
-                              setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
-                              const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
-                              setEditQuestionMetadata(metadataText);
-                              setEditQuestionMetadataSeed(metadataText);
-                              const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                              setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
-                              setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
-                              const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
-                              const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
-                              setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
-                              setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
-                              setEditQuestionMsg(null);
-                            }}
-                            className="text-xs text-[var(--brand)] hover:underline"
-                          >✏ Full Edit Question</button>
-                        ) : (
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-300">Question Text</label>
-                            <textarea value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            <label className="text-xs font-medium text-slate-300">Category</label>
-                            <select value={editQuestionCategory} onChange={(e) => setEditQuestionCategory(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none">
-                              <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
-                            </select>
-                            <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
-                            <input type="number" min={50} step={1} value={editQuestionEntryCost} onChange={(e) => setEditQuestionEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <label className="text-xs font-medium text-slate-300">Initial YES %</label>
-                            <input type="number" min={1} max={99} step={0.1} value={editQuestionInitialYes} onChange={(e) => setEditQuestionInitialYes(e.target.value)} className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <p className="text-[11px] text-slate-500">NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}%</p>
-                            <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
-                            <input type="datetime-local" value={editQuestionClosingTime} onChange={(e) => setEditQuestionClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none" />
-                            <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
-                            <textarea value={editQuestionRules} onChange={(e) => setEditQuestionRules(e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" placeholder="YES/NO conditions..." />
-                            <LogoLibraryPicker
-                              title="Question logos"
-                              category={editQuestionCategory}
-                              activeAssets={activeLogoAssets}
-                              pendingAssets={pendingLogoAssets}
-                              selectedLogoKeys={editSelectedLogoKeys}
-                              selectedPendingLogoIds={editSelectedPendingLogoIds}
-                              onSelectedLogoKeysChange={setEditSelectedLogoKeys}
-                              onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
-                              onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
-                              uploading={editLogoUploading}
-                              role={userRole}
-                            />
-                            {editQuestionMsg && <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>}
-                            <div className="flex gap-2">
-                              <button onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500">Cancel</button>
-                              <button
-                                disabled={editQuestionSubmitting}
-                                onClick={async () => {
-                                  if (!editQuestionText.trim()) { setEditQuestionMsg({ type: "error", text: "Question text required" }); return; }
-                                  const entryCost = Number(editQuestionEntryCost);
-                                  if (!Number.isFinite(entryCost) || entryCost < 50) { setEditQuestionMsg({ type: "error", text: "Entry cost ≥ 50" }); return; }
-                                  const initialYes = Number(editQuestionInitialYes);
-                                  if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) { setEditQuestionMsg({ type: "error", text: "Initial YES % must be 1–99" }); return; }
-                                  const builtMetadata: Record<string, unknown> = {};
-                                  if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
-                                  const validLinks = editReferenceLinks.filter((l) => l.url.trim());
-                                  if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
-                                  setEditQuestionSubmitting(true);
-                                  setEditQuestionMsg(null);
-                                  try {
-                                    const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
-                                    const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                                      credentials: "include",
-                                      body: JSON.stringify({
-                                        question_id: selectedQuestion._id,
-                                        question_text: editQuestionText.trim(),
-                                        category: editQuestionCategory.trim(),
-                                        entry_cost: entryCost,
-                                        ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
-                                        resolution_rules: editQuestionRules.trim(),
-                                        initial_yes_percent: initialYes,
-                                        logo_keys: editSelectedLogoKeys,
-                                        pending_logo_ids: editSelectedPendingLogoIds,
-                                        metadata: Object.keys(builtMetadata).length > 0 ? builtMetadata : {},
-                                      }),
-                                    });
-                                    const body = await safeJson(res);
-                                    if (body.success) {
-                                      setEditQuestionMsg({ type: "success", text: "Saved." });
-                                      await Promise.all([refreshQuestions(), refreshDraftQuestions()]);
-                                      if (body.question) setSelectedQuestion(body.question);
-                                      setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
-                                    } else {
-                                      setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
-                                    }
-                                  } catch { setEditQuestionMsg({ type: "error", text: "Network error." }); }
-                                  finally { setEditQuestionSubmitting(false); }
-                                }}
-                                className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
-                              >{editQuestionSubmitting ? "Saving…" : "Save"}</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      {renderQuestionEditForm()}
                     </div>
                   )}
                 </div>
@@ -2497,137 +2899,7 @@ export default function AdminPage() {
         </section>
 
         {/* AI Draft Import — same as admin, but approve is admin-only */}
-        <section className="mb-8 rounded-2xl border border-purple-500/30 bg-[var(--surface)] p-5">
-          <div className="mb-3">
-            <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Use the prompt below in ChatGPT or Claude, then paste the JSON output here. Drafts go to admin for approval — <span className="text-purple-300">not published</span> until approved.
-            </p>
-          </div>
-
-          {/* Copy-paste prompt for creators */}
-          <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
-              <span className="text-[10px] text-slate-500">Click inside to select all</span>
-            </div>
-            <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`STEP 1 — SEARCH FIRST (mandatory): Before writing any questions, use your web search / browsing tool to look up today's date and fetch live data for each category:
-• Crypto: current BTC price, ETH price, any major moves or news today
-• Markets: S&P 500, Nasdaq, major stock movers, earnings this week
-• Economy: upcoming Fed decisions, latest CPI/GDP/jobs data, central bank news
-• Sports: IPL fixtures this week, Champions League / football matches, NBA playoffs, tennis tournaments, cricket schedules — get ACTUAL team names and match dates
-• Entertainment: box office top film this weekend, award shows, major releases
-• Global Events: elections, geopolitical news, summits, major decisions due this week
-• General: major tech launches, science news, viral stories
-
-STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
-
-Each question must be a clear YES/NO question. For Sports VS matchups: the question MUST be neutral between both teams — use format "[Team A] vs [Team B]: Who will win [event/date]?" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?". Never write "Will [specific team] win..." — both team logos appear as equal YES/NO buttons, so the question must not favor either side. Set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
-
-Use closing_time within the next 7–14 days from today.
-
-STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
-✓ Is this event actually happening this week or next week? (not past, not too far future)
-✓ Does the price/value mentioned match today's real data?
-✓ Is the resolution rule specific and unambiguous?
-✓ Are team names / player names correct and spelled right?
-✓ For Sports VS matchups: is the phrasing "Who will win"? (never "Will [specific team] win")
-Fix any issues before returning.
-
-Return a JSON array where every object has these exact fields:
-{
-  "question_text": "...",
-  "category": "...",
-  "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
-  "entry_cost": 100 | 200 | 500 | 800,
-  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
-  "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
-  "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
-  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS only), else null",
-  "reference_links": [
-    { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
-    { "label": "Source name", "url": "https://..." }
-  ]
-}
-
-Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
-            <p className="text-[10px] text-amber-400/70">⚠ Logo URLs from Wikipedia may not always display — you can update logos later using the Edit button on any draft.</p>
-          </div>
-
-          <textarea
-            value={aiDraftJson}
-            onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
-            rows={8}
-            placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by May 17, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-05-17T23:59:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD >= $100,000 on Binance at 23:59 UTC on May 17, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png"\n  }\n]'}
-            className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
-          />
-          {aiDraftValidationError && (
-            <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-              {aiDraftValidationItems.length <= 1 ? (
-                <p>{aiDraftValidationItems[0] || aiDraftValidationError}</p>
-              ) : (
-                <>
-                  <p className="mb-1 font-medium text-red-200">{aiDraftValidationItems.length} validation issue(s) found:</p>
-                  <ul className="list-disc space-y-1 pl-4">
-                    {aiDraftValidationItems.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-          {aiDraftValidated && (
-            <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
-              <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated:</p>
-              <ul className="space-y-0.5 text-slate-400">
-                {aiDraftValidated.map((q, i) => {
-                  const qr = q as Record<string, unknown>;
-                  return <li key={i} className="truncate">{i + 1}. [{String(qr.category ?? "—")}] {String(qr.question_text ?? "").slice(0, 80)}</li>;
-                })}
-              </ul>
-            </div>
-          )}
-          {aiDraftMsg && (
-            <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${aiDraftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>{aiDraftMsg.text}</div>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={handleValidateAiDraftJson}
-              className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
-            >Validate JSON</button>
-            <button
-              disabled={!aiDraftValidated || aiDraftSaving}
-              onClick={async () => {
-                if (!aiDraftValidated) return;
-                setAiDraftSaving(true); setAiDraftMsg(null);
-                try {
-                  const res = await timedFetch("admin/import_drafts", `${API_BASE}/admin/import_drafts`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                    credentials: "include",
-                    body: JSON.stringify({ questions: aiDraftValidated, source: "manual_ai_import" }),
-                  });
-                  const body = await safeJson(res);
-                  if (body.success) {
-                    setAiDraftMsg({ type: "success", text: `Saved ${body.created_count ?? 0} draft(s). An admin will review and publish them.` });
-                    setAiDraftJson(""); setAiDraftValidated(null);
-                    setCreatorResolverTab("draft");
-                    await refreshDraftQuestions();
-                  } else {
-                    setAiDraftMsg({ type: "error", text: String(body.detail || "Import failed.") });
-                  }
-                } catch { setAiDraftMsg({ type: "error", text: "Network error." }); }
-                finally { setAiDraftSaving(false); }
-              }}
-              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40"
-            >{aiDraftSaving ? "Saving…" : "Save as Drafts"}</button>
-            {(aiDraftJson || aiDraftValidated) && (
-              <button onClick={() => { setAiDraftJson(""); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }} className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-400 hover:text-slate-200">Clear</button>
-            )}
-          </div>
-        </section>
+        {renderAiDraftImport({ needsApproval: true })}
 
         {/* Quick Links */}
         <section className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
@@ -2653,180 +2925,13 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
         </section>
 
         {/* Create Question Modal */}
-        {createModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
-            <div className="flex w-full max-w-lg flex-col rounded-2xl border border-[var(--stroke)] bg-[var(--surface)]" style={{maxHeight: "90vh"}} onClick={(e) => e.stopPropagation()}>
-              {createStep === "form" ? (
-                <>
-                  <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4">
-                    <div>
-                      <h3 className="text-base font-semibold text-white">Submit New Question</h3>
-                      <p className="mt-0.5 text-xs text-amber-400">{isResolver ? "Creator & Resolver" : "Question Creator"} — pending admin review</p>
-                    </div>
-                    <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-                    <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-300">
-                      Your question goes to admin review before going live. Entry cost and starting odds are set by admin on approval.
-                    </div>
-                    {createMsg && (
-                      <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                        <div className="whitespace-pre-line">{createMsg.text}</div>
-                      </div>
-                    )}
-                    <div className="space-y-4">
-                      <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
-                        <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
-                          <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
-                        </select>
-                      </div>
-                      {createCategory === "Sports" && (
-                        <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-300">Question Type</p>
-                            <div className="flex rounded-lg border border-[var(--stroke)] p-0.5 text-xs">
-                              <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
-                              <button type="button" onClick={() => setCreateVsMode(true)} className={`rounded px-3 py-1 transition-colors ${createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>VS Match</button>
-                            </div>
-                          </div>
-                          {createVsMode && (
-                            <div className="mt-2.5 space-y-2.5">
-                              <div className="flex items-center gap-2">
-                                <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <span className="text-sm font-bold text-slate-400">vs</span>
-                                <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                              </div>
-                              <div className="flex items-center gap-4 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e]/40 px-3 py-2 text-[11px]">
-                                <div><span className="text-slate-500">{createVsTeamA || "Team A"} logo: </span><span className={createSelectedLogoKeys[0] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[0] || "not selected"}</span></div>
-                                <span className="text-slate-700">·</span>
-                                <div><span className="text-slate-500">{createVsTeamB || "Team B"} logo: </span><span className={createSelectedLogoKeys[1] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[1] || "not selected"}</span></div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                        <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
-                        <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
-                      </div>
-                      {createVsMode && createCategory === "Sports" && (
-                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
-                          VS question: select <strong>2 logos</strong> from the library — one for <span className="font-semibold">{createVsTeamA || "Team A"}</span> and one for <span className="font-semibold">{createVsTeamB || "Team B"}</span>. First selected = left/home team.
-                          {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length === 2 && <span className="ml-2 text-emerald-400">✓ 2 logos selected</span>}
-                          {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length > 2 && <span className="ml-2 text-red-400">⚠ More than 2 selected — VS questions should have exactly 2</span>}
-                        </div>
-                      )}
-                      <LogoLibraryPicker
-                        title={createVsMode && createCategory === "Sports" ? `Team Logos (${createSelectedLogoKeys.length + createSelectedPendingLogoIds.length}/2 selected)` : "Question logos"}
-                        category={createCategory}
-                        activeAssets={activeLogoAssets}
-                        pendingAssets={pendingLogoAssets}
-                        selectedLogoKeys={createSelectedLogoKeys}
-                        selectedPendingLogoIds={createSelectedPendingLogoIds}
-                        onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
-                        onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
-                        onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
-                        uploading={createLogoUploading}
-                        role={userRole}
-                      />
-                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
-                          <div className="relative">
-                            <div className="flex gap-2">
-                              <input type="text" value={createChartSymbol} onChange={(e) => { setCreateChartSymbol(e.target.value.toUpperCase()); }} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                              {createChartSymbol && <button type="button" onClick={() => { setCreateChartSymbol(""); setCreateChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
-                            </div>
-                            {createChartResults.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
-                                {createChartResults.map((r) => (
-                                  <button key={r.symbol} type="button" onClick={() => { setCreateChartSymbol(r.symbol); setCreateChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
-                                    <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
-                                    <span className="truncate text-slate-400">{r.description}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {createChartSymbol && createChartSymbol.includes(":") && (
-                            <div className="mt-1.5 flex items-center gap-2">
-                              <p className="text-[10px] text-emerald-400">✓ Chart: {createChartSymbol}</p>
-                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(createChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
-                          <div className="space-y-2">
-                            {createReferenceLinks.map((link, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
-                              </div>
-                            ))}
-                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
-                        <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                      </div>
-                      <div className="flex gap-3">
-                        <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
-                        <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="mb-5 flex items-center justify-between px-5 pt-5">
-                    <h3 className="text-lg font-semibold text-white">Review & Submit</h3>
-                    <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
-                  </div>
-                  <div className="mx-5 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-xs text-amber-300">
-                    Admin will review this question and set entry cost + starting odds before it goes live.
-                  </div>
-                  <div className="mx-5 mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
-                    <div className="flex flex-wrap gap-6">
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
-                      {createVsMode && createCategory === "Sports" && <div><p className="text-xs uppercase tracking-wide text-slate-500">Type</p><p className="mt-1 text-white">{createVsTeamA} vs {createVsTeamB}</p></div>}
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
-                      <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p><p className="mt-1 text-slate-500 italic">Set by admin</p></div>
-                    </div>
-                    {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
-                  </div>
-                  {createMsg && (
-                    <div className={`mx-5 mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                      <div className="whitespace-pre-line">{createMsg.text}</div>
-                    </div>
-                  )}
-                  <div className="flex gap-3 px-5 pb-5">
-                    <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
-                    <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? "Submitting..." : "Submit for Review"}</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {createModalOpen && renderCreateQuestionModal({ mode: "submit" })}
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <main className="admin-shell mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       {authNotice && (
         <div className={`mb-5 rounded-xl border px-4 py-2 text-sm ${
           authNotice.tone === "success"
@@ -2837,7 +2942,6 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
         </div>
       )}
       <div className="mb-6 flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-widest text-slate-500">The Analyst</p>
         <h1 className="text-3xl font-semibold text-white">Admin Dashboard</h1>
         <p className="text-sm text-slate-400">Signed in as <span className="text-[var(--brand)]">{adminEmail}</span></p>
       </div>
@@ -2878,7 +2982,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           </div>
         )}
 
-        <div className="mb-4 grid gap-2 sm:grid-cols-5">
+        <div className="mb-4 grid gap-2 sm:grid-cols-5" onMouseMove={handleTabGlow}>
           <button onClick={() => { setQuestionViewTab("draft"); setSelectedQuestion(null); setDraftMsg(null); }} className={`${questionViewTab === "draft" ? "admin-status-tab-active" : "admin-status-tab"} flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium`}>
             <span className="text-purple-400">Drafts</span>
             <span className="admin-status-count">{draftQuestions.length}</span>
@@ -2954,9 +3058,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-1 font-medium">{q.title}</p>
-                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${q.status === "open" ? "bg-emerald-500/15 text-emerald-400" : q.status === "closed" ? "bg-amber-500/15 text-amber-400" : (q.status as string) === "draft" ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"}`}>
-                        {q.status}
-                      </span>
+                      <QuestionStatusBadge status={q.status} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">
                       {q.category} · {formatDate(q.closing_time ?? "")} · {q.entry_cost} pts · YES {yesPct}%
@@ -3001,55 +3103,9 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
               </div>
 
               {/* Draft imported metadata — logo, chart, links */}
-              {(selectedQuestion.status as string) === "draft" && (() => {
-                const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                const importedLogoUrl = typeof meta.logo_url === "string" ? meta.logo_url : null;
-                const importedLogoUrlB = typeof meta.logo_url_b === "string" ? meta.logo_url_b : null;
-                const importedChart = typeof meta.chart_symbol === "string" ? meta.chart_symbol : null;
-                const importedLinks = Array.isArray(meta.reference_links) ? (meta.reference_links as { label?: string; url?: string }[]) : [];
-                const hasAny = importedLogoUrl || importedLogoUrlB || importedChart || importedLinks.length > 0;
-                if (!hasAny) return null;
-                return (
-                  <div className="mb-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 space-y-2">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-purple-400">Imported from Draft</p>
-                    {(importedLogoUrl || importedLogoUrlB) && (
-                      <div>
-                        <p className="text-[11px] text-slate-400 mb-1.5">{importedLogoUrlB ? "Team Logos" : "Logo URL"}</p>
-                        <div className="flex gap-3">
-                          {[{ url: importedLogoUrl, label: "Team A / Home" }, { url: importedLogoUrlB, label: "Team B / Away" }].filter(l => l.url).map(({ url, label }) => (
-                            <div key={url} className="flex items-start gap-2 min-w-0">
-                              <img src={safeHref(url)} alt={label} className="h-10 w-10 shrink-0 rounded-lg border border-[var(--stroke)] object-contain bg-[#0b1528] p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                              <div className="min-w-0">
-                                <p className="text-[10px] text-slate-500">{label}</p>
-                                <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="block truncate text-[10px] text-purple-300 hover:underline max-w-[120px]">{url}</a>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="mt-1.5 text-[10px] text-slate-500">Upload each via Logo Library (paste URL) then select them in the edit form.</p>
-                      </div>
-                    )}
-                    {importedChart && (
-                      <div className="flex items-center gap-2">
-                        <p className="text-[11px] text-slate-400">Chart:</p>
-                        <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(importedChart)}`} target="_blank" rel="noreferrer" className="text-[11px] font-mono text-purple-300 hover:underline">{importedChart} ↗</a>
-                      </div>
-                    )}
-                    {importedLinks.length > 0 && (
-                      <div>
-                        <p className="text-[11px] text-slate-400 mb-1">Research Links:</p>
-                        <div className="space-y-0.5">
-                          {importedLinks.map((lnk, i) => lnk.url ? (
-                            <a key={i} href={safeHref(lnk.url)} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-purple-300 hover:underline truncate">
-                              {lnk.label || lnk.url}
-                            </a>
-                          ) : null)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              {(selectedQuestion.status as string) === "draft" && (
+                <ImportedFromDraft meta={selectedQuestion.metadata as Record<string, unknown> | undefined} />
+              )}
 
               {/* Draft actions — approve or delete */}
               {(selectedQuestion.status as string) === "draft" && (
@@ -3226,250 +3282,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
               {/* Full question edit — available for open, pending-closed, and draft questions */}
               {((selectedQuestion.status as string) === "draft" || selectedQuestion.status === "open" || (selectedQuestion.status === "closed" && selectedQuestion.closed_reason !== "cancelled")) && (
-                <div className="mt-4 border-t border-[var(--stroke)] pt-4">
-                  {!editQuestionMode ? (
-                    <div>
-                      <p className="mb-1 text-xs font-medium text-slate-300">Category: <span className="font-normal text-slate-400">{selectedQuestion.category}</span></p>
-                      <button
-                        onClick={() => {
-                          setEditQuestionMode(true);
-                          setEditQuestionText(selectedQuestion.title);
-                          setEditQuestionCategory(selectedQuestion.category);
-                          setEditQuestionEntryCost(String(selectedQuestion.entry_cost ?? ""));
-                          const closingTimeFormatted = formatDateTimeLocal(selectedQuestion.closing_time);
-                          setEditQuestionClosingTime(closingTimeFormatted);
-                          setEditQuestionClosingTimeSeed(closingTimeFormatted);
-                          setEditQuestionRules(selectedQuestion.resolution_rules || "");
-                          setEditQuestionInitialYes(String(Number(selectedQuestion.initial_yes_percent ?? selectedQuestion.yes_percent ?? 50)));
-                          const metadataText = selectedQuestion.metadata ? JSON.stringify(selectedQuestion.metadata, null, 2) : "";
-                          setEditQuestionMetadata(metadataText);
-                          setEditQuestionMetadataSeed(metadataText);
-                          const meta = (selectedQuestion.metadata || {}) as Record<string, unknown>;
-                          setEditChartSymbol(typeof meta.chart_symbol === "string" ? meta.chart_symbol : "");
-                          setEditReferenceLinks(Array.isArray(meta.reference_links) ? (meta.reference_links as RefLink[]) : []);
-                          const activeLogoKeySet = new Set(activeLogoAssets.map((a) => a.logo_key));
-                          const rawLogoKeys = Array.isArray(selectedQuestion.logo_keys) ? selectedQuestion.logo_keys : [];
-                          setEditSelectedLogoKeys(rawLogoKeys.filter((k) => activeLogoKeySet.has(k)));
-                          setEditSelectedPendingLogoIds(Array.isArray(selectedQuestion.pending_logo_ids) ? selectedQuestion.pending_logo_ids : []);
-                          setEditQuestionMsg(null);
-                        }}
-                        className="text-xs text-[var(--brand)] hover:underline"
-                      >
-                        ✏ Full Edit Question
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-300">Question Text</label>
-                      <textarea
-                        value={editQuestionText}
-                        onChange={(e) => setEditQuestionText(e.target.value)}
-                        rows={2}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="Enter question text..."
-                      />
-                      <label className="text-xs font-medium text-slate-300">Category</label>
-                      <select
-                        value={editQuestionCategory}
-                        onChange={(e) => setEditQuestionCategory(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      >
-                        <option>Crypto</option>
-                        <option>Economy</option>
-                        <option>Entertainment</option>
-                        <option>General</option>
-                        <option>Global events</option>
-                        <option>Markets</option>
-                        <option>Sports</option>
-                      </select>
-                      <label className="text-xs font-medium text-slate-300">Entry Cost (points)</label>
-                      <input
-                        type="number"
-                        min={50}
-                        step={1}
-                        value={editQuestionEntryCost}
-                        onChange={(e) => setEditQuestionEntryCost(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <label className="text-xs font-medium text-slate-300">Initial Percentage (YES %) <span className="text-slate-500 font-normal">(baseline split)</span></label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        step={0.1}
-                        value={editQuestionInitialYes}
-                        onChange={(e) => setEditQuestionInitialYes(e.target.value)}
-                        className="w-full rounded-xl border border-[var(--brand)]/50 bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <p className="text-[11px] text-slate-500">Initial NO %: {(100 - Number(editQuestionInitialYes || 50)).toFixed(2)}% · This updates the starting baseline</p>
-                      <label className="text-xs font-medium text-slate-300">Closing Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        value={editQuestionClosingTime}
-                        onChange={(e) => setEditQuestionClosingTime(e.target.value)}
-                        className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                      />
-                      <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
-                          <div className="relative">
-                            <div className="flex gap-2">
-                              <input type="text" value={editChartSymbol} onChange={(e) => setEditChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                              {editChartSymbol && <button type="button" onClick={() => { setEditChartSymbol(""); setEditChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
-                            </div>
-                            {editChartResults.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
-                                {editChartResults.map((r) => (
-                                  <button key={r.symbol} type="button" onClick={() => { setEditChartSymbol(r.symbol); setEditChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
-                                    <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
-                                    <span className="truncate text-slate-400">{r.description}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {editChartSymbol && editChartSymbol.includes(":") && (
-                            <div className="mt-1.5 flex items-center gap-2">
-                              <p className="text-[10px] text-emerald-400">✓ Chart: {editChartSymbol}</p>
-                              <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(editChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
-                          <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
-                          <div className="space-y-2">
-                            {editReferenceLinks.map((link, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <input type="text" value={link.label} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <input type="text" value={link.url} onChange={(e) => setEditReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                                <button type="button" onClick={() => setEditReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
-                              </div>
-                            ))}
-                            <button type="button" onClick={() => setEditReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
-                          </div>
-                        </div>
-                      </div>
-                      <label className="text-xs font-medium text-slate-300">Resolution Rules</label>
-                      <textarea
-                        value={editQuestionRules}
-                        onChange={(e) => setEditQuestionRules(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none"
-                        placeholder="Describe YES and NO conditions..."
-                      />
-                      <LogoLibraryPicker
-                        title="Question logos"
-                        category={editQuestionCategory}
-                        activeAssets={activeLogoAssets}
-                        pendingAssets={pendingLogoAssets}
-                        selectedLogoKeys={editSelectedLogoKeys}
-                        selectedPendingLogoIds={editSelectedPendingLogoIds}
-                        onSelectedLogoKeysChange={setEditSelectedLogoKeys}
-                        onSelectedPendingLogoIdsChange={setEditSelectedPendingLogoIds}
-                        onUploadLogo={(payload) => uploadLogoAsset(payload, "edit")}
-                        uploading={editLogoUploading}
-                        role={userRole}
-                      />
-                      {editQuestionMsg && (
-                        <p className={`text-xs ${editQuestionMsg.type === "success" ? "text-emerald-400" : "text-red-400"}`}>{editQuestionMsg.text}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { setEditQuestionMode(false); setEditQuestionMsg(null); }}
-                          className="flex-1 rounded-lg border border-[var(--stroke)] py-1.5 text-xs text-slate-300 hover:border-slate-500"
-                        >Cancel</button>
-                        <button
-                          disabled={editQuestionSubmitting}
-                          onClick={async () => {
-                            if (!editQuestionText.trim()) {
-                              setEditQuestionMsg({ type: "error", text: "Question text required" });
-                              return;
-                            }
-                            const entryCost = Number(editQuestionEntryCost);
-                            if (!Number.isFinite(entryCost) || entryCost < 50) {
-                              setEditQuestionMsg({ type: "error", text: "Entry cost must be at least 50" });
-                              return;
-                            }
-                            const closingTimeChanged = editQuestionClosingTime !== editQuestionClosingTimeSeed;
-                            if (closingTimeChanged && !editQuestionClosingTime) {
-                              setEditQuestionMsg({ type: "error", text: "Closing time is required" });
-                              return;
-                            }
-                            const initialYes = Number(editQuestionInitialYes);
-                            if (!Number.isFinite(initialYes) || initialYes < 1 || initialYes > 99) {
-                              setEditQuestionMsg({ type: "error", text: "Initial YES % must be between 1 and 99" });
-                              return;
-                            }
-
-                            const builtMetadata: Record<string, unknown> = {};
-                            if (editChartSymbol.trim()) builtMetadata.chart_symbol = editChartSymbol.trim();
-                            const validLinks = editReferenceLinks.filter((l) => l.url.trim());
-                            if (validLinks.length > 0) builtMetadata.reference_links = validLinks;
-                            const parsedMetadata = Object.keys(builtMetadata).length > 0 ? builtMetadata : {};
-                            const metadataChanged = true;
-
-                            setEditQuestionSubmitting(true);
-                            setEditQuestionMsg(null);
-                            try {
-                              const res = await timedFetch("admin/edit_question", `${API_BASE}/admin/edit_question`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
-                                },
-                                credentials: "include",
-                                body: JSON.stringify({
-                                  question_id: selectedQuestion._id,
-                                  question_text: editQuestionText.trim(),
-                                  category: editQuestionCategory.trim(),
-                                  entry_cost: entryCost,
-                                  ...(closingTimeChanged ? { closing_time: new Date(editQuestionClosingTime).toISOString() } : {}),
-                                  resolution_rules: editQuestionRules.trim(),
-                                  initial_yes_percent: initialYes,
-                                  logo_keys: editSelectedLogoKeys,
-                                  pending_logo_ids: editSelectedPendingLogoIds,
-                                  ...(metadataChanged ? { metadata: parsedMetadata || {} } : {}),
-                                }),
-                              });
-                              const body = await safeJson(res);
-                              if (body.success) {
-                                setEditQuestionMsg({ type: "success", text: "Question updated." });
-                                const isDraft = (selectedQuestion?.status as string) === "draft";
-                                await Promise.all([refreshQuestions(), ...(isDraft ? [refreshDraftQuestions()] : [])]);
-                                if (body.question) {
-                                  setSelectedQuestion(body.question);
-                                } else {
-                                  setSelectedQuestion((prev) => prev ? {
-                                    ...prev,
-                                    title: editQuestionText.trim(),
-                                    category: editQuestionCategory.trim(),
-                                    entry_cost: entryCost,
-                                    closing_time: new Date(editQuestionClosingTime).toISOString(),
-                                    resolution_rules: editQuestionRules.trim() || null,
-                                    initial_yes_percent: initialYes,
-                                    initial_no_percent: Math.round((100 - initialYes) * 100) / 100,
-                                    ...(parsedMetadata ? { metadata: parsedMetadata } : {}),
-                                  } : prev);
-                                }
-                                setTimeout(() => { setEditQuestionMode(false); setEditQuestionMsg(null); }, 800);
-                              } else {
-                                setEditQuestionMsg({ type: "error", text: body.detail || "Failed to update." });
-                              }
-                            } catch {
-                              setEditQuestionMsg({ type: "error", text: "Network error." });
-                            } finally {
-                              setEditQuestionSubmitting(false);
-                            }
-                          }}
-                          className="flex-1 rounded-lg bg-[var(--brand)] py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50"
-                        >{editQuestionSubmitting ? "Saving..." : "Save"}</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                renderQuestionEditForm()
               )}
             </div>
           )}
@@ -3478,185 +3291,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
 
 
       {/* ─── AI Draft Import ──────────────────────────────── */}
-      <section className="mb-8 rounded-2xl border border-purple-500/30 bg-[var(--surface)] p-5">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold text-white">AI Draft Import</h2>
-          <p className="mt-1 text-xs text-slate-400">
-            Paste JSON generated by ChatGPT / Claude chat. Accepts one question object <code className="text-purple-300">{"{...}"}</code> or an array <code className="text-purple-300">{"[{...}]"}</code>.
-            Questions are saved as <span className="text-purple-300">Drafts</span> — not published until you approve them.
-          </p>
-        </div>
-
-        {/* Field reference */}
-        <div className="mb-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3 text-xs text-slate-400 space-y-1.5">
-          <p className="font-medium text-slate-300">Fields per question (same structure as New Question form):</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <p><code className="text-purple-300">question_text</code> <span className="text-red-400">*</span> — clear YES/NO question</p>
-            <p><code className="text-purple-300">category</code> <span className="text-red-400">*</span> — Crypto / Markets / Economy / Sports / Entertainment / Global Events / General</p>
-            <p><code className="text-purple-300">closing_time</code> <span className="text-red-400">*</span> — ISO 8601 (e.g. 2026-12-31T00:00:00Z)</p>
-            <p><code className="text-purple-300">initial_probability</code> — <strong className="text-white">0–100</strong> (e.g. 65 = 65% YES, default 50)</p>
-            <p><code className="text-purple-300">entry_cost</code> — 100 / 200 / 500 / 800 (default 500)</p>
-            <p><code className="text-purple-300">resolution_rules</code> — exact YES/NO criteria</p>
-            <p><code className="text-purple-300">chart_symbol</code> — TradingView ticker (e.g. BTCUSDT, AAPL)</p>
-            <p><code className="text-purple-300">logo_url</code> — Wikipedia image URL (Team A / main subject), e.g. <code className="text-slate-400 text-[10px]">https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png</code></p>
-            <p><code className="text-purple-300">logo_url_b</code> — Wikipedia image URL for Team B (Sports VS questions only)</p>
-          </div>
-          <p><code className="text-purple-300">reference_links</code> — array of <code>{`{ "label": "...", "url": "..." }`}</code> — include TradingView chart link + data sources</p>
-          <p className="text-amber-400/80 text-[11px]">Sports VS: format "[Team A] vs [Team B]: Who will win [event/date]?" (neutral phrasing — never "Will [Team] win") · logo_url = Team A, logo_url_b = Team B. Individual sports: free-form question text · logo_url = team/player, logo_url_b = null.</p>
-        </div>
-
-        {/* Copy-paste prompt */}
-        <div className="mb-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-slate-400 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="font-medium text-purple-300">Copy this prompt into ChatGPT or Claude:</p>
-            <span className="text-[10px] text-slate-500">Click inside to select all</span>
-          </div>
-          <div className="rounded-lg bg-[#0b1528] p-2 font-mono text-[11px] text-slate-300 leading-relaxed select-all whitespace-pre-wrap">{`STEP 1 — SEARCH FIRST (mandatory): Before writing any questions, use your web search / browsing tool to look up today's date and fetch live data for each category:
-• Crypto: current BTC price, ETH price, any major moves or news today
-• Markets: S&P 500, Nasdaq, major stock movers, earnings this week
-• Economy: upcoming Fed decisions, latest CPI/GDP/jobs data, central bank news
-• Sports: IPL fixtures this week, Champions League / football matches, NBA playoffs, tennis tournaments, cricket schedules — get ACTUAL team names and match dates
-• Entertainment: box office top film this weekend, award shows, major releases
-• Global Events: elections, geopolitical news, summits, major decisions due this week
-• General: major tech launches, science news, viral stories
-
-STEP 2 — GENERATE: Using only real, verified current data from Step 1, generate 1 question per category as a JSON array (7 total). Every question must be anchored to a specific real event happening THIS week or next week — include actual current prices, real team names, real dates. No hypothetical or generic questions.
-
-Each question must be a clear YES/NO question. For Sports VS matchups: the question MUST be neutral between both teams — use format "[Team A] vs [Team B]: Who will win [event/date]?" — e.g. "Mumbai Indians vs RCB: Who will win the IPL match on May 10?". Never write "Will [specific team] win..." — both team logos appear as equal YES/NO buttons, so the question must not favor either side. Set logo_url (Team A) and logo_url_b (Team B). For individual sports: write freely — set logo_url, logo_url_b as null.
-
-Use closing_time within the next 7–14 days from today.
-
-STEP 3 — SELF-CHECK (mandatory): Before returning, verify each question:
-✓ Is this event actually happening this week or next week? (not past, not too far future)
-✓ Does the price/value mentioned match today's real data?
-✓ Is the resolution rule specific and unambiguous?
-✓ Are team names / player names correct and spelled right?
-✓ For Sports VS matchups: is the phrasing "Who will win"? (never "Will [specific team] win")
-Fix any issues before returning.
-
-Return a JSON array where every object has these exact fields:
-{
-  "question_text": "...",
-  "category": "...",
-  "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
-  "entry_cost": 100 | 200 | 500 | 800,
-  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
-  "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
-  "chart_symbol": "TradingView ticker if applicable, else null",
-  "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
-  "logo_url_b": "Wikipedia direct image URL for Team B (Sports VS only), else null",
-  "reference_links": [
-    { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=TICKER" },
-    { "label": "Source name", "url": "https://..." }
-  ]
-}
-
-Do not use the phrase "prediction market". This is for The Analyst platform.`}</div>
-          <p className="text-[10px] text-amber-400/70">⚠ Logo URLs from Wikipedia may not always display — you can update logos later using the Edit button on any draft.</p>
-        </div>
-
-        <textarea
-          value={aiDraftJson}
-          onChange={(e) => { setAiDraftJson(e.target.value); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
-          rows={12}
-          placeholder={'[\n  {\n    "question_text": "Will Bitcoin close above $100,000 by Dec 31, 2026?",\n    "category": "Crypto",\n    "closing_time": "2026-12-31T00:00:00Z",\n    "entry_cost": 500,\n    "initial_probability": 60,\n    "resolution_rules": "YES if BTC/USD closing price on Binance is >= $100,000 on Dec 31, 2026.",\n    "chart_symbol": "BTCUSDT",\n    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/240px-Bitcoin.svg.png",\n    "logo_url_b": null,\n    "reference_links": [\n      { "label": "TradingView Chart", "url": "https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" },\n      { "label": "CoinGecko", "url": "https://www.coingecko.com/en/coins/bitcoin" }\n    ]\n  },\n  {\n    "question_text": "Real Madrid vs Manchester City: Who will win the 2026 UEFA Champions League Final?",\n    "category": "Sports",\n    "closing_time": "2026-06-01T18:00:00Z",\n    "entry_cost": 200,\n    "initial_probability": 45,\n    "resolution_rules": "YES if Real Madrid wins the 2026 UEFA Champions League Final against Manchester City.",\n    "chart_symbol": null,\n    "logo_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",\n    "logo_url_b": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",\n    "reference_links": [\n      { "label": "UEFA Champions League", "url": "https://www.uefa.com/uefachampionsleague/" }\n    ]\n  }\n]'}
-          className="mb-3 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none"
-        />
-
-        {aiDraftValidationError && (
-          <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-            {aiDraftValidationItems.length <= 1 ? (
-              <p>{aiDraftValidationItems[0] || aiDraftValidationError}</p>
-            ) : (
-              <>
-                <p className="mb-1 font-medium text-red-200">{aiDraftValidationItems.length} validation issue(s) found:</p>
-                <ul className="list-disc space-y-1 pl-4">
-                  {aiDraftValidationItems.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
-
-        {aiDraftValidated && (
-          <div className="mb-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-xs text-slate-300">
-            <p className="mb-1 font-medium text-purple-300">{aiDraftValidated.length} question(s) validated — ready to save as drafts:</p>
-            <ul className="space-y-1 text-slate-400">
-              {aiDraftValidated.map((q, i) => {
-                const qr = q as Record<string, unknown>;
-                const extras: string[] = [];
-                if (qr.chart_symbol) extras.push(`chart: ${String(qr.chart_symbol)}`);
-                if (qr.logo_url) extras.push("logo ✓");
-                const links = Array.isArray(qr.reference_links) ? qr.reference_links.length : 0;
-                if (links > 0) extras.push(`${links} link${links > 1 ? "s" : ""}`);
-                return (
-                  <li key={i}>
-                    <span className="truncate">{i + 1}. [{String(qr.category ?? "—")}] {String(qr.question_text ?? "").slice(0, 80)}</span>
-                    {extras.length > 0 && <span className="ml-2 text-purple-400/70">[{extras.join(", ")}]</span>}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {aiDraftMsg && (
-          <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${aiDraftMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-            {aiDraftMsg.text}
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleValidateAiDraftJson}
-            className="rounded-lg border border-purple-500/40 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
-          >
-            Validate JSON
-          </button>
-          <button
-            disabled={!aiDraftValidated || aiDraftSaving}
-            onClick={async () => {
-              if (!aiDraftValidated) return;
-              setAiDraftSaving(true);
-              setAiDraftMsg(null);
-              try {
-                const res = await timedFetch("admin/import_drafts", `${API_BASE}/admin/import_drafts`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) },
-                  credentials: "include",
-                  body: JSON.stringify({ questions: aiDraftValidated, source: "manual_ai_import" }),
-                });
-                const body = await safeJson(res);
-                if (body.success) {
-                  const created = Number(body.created_count ?? 0);
-                  const errCount = Number(body.error_count ?? 0);
-                  setAiDraftMsg({ type: errCount === 0 ? "success" : "error", text: `Saved ${created} draft(s) successfully.${errCount > 0 ? ` ${errCount} failed — check JSON.` : ""}` });
-                  setAiDraftJson("");
-                  setAiDraftValidated(null);
-                  setQuestionViewTab("draft");
-                  await refreshDraftQuestions();
-                } else {
-                  setAiDraftMsg({ type: "error", text: String(body.detail || "Import failed.") });
-                }
-              } catch { setAiDraftMsg({ type: "error", text: "Network error." }); }
-              finally { setAiDraftSaving(false); }
-            }}
-            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40"
-          >
-            {aiDraftSaving ? "Saving…" : "Save as Drafts"}
-          </button>
-          {(aiDraftJson || aiDraftValidated) && (
-            <button
-              onClick={() => { setAiDraftJson(""); setAiDraftValidated(null); setAiDraftValidationError(null); setAiDraftMsg(null); }}
-              className="rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </section>
+      {renderAiDraftImport({ needsApproval: false })}
 
       <section className="mb-8 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -3789,12 +3424,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                             placeholder="Entry cost"
                           />
                         </div>
-                        <input
-                          type="datetime-local"
-                          value={pendingEditClosingTime}
-                          onChange={(e) => setPendingEditClosingTime(e.target.value)}
-                          className="date-time-input w-full rounded-md border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white focus:border-[var(--brand)] focus:outline-none"
-                        />
+                        <DateTimePicker value={pendingEditClosingTime} onChange={setPendingEditClosingTime} />
                         <textarea
                           value={pendingEditRules}
                           onChange={(e) => setPendingEditRules(e.target.value)}
@@ -4729,189 +4359,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
       </section>
 
       {/* Create Question Modal */}
-      {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }}>
-          <div className="flex w-full max-w-lg flex-col rounded-2xl border border-[var(--stroke)] bg-[var(--surface)]" style={{maxHeight: "90vh"}} onClick={(e) => e.stopPropagation()}>
-            {createStep === "form" ? (
-              <>
-                <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4">
-                  <h3 className="text-base font-semibold text-white">Publish New Question</h3>
-                  <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-                {createMsg && (
-                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                    <div className="whitespace-pre-line">{createMsg.text}</div>
-                  </div>
-                )}
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Category</label>
-                    <select value={createCategory} onChange={(e) => { setCreateCategory(e.target.value); setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
-                      <option>Crypto</option><option>Economy</option><option>Entertainment</option><option>General</option><option>Global events</option><option>Markets</option><option>Sports</option>
-                    </select>
-                  </div>
-                  {createCategory === "Sports" && (
-                    <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-slate-300">Question Type</p>
-                        <div className="flex rounded-lg border border-[var(--stroke)] p-0.5 text-xs">
-                          <button type="button" onClick={() => { setCreateVsMode(false); setCreateVsTeamA(""); setCreateVsTeamB(""); setCreateQuestion(""); setCreateResolutionRules(""); }} className={`rounded px-3 py-1 transition-colors ${!createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>YES / NO</button>
-                          <button type="button" onClick={() => setCreateVsMode(true)} className={`rounded px-3 py-1 transition-colors ${createVsMode ? "bg-[var(--brand)]/20 text-[var(--brand)]" : "text-slate-400 hover:text-white"}`}>VS Match</button>
-                        </div>
-                      </div>
-                      {createVsMode && (
-                        <div className="mt-2.5 space-y-2.5">
-                          <div className="flex items-center gap-2">
-                            <input type="text" value={createVsTeamA} onChange={(e) => setCreateVsTeamA(e.target.value)} placeholder="Team A (e.g. Mumbai Indians)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            <span className="text-sm font-bold text-slate-400">vs</span>
-                            <input type="text" value={createVsTeamB} onChange={(e) => setCreateVsTeamB(e.target.value)} placeholder="Team B (e.g. RCB)" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                          </div>
-                          <div className="flex items-center gap-4 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e]/40 px-3 py-2 text-[11px]">
-                            <div><span className="text-slate-500">{createVsTeamA || "Team A"} logo: </span><span className={createSelectedLogoKeys[0] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[0] || "not selected"}</span></div>
-                            <span className="text-slate-700">·</span>
-                            <div><span className="text-slate-500">{createVsTeamB || "Team B"} logo: </span><span className={createSelectedLogoKeys[1] ? "font-medium text-emerald-400" : "text-slate-600"}>{createSelectedLogoKeys[1] || "not selected"}</span></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Question Text</label>
-                    <textarea value={createQuestion} onChange={(e) => setCreateQuestion(e.target.value)} placeholder={createVsMode && createCategory === "Sports" ? `e.g. Who will win the IPL match — ${createVsTeamA || "Team A"} or ${createVsTeamB || "Team B"}?` : createCategory === "Sports" ? "e.g. Will India win the T20 World Cup?" : "e.g. Will Bitcoin reach $50k by end of Q2?"} className="h-20 w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Entry Cost (points)</label>
-                    <select value={createEntryCost} onChange={(e) => setCreateEntryCost(e.target.value)} className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none">
-                      <optgroup label="Tier 1"><option value="50">50 pts</option><option value="100">100 pts</option><option value="200">200 pts</option></optgroup>
-                      <optgroup label="Tier 2"><option value="300">300 pts</option><option value="400">400 pts</option><option value="500">500 pts</option></optgroup>
-                      <optgroup label="Tier 3"><option value="600">600 pts</option><option value="700">700 pts</option><option value="800">800 pts</option></optgroup>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Initial YES %</label>
-                    <input type="number" min={1} max={99} step={0.1} value={createInitialProbability} onChange={(e) => setCreateInitialProbability(e.target.value)} placeholder="e.g. 65" className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
-                    <p className="mt-1 text-xs text-slate-500">NO will auto-set to {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Closing Date & Time</label>
-                    <input type="datetime-local" value={createClosingTime} onChange={(e) => setCreateClosingTime(e.target.value)} className="date-time-input w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white focus:border-[var(--brand)] focus:outline-none" />
-                  </div>
-                  {createVsMode && createCategory === "Sports" && (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300">
-                      VS question: select <strong>2 logos</strong> — one for <span className="font-semibold">{createVsTeamA || "Team A"}</span> and one for <span className="font-semibold">{createVsTeamB || "Team B"}</span>.
-                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length === 2 && <span className="ml-2 text-emerald-400">✓ 2 logos selected</span>}
-                      {createSelectedLogoKeys.length + createSelectedPendingLogoIds.length > 2 && <span className="ml-2 text-red-400">⚠ More than 2 selected</span>}
-                    </div>
-                  )}
-                  <LogoLibraryPicker
-                    title={createVsMode && createCategory === "Sports" ? `Team Logos (${createSelectedLogoKeys.length + createSelectedPendingLogoIds.length}/2 selected)` : "Question logos"}
-                    category={createCategory}
-                    activeAssets={activeLogoAssets}
-                    pendingAssets={pendingLogoAssets}
-                    selectedLogoKeys={createSelectedLogoKeys}
-                    selectedPendingLogoIds={createSelectedPendingLogoIds}
-                    onSelectedLogoKeysChange={setCreateSelectedLogoKeys}
-                    onSelectedPendingLogoIdsChange={setCreateSelectedPendingLogoIds}
-                    onUploadLogo={(payload) => uploadLogoAsset(payload, "create")}
-                    uploading={createLogoUploading}
-                    role={userRole}
-                  />
-                  <div className="rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 space-y-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Research Data <span className="ml-1 font-normal normal-case text-slate-500">— saved and shown to users inside this question</span></p>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-300">Chart <span className="font-normal text-slate-500">(optional)</span></label>
-                      <p className="mb-2 text-[11px] text-slate-500">Search by company name or ticker — results show the exact exchange. Select from the list.</p>
-                      <div className="relative">
-                        <div className="flex gap-2">
-                          <input type="text" value={createChartSymbol} onChange={(e) => setCreateChartSymbol(e.target.value.toUpperCase())} placeholder="e.g. Apple, Reliance, Bitcoin, Nifty 50…" className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                          {createChartSymbol && <button type="button" onClick={() => { setCreateChartSymbol(""); setCreateChartResults([]); }} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Clear</button>}
-                        </div>
-                        {createChartResults.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--stroke)] bg-[#0b1528] shadow-xl">
-                            {createChartResults.map((r) => (
-                              <button key={r.symbol} type="button" onClick={() => { setCreateChartSymbol(r.symbol); setCreateChartResults([]); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-[var(--brand)]/10">
-                                <span className="font-semibold text-[var(--brand)]">{r.symbol}</span>
-                                <span className="truncate text-slate-400">{r.description}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {createChartSymbol && createChartSymbol.includes(":") && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <p className="text-[10px] text-emerald-400">✓ Chart: {createChartSymbol}</p>
-                          <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(createChartSymbol)}`} target="_blank" rel="noreferrer" className="text-[10px] text-[var(--brand)] hover:underline">Verify on TradingView ↗</a>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-300">Research Links <span className="font-normal text-slate-500">(optional)</span></label>
-                      <p className="mb-2 text-[11px] text-slate-500">Add source links users can open when researching this question.</p>
-                      <div className="space-y-2">
-                        {createReferenceLinks.map((link, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <input type="text" value={link.label} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, label: e.target.value } : l))} placeholder="Label (e.g. NSE India)" className="w-32 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            <input type="text" value={link.url} onChange={(e) => setCreateReferenceLinks((ls) => ls.map((l, i) => i === idx ? { ...l, url: e.target.value } : l))} placeholder="https://..." className="flex-1 rounded-lg border border-[var(--stroke)] bg-[#0d1b2e] px-2 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                            <button type="button" onClick={() => setCreateReferenceLinks((ls) => ls.filter((_, i) => i !== idx))} className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-400 hover:border-red-400/60">Remove</button>
-                          </div>
-                        ))}
-                        <button type="button" onClick={() => setCreateReferenceLinks((ls) => [...ls, { label: "", url: "" }])} className="rounded-lg border border-[var(--brand)]/30 px-3 py-1.5 text-xs font-medium text-[var(--brand)] hover:border-[var(--brand)]/60 hover:bg-[var(--brand)]/5">+ Add Research Link</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-300">Resolution Rules <span className="text-slate-500 font-normal text-xs">(optional)</span></label>
-                    <textarea value={createResolutionRules} onChange={(e) => setCreateResolutionRules(e.target.value)} rows={3} placeholder="e.g. YES if BTC closing price ≥ $50,000 on Binance on 31 Dec 2025." className="w-full rounded-xl border border-[var(--stroke)] bg-[#0d1b2e] px-3 py-2 text-white placeholder:text-slate-600 focus:border-[var(--brand)] focus:outline-none" />
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => { setCreateModalOpen(false); setCreateMsg(null); }} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">Cancel</button>
-                    <button onClick={handleCreateQuestion} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110">Review →</button>
-                  </div>
-                </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Confirm & Publish</h3>
-                  <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
-                </div>
-                <div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
-                  <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
-                  <div className="flex flex-wrap gap-6">
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
-                    {createVsMode && createCategory === "Sports" && <div><p className="text-xs uppercase tracking-wide text-slate-500">Type</p><p className="mt-1 text-white">{createVsTeamA} vs {createVsTeamB}</p></div>}
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Entry Cost</p><p className="mt-1 text-white">{createEntryCost} pts</p></div>
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Closes</p><p className="mt-1 text-white">{createClosingTime ? new Date(createClosingTime).toLocaleString() : "—"}</p></div>
-                    <div><p className="text-xs uppercase tracking-wide text-slate-500">Initial Split</p><p className="mt-1 text-white">YES {Number(createInitialProbability || 50).toFixed(2)}% / NO {(100 - Number(createInitialProbability || 50)).toFixed(2)}%</p></div>
-                  </div>
-                  {(createSelectedLogoKeys.length > 0 || createSelectedPendingLogoIds.length > 0) && (
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Logos</p>
-                      <p className="mt-1 text-slate-200">
-                        {createSelectedLogoKeys.length > 0 ? `Approved: ${createSelectedLogoKeys.join(", ")}` : ""}
-                        {createSelectedLogoKeys.length > 0 && createSelectedPendingLogoIds.length > 0 ? " · " : ""}
-                        {createSelectedPendingLogoIds.length > 0 ? `Pending uploads: ${createSelectedPendingLogoIds.length}` : ""}
-                      </p>
-                    </div>
-                  )}
-                  {createResolutionRules.trim() && <div><p className="text-xs uppercase tracking-wide text-slate-500">Resolution Rules</p><p className="mt-1 whitespace-pre-line text-slate-200">{createResolutionRules.trim()}</p></div>}
-                </div>
-                {createMsg && (
-                  <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
-                    <div className="whitespace-pre-line">{createMsg.text}</div>
-                  </div>
-                )}
-                <div className="flex gap-3">
-                  <button onClick={() => setCreateStep("form")} className="flex-1 rounded-lg border border-[var(--stroke)] py-2.5 text-sm text-slate-300 hover:border-slate-500 hover:text-white">← Edit</button>
-                  <button onClick={handleCreateSubmit} disabled={createSubmitting} className="flex-1 rounded-lg bg-[var(--brand)] py-2.5 text-sm font-semibold text-slate-950 hover:brightness-110 disabled:opacity-50">{createSubmitting ? "Publishing..." : "Publish Question"}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {createModalOpen && renderCreateQuestionModal({ mode: "publish" })}
     </main>
   );
 }
