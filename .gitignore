@@ -40,3 +40,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev artifacts (checkpoints, agent handoffs, design tooling) — keep out of the repo
+saved_versions/
+.impeccable/
+.handoff/
+.claude/
+PRODUCT.md
+IMPECCABLE_REVIEW.*
+IMPECCABLE_CHANGES_DONE.*

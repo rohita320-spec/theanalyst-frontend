@@ -4,9 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "NEXT_PUBLIC_USE_MOCK=true next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "open:vscode": "open -a 'Visual Studio Code' .",
+    "snapshot:copilot": "zsh ./saved_versions/session_snapshot.sh --agent copilot",
+    "snapshot:claude": "zsh ./saved_versions/session_snapshot.sh --agent claude",
+    "recover:copilot": "zsh ./saved_versions/recover_agent.sh copilot",
+    "recover:claude": "zsh ./saved_versions/recover_agent.sh claude"
   },
   "dependencies": {
     "next": "16.2.4",

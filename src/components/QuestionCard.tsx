@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { fetchActiveLogoAssets, type FeedQuestion } from "../lib/api";
 import { buildLogoLibraryLookup, getQuestionLogos, getQuestionSideLabels, type LogoLibraryLookup } from "../lib/marketPreview";
 
@@ -123,6 +123,15 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
     return `${normalizedSide}: ${sideLabel}`;
   }
 
+  function handleButtonMouseMove(event: MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    button.style.setProperty("--cursor-x", `${x}px`);
+    button.style.setProperty("--cursor-y", `${y}px`);
+  }
+
   return (
     <article
       className="cursor-pointer rounded-xl border border-[var(--stroke)]/70 bg-[var(--surface-2)] p-3 transition-colors hover:border-slate-500/60"
@@ -196,7 +205,7 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
               {badge.label}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
             <span>{question.category}</span>
             <span className="opacity-40">·</span>
             <span>{question.closes_label || "Closes soon"}</span>
@@ -212,9 +221,9 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
         </div>
         <div className="mt-1.5 flex items-center justify-between text-xs font-medium">
           <span className="text-[var(--yes)]">{sideLabels.yesLabel} {formatPct(safeYes)}</span>
-          <span className="text-[11px] text-slate-500">Volume: {formatNumber(totalPool)}</span>
           <span className="text-[var(--no)]">{formatPct(safeNo)} {sideLabels.noLabel}</span>
         </div>
+        <p className="mt-1 text-center text-[11px] text-slate-400">Volume: {formatNumber(totalPool)}</p>
       </div>
 
       {/* Analysis type counters */}
@@ -237,31 +246,29 @@ export default function QuestionCard({ question, onOpenChart, onAnalyze, placing
       {/* Action buttons */}
       <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
-          className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            !canAnalyze || !loggedIn
-              ? "border border-[var(--stroke)] bg-transparent text-slate-400"
-              : "bg-[var(--yes)] text-slate-950 hover:brightness-110"
-          }`}
+          className="cursor-glow-button min-w-0 flex-1 rounded-md bg-[var(--yes)] px-2 py-1.5 text-xs font-semibold text-slate-950 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          onMouseMove={handleButtonMouseMove}
           onClick={() => onAnalyze(question, "yes")}
           disabled={!canAnalyze || isAnyPlacing}
         >
-          {getButtonLabel("yes")}
+          <span className="cursor-glow-layer" />
+          <span className="cursor-shimmer-layer" />
+          <span className="cursor-glow-content block truncate">{getButtonLabel("yes")}</span>
         </button>
         <button
-          className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            !canAnalyze || !loggedIn
-              ? "border border-[var(--stroke)] bg-transparent text-slate-400"
-              : "bg-[var(--no)] text-slate-950 hover:brightness-110"
-          }`}
+          className="cursor-glow-button min-w-0 flex-1 rounded-md bg-[var(--no)] px-2 py-1.5 text-xs font-semibold text-slate-950 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          onMouseMove={handleButtonMouseMove}
           onClick={() => onAnalyze(question, "no")}
           disabled={!canAnalyze || isAnyPlacing}
         >
-          {getButtonLabel("no")}
+          <span className="cursor-glow-layer" />
+          <span className="cursor-shimmer-layer" />
+          <span className="cursor-glow-content block truncate">{getButtonLabel("no")}</span>
         </button>
       </div>
 
       {!loggedIn && isOpen && (
-        <p className="mt-1.5 text-center text-[11px] text-slate-500">Login to participate</p>
+        <p className="mt-1.5 text-center text-[11px] text-slate-400">Login to participate</p>
       )}
     </article>
   );

@@ -8,6 +8,17 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Local-dev proxy: the browser calls same-origin /__api/* and Next forwards it to the
+  // real backend server-side, bypassing the backend's browser CORS allowlist.
+  // Production is unaffected (it sets NEXT_PUBLIC_API_URL to the full backend URL, so /__api/* is never requested).
+  async rewrites() {
+    return [
+      {
+        source: "/__api/:path*",
+        destination: "https://lpbackend-production.up.railway.app/:path*",
+      },
+    ];
+  },
   async headers() {
     return [
       {

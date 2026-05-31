@@ -23,12 +23,12 @@ const CATEGORY_DEFAULT_SYMBOL: Record<string, string> = {
   Markets: "NSE:NIFTY50",
 };
 
-function TradingViewWidget({ symbol }: { symbol: string }) {
+function TradingViewWidget({ symbol, theme = "dark" }: { symbol: string; theme?: "light" | "dark" }) {
   const [loaded, setLoaded] = useState(false);
 
   const src =
     `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(symbol)}` +
-    `&interval=D&theme=dark&style=1&locale=en&timezone=Asia%2FKolkata` +
+    `&interval=D&theme=${theme}&style=1&locale=en&timezone=Asia%2FKolkata` +
     `&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=1&saveimage=1` +
     `&withdateranges=1&showpopupbutton=1&studies=%5B%5D` +
     `&studies_overrides=%7B%7D&overrides=%7B%7D` +
@@ -42,7 +42,7 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
         </div>
       )}
       <iframe
-        key={symbol}
+        key={`${symbol}-${theme}`}
         src={src}
         width="100%"
         height="400"
@@ -62,7 +62,10 @@ type Props = {
 };
 
 export default function AnalystDesk({ category, mode = "create", savedChartSymbol, savedResearchLinks }: Props) {
-  const [open, setOpen] = useState(false);
+  // Open by default in view mode when there's saved research — studying the signal is the point of opening a question.
+  const [open, setOpen] = useState(
+    () => mode === "view" && (Boolean(savedChartSymbol) || (Array.isArray(savedResearchLinks) && savedResearchLinks.length > 0)),
+  );
   const isMarket = MARKET_CATEGORIES.has(category);
 
   const defaultSymbol = CATEGORY_DEFAULT_SYMBOL[category] || "NSE:NIFTY50";
@@ -74,6 +77,13 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
     setLoadedSymbol(sym);
     setInputSymbol(sym);
   }, [category]);
+
+  // Match the TradingView chart to the app's active theme instead of hardcoding dark.
+  const [chartTheme, setChartTheme] = useState<"light" | "dark">("dark");
+  useEffect(() => {
+    const t = document.documentElement.getAttribute("data-theme");
+    setChartTheme(t === "bright" ? "light" : "dark");
+  }, []);
   const hasSavedContent = savedChartSymbol || (savedResearchLinks && savedResearchLinks.length > 0);
 
   return (
@@ -107,13 +117,13 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
           {mode === "view" && (
             <div className="space-y-4">
               {!savedChartSymbol && (!savedResearchLinks || savedResearchLinks.length === 0) && (
-                <p className="text-xs text-slate-500">No research data has been added for this question.</p>
+                <p className="text-xs text-slate-400">No research data has been added for this question.</p>
               )}
 
               {savedChartSymbol && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Chart — {savedChartSymbol}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Chart — {savedChartSymbol}</p>
                     <a
                       href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(savedChartSymbol)}`}
                       target="_blank"
@@ -124,14 +134,14 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                     </a>
                   </div>
                   <div className="overflow-hidden rounded-lg">
-                    <TradingViewWidget symbol={savedChartSymbol} />
+                    <TradingViewWidget symbol={savedChartSymbol} theme={chartTheme} />
                   </div>
                 </div>
               )}
 
               {savedResearchLinks && savedResearchLinks.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">Research Links</p>
+                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">Research Links</p>
                   <div className="flex flex-wrap gap-2">
                     {savedResearchLinks.map((link) => (
                       <a
@@ -177,7 +187,7 @@ export default function AnalystDesk({ category, mode = "create", savedChartSymbo
                 </button>
               </div>
               <div className="overflow-hidden rounded-lg">
-                <TradingViewWidget symbol={loadedSymbol} />
+                <TradingViewWidget symbol={loadedSymbol} theme={chartTheme} />
               </div>
             </div>
           )}
