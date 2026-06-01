@@ -235,6 +235,10 @@ type SmokeTestSummary = {
   steps_failed: number;
   elapsed_seconds: number;
   correct_answer: string;
+  points_conserved?: boolean;
+  total_points_before?: number;
+  total_points_after?: number;
+  conservation_delta?: number;
 };
 
 type SmokeTestResult = {
@@ -3609,6 +3613,11 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                 <p>Steps: <span className="text-white">{smokeResult.summary.steps_passed}/{smokeResult.summary.steps_total}</span></p>
                 <p>Failures: <span className="text-white">{smokeResult.summary.steps_failed}</span></p>
                 <p>Elapsed: <span className="text-white">{smokeResult.summary.elapsed_seconds}s</span></p>
+                {typeof smokeResult.summary.points_conserved === "boolean" && (
+                  <p>Points conserved: <span className={smokeResult.summary.points_conserved ? "text-emerald-400" : "text-red-400"}>{smokeResult.summary.points_conserved ? "yes" : "no"}</span>
+                    {" "}<span className="text-slate-500">({smokeResult.summary.total_points_before} → {smokeResult.summary.total_points_after}, Δ {smokeResult.summary.conservation_delta})</span>
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm text-slate-500">Run the backend smoke test to verify signup, trading, resolution, payout, cleanup, and storage connectivity.</p>
