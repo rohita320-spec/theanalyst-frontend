@@ -3533,9 +3533,6 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
             <p className="text-sm text-slate-400">Visible admin controls for system validation and storage status.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/test" className="rounded-lg border border-[var(--stroke)] px-4 py-2 text-sm text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)]">
-              Open UI Test Page
-            </Link>
             <button
               onClick={runSmokeTest}
               disabled={smokeLoading}
@@ -4355,9 +4352,6 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
           <a href={publicLandingUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
             🌐 Public Landing Page ↗
           </a>
-          <Link href="/test" className="rounded-lg border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-2 text-[var(--brand)] hover:bg-[var(--brand)]/20">
-            🧪 System Test Page
-          </Link>
           <Link href="/feed" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Feed</Link>
           <Link href="/leaderboard" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Leaderboard</Link>
           <Link href="/profile" className="admin-nav-link rounded-lg border border-[var(--stroke)] px-4 py-2 hover:border-[var(--brand)] hover:text-[var(--brand)]">Profile</Link>
