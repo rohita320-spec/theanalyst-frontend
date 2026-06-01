@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sports VS + Draft Logo — Diagnosis</title>
+  <style>
+    :root{--bg:#f5f8ff;--card:#fff;--ink:#17314a;--muted:#536b84;--line:#d9e5f3;--brand:#0d63d6;--ok:#0f9d58;--warn:#b76e00;--bad:#c0392b}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#edf4ff,#f9fbff);color:var(--ink);line-height:1.55}
+    .wrap{max-width:1080px;margin:0 auto;padding:22px 14px 60px}
+    .hero{background:linear-gradient(135deg,#0d2b4b,#1a4f88 60%,#0f67de);color:#fff;border-radius:16px;padding:20px}
+    .hero h1{margin:0;font-size:clamp(1.3rem,2.4vw,1.9rem)}
+    .hero p{margin:8px 0 0;color:#dbe9ff}
+    .card{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+    h2{margin:0 0 6px;font-size:1.12rem}
+    h3{margin:12px 0 4px;font-size:.98rem;color:#1a4f88}
+    code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.83rem;background:#eef3fb;padding:1px 5px;border-radius:5px}
+    .k{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:800}
+    .k.bug{background:#fdecea;color:var(--bad)} .k.fix{background:#e8f8ef;color:var(--ok)}
+    ul{margin:6px 0 0 20px}li{margin:5px 0}
+    .small{color:var(--muted);font-size:.9rem}
+    .box{background:#f7faff;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:8px;padding:10px 13px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Sports VS + Draft Logo — Diagnosis &amp; Fix Plan</h1>
+      <p>Two reported issues, root-caused in code. One fix applied, one proposed. No engine/money logic touched.</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="k bug">BUG 1</span> Sports VS: no "VS", YES/NO don't show team names</h2>
+      <h3>Root cause</h3>
+      <p>The card decides it's a VS question via <span class="mono">isVsQuestion = sideLabels.yesLabel !== "YES"</span> (QuestionCard.tsx:100). The side labels come from <span class="mono">getQuestionSideLabels()</span>, which uses either <span class="mono">metadata.yes_label/no_label</span> OR parses "TEAM1 <b>vs</b> TEAM2" from the title.</p>
+      <p>When an admin creates a VS match, the form collects Team A / Team B — <b>but the create payload never sent them.</b> The <span class="mono">metadata</span> block included only <span class="mono">chart_symbol</span> and <span class="mono">reference_links</span> — <b>not</b> <span class="mono">yes_label/no_label</span> (admin/page.tsx:1627). And the manual VS placeholder suggests "Who will win … Team A <b>or</b> Team B?" (uses "or", not "vs"), so the title-parse fallback also misses.</p>
+      <p>Result: labels fall back to plain "YES"/"NO" → <span class="mono">isVsQuestion</span> is false → no VS divider, no team names.</p>
+      <h3><span class="k fix">FIXED</span></h3>
+      <p>The create payload now sends <span class="mono">yes_label = Team A</span>, <span class="mono">no_label = Team B</span> in metadata whenever VS mode is on. This makes the labels show team names <b>and</b> flips <span class="mono">isVsQuestion</span> true → the "vs" divider + two-logo layout render. Robust: works regardless of how the title is phrased.</p>
+      <div class="box small"><b>Note:</b> the "vs" divider also requires <b>two logos</b> to resolve (<span class="mono">logos.length === 2</span>). VS mode already collects two <span class="mono">logo_keys</span>, so that holds — provided the two logos exist in the library (see Bug 2).</div>
+    </section>
+
+    <section class="card">
+      <h2><span class="k bug">BUG 2</span> Drafted questions: logos don't appear (Wikipedia image URLs)</h2>
+      <h3>Root cause</h3>
+      <p>Two different logo systems that aren't bridged for drafts:</p>
+      <ul>
+        <li><b>What the card reads:</b> <span class="mono">question.logo_keys</span> → looked up in the <b>logo library</b> (<span class="mono">/logos/active</span>). The card does NOT read <span class="mono">metadata.logo_url</span>.</li>
+        <li><b>What draft import stores:</b> the AI/JSON draft's <span class="mono">logo_url</span> / <span class="mono">logo_url_b</span> are saved into <span class="mono">metadata.logo_url</span> (main.py import_drafts ~6973) — a field the card never displays.</li>
+      </ul>
+      <p>So a drafted question carries the Wikipedia URL in <span class="mono">metadata.logo_url</span>, but has no <span class="mono">logo_keys</span> → the card finds no logo → nothing shows. The supposed bridge, <span class="mono">_backfill_question_logo_assets()</span>, is currently a <b>no-op stub</b> (it only checks for existing keys; it never downloads the URL or creates a library asset).</p>
+      <p class="small"><b>Extra gotcha:</b> the logo-download path <b>rejects SVGs</b> (main.py ~539, 563). Many Wikipedia logo links are <span class="mono">.svg</span> (e.g. club crests) → those fail even via the manual uploader. Your new example is a <span class="mono">.jpg</span>, which is fine. Use the "copy image address" of a <b>.jpg/.png</b> thumbnail, not the SVG.</p>
+
+      <h3>Fix options (your call — proposed, NOT yet applied)</h3>
+      <ul>
+        <li><b>A. Bridge on import/approve (recommended):</b> when a draft has <span class="mono">metadata.logo_url</span>, download it via the existing <span class="mono">_download_logo_from_url</span>, create a library asset, and attach its <span class="mono">logo_key</span> to the question. Then the card shows it like any other logo. Touches backend import/approve flow.</li>
+        <li><b>B. Card fallback:</b> make the card render <span class="mono">metadata.logo_url</span> / <span class="mono">logo_url_b</span> directly as an <span class="mono">&lt;img&gt;</span> when no <span class="mono">logo_keys</span> resolve. Frontend-only, smaller change, but leaves the two logo systems separate.</li>
+        <li><b>C. Workflow only:</b> don't auto-bridge — instead, in the admin draft-review UI, the admin picks library logos before publishing (the create flow already supports <span class="mono">logo_keys</span>). No code bridge; relies on the admin step.</li>
+      </ul>
+      <div class="box small"><b>Lowest-risk recommendation:</b> Option B (card fallback to <span class="mono">metadata.logo_url</span>) — it's frontend-only, can't affect the engine, and immediately makes drafted Wikipedia <span class="mono">.jpg/.png</span> logos appear. Option A is "more correct" long-term but touches the backend import path.</div>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <ul>
+        <li><span class="k fix">DONE</span> Bug 1 (VS labels) — fix applied on branch <span class="mono">fix/sports-vs-and-draft-logos</span>, pending build-verify + your review.</li>
+        <li><span class="k bug">PENDING YOUR CHOICE</span> Bug 2 (draft logos) — pick option A / B / C above before I implement.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

@@ -1627,6 +1627,11 @@ export default function AdminPage() {
           metadata: {
             ...(createChartSymbol.trim() ? { chart_symbol: createChartSymbol.trim() } : {}),
             ...(createReferenceLinks.filter((l) => l.url.trim()).length > 0 ? { reference_links: createReferenceLinks.filter((l) => l.url.trim()) } : {}),
+            // VS match: persist team names as YES/NO side labels so the card
+            // shows the team names (and VS) regardless of title phrasing.
+            ...(createVsMode && createVsTeamA.trim() && createVsTeamB.trim()
+              ? { yes_label: createVsTeamA.trim(), no_label: createVsTeamB.trim() }
+              : {}),
           },
         }),
       });
