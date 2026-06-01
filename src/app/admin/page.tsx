@@ -488,6 +488,20 @@ function LogoLibraryPicker({
             className="w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <p className="text-[10px] text-amber-400/80">⚠ URL must be a direct image address, e.g. https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/BSE_logo.svg/250px-BSE_logo.svg.png — not a webpage link.</p>
+          {uploadLogoUrl.trim().startsWith("http") && (
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--stroke)] bg-[var(--surface)] px-2.5 py-2">
+              <img
+                key={uploadLogoUrl.trim()}
+                src={uploadLogoUrl.trim()}
+                alt="logo preview"
+                referrerPolicy="no-referrer"
+                className="h-10 w-10 rounded bg-white object-contain p-0.5"
+                onLoad={(e) => { const n = (e.currentTarget.nextElementSibling as HTMLElement); if (n) n.textContent = "✓ Image loads — this is what will be saved."; if (n) n.className = "text-[10px] text-emerald-400"; }}
+                onError={(e) => { e.currentTarget.style.display = "none"; const n = (e.currentTarget.nextElementSibling as HTMLElement); if (n) { n.textContent = "✗ Could not load this URL as an image. Use the direct image address (copy image address), not a page link."; n.className = "text-[10px] text-red-400"; } }}
+              />
+              <span className="text-[10px] text-slate-500">Preview…</span>
+            </div>
+          )}
           <p className="text-center text-[10px] text-slate-500">— or upload a file —</p>
           <input
             type="file"
