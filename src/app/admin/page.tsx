@@ -2183,7 +2183,7 @@ Return a JSON array where every object has these exact fields:
   "category": "...",
   "closing_time": "YYYY-MM-DDTHH:MM:SSZ",
   "entry_cost": 100 | 200 | 500 | 800,
-  "initial_probability": 0-100 (integer — based on real odds/sentiment, e.g. 65 means 65% YES),
+  "initial_probability": 0-100 (integer — based on real probability/sentiment, e.g. 65 means 65% YES),
   "resolution_rules": "Exact YES/NO criteria with specific source (e.g. Binance closing price, official match result)",
   "chart_symbol": "TradingView ticker if applicable, else null",
   "logo_url": "Wikipedia direct image URL — format: https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/250px-Bitcoin.svg.png — else null",
@@ -2317,7 +2317,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                   <div><h3 className="text-base font-semibold text-white">{isPublish ? "Publish New Question" : "Submit New Question"}</h3>{!isPublish && <p className="mt-0.5 text-xs text-amber-400">{userRole === "question_creator_resolver" ? "Creator & Resolver" : "Question Creator"} — pending admin review</p>}</div>
                   <button onClick={() => { setCreateModalOpen(false); setCreateStep("form"); }} className="text-slate-500 hover:text-slate-300">✕</button>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-300">Your question goes to admin review before going live. Entry cost and starting odds are set by admin on approval.</div>)}
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-300">Your question goes to admin review before going live. Entry cost and starting probability are set by admin on approval.</div>)}
                 {createMsg && (
                   <div className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${createMsg.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
                     <div className="whitespace-pre-line">{createMsg.text}</div>
@@ -2463,7 +2463,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                   <h3 className="text-lg font-semibold text-white">{isPublish ? "Confirm & Publish" : "Review & Submit"}</h3>
                   <button onClick={() => setCreateStep("form")} className="text-slate-500 hover:text-slate-300">← Back</button>
                 </div>
-                {!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-xs text-amber-300">Admin will review this question and set entry cost + starting odds before it goes live.</div>)}<div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
+                {!isPublish && (<div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-xs text-amber-300">Admin will review this question and set entry cost + starting probability before it goes live.</div>)}<div className="mb-5 space-y-3 rounded-xl border border-[var(--stroke)] bg-[#0b1528] p-4 text-sm">
                   <div><p className="text-xs uppercase tracking-wide text-slate-500">Question</p><p className="mt-1 font-medium text-white">{createQuestion}</p></div>
                   <div className="flex flex-wrap gap-6">
                     <div><p className="text-xs uppercase tracking-wide text-slate-500">Category</p><p className="mt-1 text-white">{createCategory}</p></div>
@@ -3608,7 +3608,7 @@ Do not use the phrase "prediction market". This is for The Analyst platform.`}</
                 <p>Elapsed: <span className="text-white">{smokeResult.summary.elapsed_seconds}s</span></p>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Run the backend smoke test to verify signup, trading, resolution, payout, cleanup, and storage connectivity.</p>
+              <p className="text-sm text-slate-500">Run the backend smoke test to verify signup, predictions, resolution, settlement, cleanup, and storage connectivity.</p>
             )}
           </div>
         </div>
