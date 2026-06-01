@@ -566,7 +566,7 @@ export default function FeedPage() {
                   </div>
                 </div>
                 <p className="mt-3 text-[11px] text-slate-500">
-                  This preview uses the current engine exactly. Final payout changes if more points enter either side before resolution.
+                  This preview uses the current engine exactly. Final return changes if more points enter either side before resolution.
                 </p>
               </div>
             )}
