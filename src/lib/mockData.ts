@@ -1,10 +1,22 @@
-import type { FeedQuestion, HistoryPoint, LeaderboardRow, ProfilePayload, UserPredictionsPayload } from "./api";
+import type { FeedQuestion, HistoryPoint, LeaderboardRow, LogoAsset, ProfilePayload, UserPredictionsPayload } from "./api";
 
 export const DEMO_USER_ID = "1775927339196x936402878588595800";
+
+// Logos shown on mock-mode question cards. Real public image URLs.
+export const MOCK_LOGOS: LogoAsset[] = [
+  { _id: "l-qqq", id: "l-qqq", logo_key: "qqq", display_name: "Nasdaq 100 (QQQ)", category: "Markets", image_url: "https://s3-symbol-logo.tradingview.com/nasdaq.svg", status: "active" },
+  { _id: "l-gold", id: "l-gold", logo_key: "gold", display_name: "Gold", category: "Markets", image_url: "https://cdn-icons-png.flaticon.com/128/2933/2933116.png", status: "active" },
+  { _id: "l-btc", id: "l-btc", logo_key: "bitcoin", display_name: "Bitcoin", category: "Crypto", image_url: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png", status: "active" },
+  { _id: "l-fed", id: "l-fed", logo_key: "inflation", display_name: "US Federal Reserve", category: "Economy", image_url: "https://flagcdn.com/w80/us.png", status: "active" },
+  { _id: "l-india", id: "l-india", logo_key: "india-cpi", display_name: "Reserve Bank of India", category: "Economy", image_url: "https://flagcdn.com/w80/in.png", status: "active" },
+];
 
 export const MOCK_QUESTIONS: FeedQuestion[] = [
   {
     _id: "q-1",
+    resolution_rules: "YES if QQQ closes below $600 on 30 April 2026 per Nasdaq official close.",
+    metadata: { chart_symbol: "NASDAQ:QQQ", reference_links: [ { label: "Nasdaq QQQ", url: "https://www.nasdaq.com/market-activity/etf/qqq" }, { label: "CNBC", url: "https://www.cnbc.com/quotes/QQQ" } ] },
+    logo_keys: ["qqq"],
     title: "Will QQQ close below 600 by 30 April?",
     category: "Markets",
     yes_percent: 51.71,
@@ -17,6 +29,9 @@ export const MOCK_QUESTIONS: FeedQuestion[] = [
   },
   {
     _id: "q-2",
+    resolution_rules: "YES if spot gold (XAU/USD) closes above $5,000/oz on 30 April 2026.",
+    metadata: { chart_symbol: "OANDA:XAUUSD", reference_links: [ { label: "Kitco Gold", url: "https://www.kitco.com/charts/livegold.html" } ] },
+    logo_keys: ["gold"],
     title: "Will gold close above $5000/oz by 30 April?",
     category: "Markets",
     yes_percent: 49.45,
@@ -29,6 +44,9 @@ export const MOCK_QUESTIONS: FeedQuestion[] = [
   },
   {
     _id: "q-3",
+    resolution_rules: "YES if BTC/USD on Binance trades at or above $100,000 before 31 Dec 2026.",
+    metadata: { chart_symbol: "BINANCE:BTCUSDT", reference_links: [ { label: "CoinGecko", url: "https://www.coingecko.com/en/coins/bitcoin" }, { label: "TradingView", url: "https://www.tradingview.com/symbols/BTCUSD/" } ] },
+    logo_keys: ["bitcoin"],
     title: "Will BTC reach $100k before year-end?",
     category: "Crypto",
     yes_percent: 54.2,
@@ -41,6 +59,9 @@ export const MOCK_QUESTIONS: FeedQuestion[] = [
   },
   {
     _id: "q-4",
+    resolution_rules: "YES if US CPI YoY in the Q3 2026 prints trends lower vs Q2 2026.",
+    metadata: { chart_symbol: "FRED:CPIAUCSL", reference_links: [ { label: "US BLS CPI", url: "https://www.bls.gov/cpi/" } ] },
+    logo_keys: ["inflation"],
     title: "Will inflation trend lower in Q3 2026?",
     category: "Economy",
     yes_percent: 61.1,
@@ -53,6 +74,9 @@ export const MOCK_QUESTIONS: FeedQuestion[] = [
   },
   {
     _id: "q-5",
+    resolution_rules: "YES if India CPI (May 2026 release) prints below 4.5% YoY.",
+    metadata: { chart_symbol: "NSE:NIFTY50", reference_links: [ { label: "MoSPI India", url: "https://www.mospi.gov.in" } ] },
+    logo_keys: ["india-cpi"],
     title: "Will India CPI print below 4.5 in May release?",
     category: "Economy",
     yes_percent: 44.7,
@@ -80,6 +104,9 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     period_net_points: 1420,
     period_correct_predictions: 5,
     period_incorrect_predictions: 1,
+    period_resolved_points_spent: 1700,
+    period_roi_percent: 83.5,
+    prediction_count: 22,
   },
   {
     _id: "u-2",
@@ -95,6 +122,9 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     period_net_points: 1190,
     period_correct_predictions: 4,
     period_incorrect_predictions: 2,
+    period_resolved_points_spent: 1500,
+    period_roi_percent: 79.3,
+    prediction_count: 19,
   },
   {
     _id: "u-3",
@@ -110,6 +140,9 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     period_net_points: 940,
     period_correct_predictions: 3,
     period_incorrect_predictions: 2,
+    period_resolved_points_spent: 1460,
+    period_roi_percent: 64.4,
+    prediction_count: 17,
   },
   {
     _id: DEMO_USER_ID,
@@ -125,6 +158,9 @@ export const MOCK_LEADERBOARD: LeaderboardRow[] = [
     period_net_points: 530,
     period_correct_predictions: 2,
     period_incorrect_predictions: 1,
+    period_resolved_points_spent: 900,
+    period_roi_percent: 58.9,
+    prediction_count: 12,
   },
 ];
 
@@ -184,10 +220,10 @@ export const MOCK_USER_PREDICTIONS: UserPredictionsPayload = {
   success: true,
   total: 3,
   open: [
-    { _id: "pred-1", question_id: "q-1", question_title: "Will QQQ close below 600 by 30 April?", question_status: "open", answer: "yes", points_used: 500, points_earned: 0, is_resolved: false, is_correct: false, created_at: "2026-04-16T12:00:00Z" },
-    { _id: "pred-3", question_id: "q-3", question_title: "Will BTC reach $100k before year-end?", question_status: "open", answer: "no", points_used: 300, points_earned: 0, is_resolved: false, is_correct: false, created_at: "2026-04-15T09:30:00Z" },
+    { _id: "pred-1", question_id: "q-1", question_title: "Will QQQ close below 600 by 30 April?", question_status: "open", question_logo_keys: ["qqq"], answer: "yes", points_used: 500, points_earned: 0, shares_bought: 0.9712, entry_price: 514.8, entry_probability_percent: 51.48, current_yes_percent: 51.71, current_no_percent: 48.29, current_side_percent: 51.71, current_side_price: 517.1, current_position_value: 502.2, unrealized_pnl: 2.2, is_resolved: false, is_correct: false, created_at: "2026-04-16T12:00:00Z" },
+    { _id: "pred-3", question_id: "q-3", question_title: "Will BTC reach $100k before year-end?", question_status: "open", question_logo_keys: ["bitcoin"], answer: "no", points_used: 300, points_earned: 0, shares_bought: 0.6402, entry_price: 468.6, entry_probability_percent: 46.86, current_yes_percent: 54.2, current_no_percent: 45.8, current_side_percent: 45.8, current_side_price: 458.0, current_position_value: 293.2, unrealized_pnl: -6.8, is_resolved: false, is_correct: false, created_at: "2026-04-15T09:30:00Z" },
   ],
   closed: [
-    { _id: "pred-2", question_id: "q-2", question_title: "Will gold close above $5000/oz by 30 April?", question_status: "closed", answer: "yes", points_used: 400, points_earned: 620, is_resolved: true, is_correct: true, created_at: "2026-04-12T10:15:00Z" },
+    { _id: "pred-2", question_id: "q-2", question_title: "Will gold close above $5000/oz by 30 April?", question_status: "closed", question_logo_keys: ["gold"], answer: "yes", points_used: 400, points_earned: 620, shares_bought: 0.8163, entry_price: 490.0, entry_probability_percent: 49.0, current_yes_percent: 100, current_no_percent: 0, current_side_percent: 100, current_side_price: 1000, current_position_value: 620, unrealized_pnl: 220, is_resolved: true, is_correct: true, created_at: "2026-04-12T10:15:00Z" },
   ],
 };

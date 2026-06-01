@@ -1,4 +1,4 @@
-import { DEMO_USER_ID, MOCK_HISTORY, MOCK_LEADERBOARD, MOCK_PROFILE, MOCK_QUESTIONS, MOCK_USER_PREDICTIONS } from "./mockData";
+import { DEMO_USER_ID, MOCK_HISTORY, MOCK_LEADERBOARD, MOCK_LOGOS, MOCK_PROFILE, MOCK_QUESTIONS, MOCK_USER_PREDICTIONS } from "./mockData";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK === "true";
@@ -304,7 +304,7 @@ export async function fetchFeedQuestions(category?: string, status: string = "op
 
 export async function fetchActiveLogoAssets(): Promise<LogoAsset[]> {
   if (USE_MOCK_DATA) {
-    return [];
+    return MOCK_LOGOS;
   }
 
   try {
